@@ -1,42 +1,70 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { logout } from '@/app/login/actions'
+import { TopNav } from '@/components/layout/TopNav'
+import { BookCard } from '@/components/dashboard/BookCard'
+import { NewBookButton } from '@/components/dashboard/NewBookButton'
+import { BookOpen } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/login')
 
+  const { data: books } = await supabase
+    .from('books')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+
+  const bookIds = (books ?? []).map((b) => b.id)
+
+  const { data: pageCounts } = bookIds.length
+    ? await supabase
+        .from('book_pages')
+        .select('book_id')
+        .in('book_id', bookIds)
+    : { data: [] }
+
+  const countMap: Record<string, number> = {}
+  for (const row of pageCounts ?? []) {
+    countMap[row.book_id] = (countMap[row.book_id] ?? 0) + 1
+  }
+
   return (
-    <div className="min-h-screen bg-canvas text-cream">
-      <header className="border-b border-[#333] px-6 py-4 flex items-center justify-between">
-        <h1 className="font-playfair text-2xl text-cream">FlipBookPro</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-inter text-muted-foreground">{user.email}</span>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="text-sm font-inter text-cream/60 hover:text-cream transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+    <div className="min-h-screen bg-canvas">
+      <TopNav email={user.email ?? ''} />
 
-      <main className="px-6 py-12 max-w-6xl mx-auto">
+      <main className="px-6 py-10 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="font-playfair text-3xl text-cream">Your Books</h2>
-          <button className="px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors">
-            + New Book
-          </button>
+          <div>
+            <h2 className="font-playfair text-3xl text-cream">Your Books</h2>
+            <p className="text-muted-foreground text-sm font-source-serif mt-1">
+              {books?.length ?? 0} book{books?.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <NewBookButton />
         </div>
 
-        <div className="text-center py-24 text-muted-foreground font-source-serif">
-          <p className="text-lg">No books yet.</p>
-          <p className="text-sm mt-2">Click <span className="text-gold">New Book</span> to get started.</p>
-        </div>
+        {!books || books.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <BookOpen className="w-12 h-12 text-[#333] mb-4" />
+            <h3 className="font-playfair text-xl text-cream/60 mb-2">No books yet</h3>
+            <p className="text-muted-foreground text-sm font-source-serif mb-6 max-w-sm">
+              Create your first book and let AI build it with you — from outline to illustrated flipbook.
+            </p>
+            <NewBookButton />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {books.map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                chapterCount={countMap[book.id] ?? 0}
+              />
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )
