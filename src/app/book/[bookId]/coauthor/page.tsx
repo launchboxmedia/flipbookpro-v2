@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { CoauthorShell } from '@/components/coauthor/CoauthorShell'
 
 export default async function CoauthorPage({ params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -15,12 +16,11 @@ export default async function CoauthorPage({ params }: { params: { bookId: strin
 
   if (!book) redirect('/dashboard')
 
-  return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-playfair text-3xl text-cream mb-2">Co-Author Mode</h1>
-        <p className="text-muted-foreground font-source-serif">Feature 4 — coming next</p>
-      </div>
-    </div>
-  )
+  const { data: pages } = await supabase
+    .from('book_pages')
+    .select('*')
+    .eq('book_id', params.bookId)
+    .order('chapter_index', { ascending: true })
+
+  return <CoauthorShell book={book} pages={pages ?? []} />
 }
