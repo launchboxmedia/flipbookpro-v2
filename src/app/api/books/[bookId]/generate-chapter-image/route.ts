@@ -7,6 +7,7 @@ import {
   generateWithImagen,
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
+import { consumeRateLimit } from '@/lib/rateLimit'
 
 export const maxDuration = 120
 
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rl = await consumeRateLimit(supabase, { key: `gen-chapter-img:${user.id}`, max: 30, windowSeconds: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
+  }
 
   const { pageId, customPrompt } = await req.json()
   if (!pageId) return NextResponse.json({ error: 'pageId required' }, { status: 400 })

@@ -2,7 +2,18 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Book, BookPage } from '@/types/database'
 import type { ResolvedPaletteColors } from '@/lib/palettes'
 
-const haiku = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const haiku = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: 30_000,
+  maxRetries: 2,
+})
+
+function extractText(content: Anthropic.ContentBlock[]): string {
+  for (const block of content) {
+    if (block.type === 'text') return block.text.trim()
+  }
+  return ''
+}
 
 // ── Style descriptors keyed by book.visual_style ───────────────────────────
 
@@ -173,7 +184,7 @@ ${briefs.length > 0 ? briefs.map((b, i) => `${i + 1}. ${b}`).join('\n') : '(no c
     messages: [{ role: 'user', content: userContent }],
   })
 
-  const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : ''
+  const text = extractText(msg.content)
   return text.replace(/^["'`]|["'`]$/g, '').trim()
 }
 

@@ -7,7 +7,21 @@ import { WRITING_STANDARDS, HUMANIZATION_PROMPT } from './writing-standards'
 // Secondary: Gemini Flash
 // Tertiary:  Gemini Flash Lite
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  // Per-request timeout — the SDK retries 5xx/429 itself. We add our own
+  // ceiling so a stuck request doesn't tie up the route until Vercel's
+  // maxDuration fires.
+  timeout: 60_000,
+  maxRetries: 2,
+})
+
+function extractText(content: Anthropic.ContentBlock[]): string {
+  for (const block of content) {
+    if (block.type === 'text') return block.text.trim()
+  }
+  return ''
+}
 
 function getGemini() {
   const key = process.env.GEMINI_API_KEY
@@ -41,7 +55,7 @@ export async function generateText(opts: TextGenOptions): Promise<string> {
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: 'user', content: userPrompt }],
     })
-    const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
+    const text = extractText(msg.content)
     if (text) return text
   } catch (e) {
     console.warn('[textGen] Claude Sonnet failed, falling back to Gemini Flash:', (e as Error).message)

@@ -1,11 +1,17 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateTextStream } from '@/lib/textGeneration'
+import { consumeRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+
+  const rl = await consumeRateLimit(supabase, { key: `generate-draft:${user.id}`, max: 60, windowSeconds: 3600 })
+  if (!rl.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in an hour.' }), { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
+  }
 
   const { pageId } = await req.json()
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText } from '@/lib/textGeneration'
+import { consumeRateLimit } from '@/lib/rateLimit'
 
 const MIN_OUTLINE_LENGTH = 50
 const MAX_OUTLINE_LENGTH = 50_000
@@ -9,6 +10,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rl = await consumeRateLimit(supabase, { key: `detect-chapters:${user.id}`, max: 20, windowSeconds: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
+  }
 
   const { outline } = await req.json().catch(() => ({}))
 

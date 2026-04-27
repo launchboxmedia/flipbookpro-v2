@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
@@ -29,6 +29,17 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
   const [visualStyle, setVisualStyle] = useState<string | null>(book.visual_style)
   const [palette, setPalette] = useState<string | null>(book.palette)
 
+  // Track in-flight image generation requests so they can be aborted on
+  // unmount or page navigation.
+  const inflightControllers = useRef<Map<string, AbortController>>(new Map())
+  useEffect(() => {
+    const controllers = inflightControllers.current
+    return () => {
+      controllers.forEach((c) => c.abort())
+      controllers.clear()
+    }
+  }, [])
+
   const chapterPages = pages
     .filter((p) => p.chapter_index >= 0)
     .sort((a, b) => a.chapter_index - b.chapter_index)
@@ -51,46 +62,59 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
   const allApproved = chapterPages.length > 0 && chapterPages.every((p) => p.approved)
 
   const generateChapterImage = useCallback(async (pageId: string, customPrompt?: string) => {
+    // Abort any prior in-flight request for this page (deduplication)
+    inflightControllers.current.get(pageId)?.abort()
+    const controller = new AbortController()
+    inflightControllers.current.set(pageId, controller)
+
     setImageStatuses((prev) => ({ ...prev, [pageId]: 'generating' }))
     try {
       const res = await fetch(`/api/books/${book.id}/generate-chapter-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pageId, customPrompt }),
+        signal: controller.signal,
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed')
+      // Bail if a newer request superseded us
+      if (inflightControllers.current.get(pageId) !== controller) return
       setPages((prev) =>
-        prev.map((p) => (p.id === pageId ? { ...p, image_url: json.imageUrl } : p))
+        prev.map((p) => (p.id === pageId ? { ...p, image_url: json.imageUrl } : p)),
       )
       setImageStatuses((prev) => ({ ...prev, [pageId]: 'done' }))
       setImageErrors((prev) => { const n = { ...prev }; delete n[pageId]; return n })
     } catch (e) {
+      // Don't surface AbortError as a user-visible failure
+      if (e instanceof DOMException && e.name === 'AbortError') return
       const msg = e instanceof Error ? e.message : 'Unknown error'
       setImageStatuses((prev) => ({ ...prev, [pageId]: 'error' }))
       setImageErrors((prev) => ({ ...prev, [pageId]: msg }))
+    } finally {
+      if (inflightControllers.current.get(pageId) === controller) {
+        inflightControllers.current.delete(pageId)
+      }
     }
   }, [book.id])
 
   const changeVisualStyle = useCallback(async (newStyle: string) => {
     const previous = visualStyle
     setVisualStyle(newStyle)
+    // Capture the chapter id at call time so a navigation during the await
+    // doesn't regenerate the wrong chapter.
+    const current = pages
+      .filter((p) => p.chapter_index >= 0)
+      .sort((a, b) => a.chapter_index - b.chapter_index)[activeChapterIndex]
+    const chapterId = current?.id
     try {
       const res = await fetch(`/api/books/${book.id}/update-style`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visualStyle: newStyle }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? 'Failed to update style')
-
-      // Regenerate the current chapter image with the new style.
-      const current = pages
-        .filter((p) => p.chapter_index >= 0)
-        .sort((a, b) => a.chapter_index - b.chapter_index)[activeChapterIndex]
-      if (current) {
-        await generateChapterImage(current.id)
-      }
+      if (chapterId) await generateChapterImage(chapterId)
     } catch {
       setVisualStyle(previous)
     }
@@ -99,22 +123,19 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
   const changePalette = useCallback(async (newPalette: string) => {
     const previous = palette
     setPalette(newPalette)
+    const current = pages
+      .filter((p) => p.chapter_index >= 0)
+      .sort((a, b) => a.chapter_index - b.chapter_index)[activeChapterIndex]
+    const chapterId = current?.id
     try {
       const res = await fetch(`/api/books/${book.id}/update-style`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ palette: newPalette }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? 'Failed to update palette')
-
-      // Regenerate the current chapter image with the new palette.
-      const current = pages
-        .filter((p) => p.chapter_index >= 0)
-        .sort((a, b) => a.chapter_index - b.chapter_index)[activeChapterIndex]
-      if (current) {
-        await generateChapterImage(current.id)
-      }
+      if (chapterId) await generateChapterImage(chapterId)
     } catch {
       setPalette(previous)
     }

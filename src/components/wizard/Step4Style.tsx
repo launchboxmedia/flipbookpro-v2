@@ -217,19 +217,22 @@ export function Step4Style({ data, onNext, onBack }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    let cancelled = false
-    fetch('/api/profile')
+    const controller = new AbortController()
+    fetch('/api/profile', { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
-        if (!cancelled && p) {
+        if (p) {
           setBrandColors({
             primary: p.brand_color ?? null,
             accent: p.accent_color ?? null,
           })
         }
       })
-      .catch(() => {})
-    return () => { cancelled = true }
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        console.error('[Step4Style] profile fetch failed', e)
+      })
+    return () => controller.abort()
   }, [])
 
   function handleNext() {
