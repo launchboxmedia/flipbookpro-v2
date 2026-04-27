@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Loader2, ShoppingBag, Link2, FileText, BookOpen, Check, Sparkles, RefreshCw, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Loader2, ShoppingBag, Link2, FileText, BookOpen, Check, Sparkles, RefreshCw, X, Upload, ImageIcon } from 'lucide-react'
 import type { Book } from '@/types/database'
 
 type BackMatterField = 'tagline' | 'description' | 'ctaText' | 'ctaUrl' | 'optional'
@@ -44,6 +44,12 @@ export function BackMatterStage({ book, onComplete }: Props) {
   const [ctaUrl,      setCtaUrl]      = useState(book.back_cover_cta_url     ?? '')
   const [savingCover,  setSavingCover]  = useState(false)
   const [savedCover,   setSavedCover]   = useState(false)
+
+  // Back-cover image
+  const [backImageUrl, setBackImageUrl] = useState<string | null>(book.back_cover_image_url)
+  const [uploadingBackImage, setUploadingBackImage] = useState(false)
+  const [backImageError, setBackImageError] = useState('')
+  const backImageInputRef = useRef<HTMLInputElement>(null)
 
   // Optional pages
   const [activeType, setActiveType] = useState<BackMatterType | null>(null)
@@ -162,6 +168,49 @@ export function BackMatterStage({ book, onComplete }: Props) {
       next.add(i)
       return next
     })
+  }
+
+  async function uploadBackImage(file: File) {
+    setUploadingBackImage(true)
+    setBackImageError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/books/${book.id}/upload-back-cover`, {
+        method: 'POST',
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Upload failed (${res.status})`)
+      setBackImageUrl(json.imageUrl)
+    } catch (e) {
+      setBackImageError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploadingBackImage(false)
+    }
+  }
+
+  async function removeBackImage() {
+    setUploadingBackImage(true)
+    setBackImageError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/upload-back-cover`, { method: 'DELETE' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Remove failed')
+      }
+      setBackImageUrl(null)
+    } catch (e) {
+      setBackImageError(e instanceof Error ? e.message : 'Remove failed')
+    } finally {
+      setUploadingBackImage(false)
+    }
+  }
+
+  function handleBackImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) uploadBackImage(file)
+    e.target.value = ''
   }
 
   const visibleFlags = flags.filter((_, i) => !dismissedFlags.has(i))
@@ -291,6 +340,57 @@ export function BackMatterStage({ book, onComplete }: Props) {
         </div>
 
         <div className="bg-[#222] border border-[#333] rounded-xl p-6 space-y-4">
+          {/* Back cover image */}
+          <div className="space-y-2">
+            <label className="text-xs font-inter text-muted-foreground">Back cover image <span className="text-cream/30">(optional)</span></label>
+            <div className="flex items-start gap-3">
+              {backImageUrl ? (
+                <div className="relative">
+                  <img
+                    src={backImageUrl}
+                    alt="Back cover"
+                    className="w-24 h-32 object-cover rounded-md border border-[#333]"
+                  />
+                  <button
+                    onClick={removeBackImage}
+                    disabled={uploadingBackImage}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#1A1A1A] border border-[#333] rounded-full flex items-center justify-center text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                    title="Remove image"
+                    aria-label="Remove back cover image"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-24 h-32 bg-[#1A1A1A] border border-dashed border-[#333] rounded-md flex flex-col items-center justify-center gap-1">
+                  <ImageIcon className="w-4 h-4 text-[#444]" />
+                  <span className="text-[10px] font-inter text-muted-foreground">No image</span>
+                </div>
+              )}
+              <div className="flex-1 space-y-2">
+                <button
+                  onClick={() => backImageInputRef.current?.click()}
+                  disabled={uploadingBackImage}
+                  className="flex items-center gap-2 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-40"
+                >
+                  {uploadingBackImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {backImageUrl ? 'Replace' : 'Upload'} image
+                </button>
+                <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+                  PNG, JPEG, or WebP. Up to 5 MB. Recommended: 3:4 portrait for the back-cover spread.
+                </p>
+                {backImageError && <p className="text-[10px] text-red-400 font-inter">{backImageError}</p>}
+              </div>
+              <input
+                ref={backImageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleBackImageChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-xs font-inter text-muted-foreground">Tagline / subtitle</label>
             <input

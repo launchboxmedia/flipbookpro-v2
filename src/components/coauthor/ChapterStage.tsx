@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb } from 'lucide-react'
+import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload } from 'lucide-react'
 import type { Book, BookPage } from '@/types/database'
 import type { ImageStatus } from './CoauthorShell'
 import { STYLE_OPTIONS } from '@/lib/imageStyles'
@@ -61,6 +61,7 @@ interface Props {
   onChangePalette: (newPalette: string) => void | Promise<void>
   onPageUpdate: (changes: { id: string } & Partial<BookPage>) => void
   onGenerateImage: (customPrompt?: string) => void
+  onUploadImage: (file: File) => void
   onNext: () => void
   onPrev: () => void
 }
@@ -69,7 +70,7 @@ export function ChapterStage({
   book, page, pageIndex, totalPages,
   imageStatus, imageError, visualStyle, onChangeStyle,
   palette, onChangePalette,
-  onPageUpdate, onGenerateImage,
+  onPageUpdate, onGenerateImage, onUploadImage,
   onNext, onPrev,
 }: Props) {
   const [draft, setDraft] = useState(page?.content ?? '')
@@ -80,6 +81,7 @@ export function ChapterStage({
   const [approving, setApproving] = useState(false)
   const [approved, setApproved] = useState(page?.approved ?? false)
   const [imagePrompt, setImagePrompt] = useState('')
+  const imageFileInputRef = useRef<HTMLInputElement>(null)
   const [flags, setFlags] = useState<ChapterFlag[]>([])
   const [dismissedFlags, setDismissedFlags] = useState<Set<number>>(new Set())
   const [analyzing, setAnalyzing] = useState(false)
@@ -221,6 +223,12 @@ export function ChapterStage({
       if (trimmed.toLowerCase().includes(mod.toLowerCase())) return prev
       return `${trimmed}. ${mod}`
     })
+  }
+
+  function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) onUploadImage(file)
+    e.target.value = ''
   }
 
   async function runAnalysis() {
@@ -442,20 +450,38 @@ export function ChapterStage({
               )}
             </div>
 
-            <button
-              onClick={handleGenerateImage}
-              disabled={isGeneratingImage}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-accent hover:bg-accent/90 text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
-            >
-              {isGeneratingImage ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : imageUrl ? (
-                <RefreshCw className="w-3 h-3" />
-              ) : (
-                <Wand2 className="w-3 h-3" />
-              )}
-              {isGeneratingImage ? 'Generating…' : imageUrl ? 'Regenerate' : 'Generate Image'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerateImage}
+                disabled={isGeneratingImage}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-accent hover:bg-accent/90 text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+              >
+                {isGeneratingImage ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : imageUrl ? (
+                  <RefreshCw className="w-3 h-3" />
+                ) : (
+                  <Wand2 className="w-3 h-3" />
+                )}
+                {isGeneratingImage ? 'Generating…' : imageUrl ? 'Regenerate' : 'Generate Image'}
+              </button>
+              <button
+                onClick={() => imageFileInputRef.current?.click()}
+                disabled={isGeneratingImage}
+                title="Upload your own image (PNG, JPEG, or WebP, up to 5 MB)"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+              >
+                <Upload className="w-3 h-3" />
+                Upload
+              </button>
+              <input
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleImageFileChange}
+                className="hidden"
+              />
+            </div>
           </div>
         </div>
 

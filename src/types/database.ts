@@ -24,6 +24,7 @@ export interface Book {
   back_cover_description: string | null
   back_cover_cta_text: string | null
   back_cover_cta_url: string | null
+  back_cover_image_url: string | null
   published_at: string | null
   created_at: string
   updated_at: string

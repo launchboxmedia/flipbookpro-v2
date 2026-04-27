@@ -161,6 +161,31 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
     }
   }, [book.id])
 
+  const uploadChapterImage = useCallback(async (pageId: string, file: File) => {
+    inflightControllers.current.get(pageId)?.abort()
+    setImageStatuses((prev) => ({ ...prev, [pageId]: 'generating' }))
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('pageId', pageId)
+      const res = await fetch(`/api/books/${book.id}/upload-chapter-image`, {
+        method: 'POST',
+        body: formData,
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Upload failed (${res.status})`)
+      setPages((prev) =>
+        prev.map((p) => (p.id === pageId ? { ...p, image_url: json.imageUrl } : p)),
+      )
+      setImageStatuses((prev) => ({ ...prev, [pageId]: 'done' }))
+      setImageErrors((prev) => { const n = { ...prev }; delete n[pageId]; return n })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Upload failed'
+      setImageStatuses((prev) => ({ ...prev, [pageId]: 'error' }))
+      setImageErrors((prev) => ({ ...prev, [pageId]: msg }))
+    }
+  }, [book.id])
+
   const handleCoverUpload = useCallback(async (file: File) => {
     setCoverImageStatus('generating')
     setCoverImageError(null)
@@ -243,6 +268,7 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
             onChangePalette={changePalette}
             onPageUpdate={(changes) => updatePage(changes)}
             onGenerateImage={(customPrompt) => generateChapterImage(currentPage.id, customPrompt)}
+            onUploadImage={(file) => uploadChapterImage(currentPage.id, file)}
             onNext={() => {
               if (activeChapterIndex < chapterPages.length - 1) {
                 navigateChapter(activeChapterIndex + 1)
