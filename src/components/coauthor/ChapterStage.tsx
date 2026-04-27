@@ -487,19 +487,27 @@ export function ChapterStage({
         </div>
 
         <div className="p-3 border-t border-[#333]">
-          <div className="flex gap-2">
-            <input
+          <div className="flex gap-2 items-end">
+            <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
-              placeholder="Ask for changes..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  sendChat()
+                }
+              }}
+              placeholder="Ask for changes…  (Enter to send, Shift+Enter for new line)"
               disabled={!draft || approved}
-              className="flex-1 px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40"
+              rows={3}
+              className="flex-1 px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40 resize-y min-h-[64px] max-h-[200px] leading-relaxed"
             />
             <button
               onClick={sendChat}
               disabled={!chatInput.trim() || chatLoading || !draft || approved}
-              className="p-2 bg-accent hover:bg-accent/90 text-cream rounded-md transition-colors disabled:opacity-40"
+              className="p-2 bg-accent hover:bg-accent/90 text-cream rounded-md transition-colors disabled:opacity-40 shrink-0"
+              title="Send (Enter)"
+              aria-label="Send"
             >
               <Send className="w-3.5 h-3.5" />
             </button>
