@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, List, BookOpen, FileText, Eye, CheckCircle2, ImageIcon, Loader2, RefreshCw, Upload, X, Wand2 } from 'lucide-react'
+import { ArrowLeft, List, BookOpen, FileText, Eye, CheckCircle2, ImageIcon, Loader2, RefreshCw, Upload, X, Wand2, ZoomIn } from 'lucide-react'
+import { ImageLightboxOverlay } from '@/components/ui/ImageLightbox'
 import type { Book, BookPage } from '@/types/database'
 import type { CoauthorStage } from './CoauthorShell'
 import type { ImageStatus } from './CoauthorShell'
@@ -29,6 +30,7 @@ export function CoauthorSidebar({
 }: Props) {
   const [showCoverPrompt, setShowCoverPrompt] = useState(false)
   const [coverPrompt, setCoverPrompt] = useState('')
+  const [coverLightboxOpen, setCoverLightboxOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function handleGenerateCover() {
@@ -81,6 +83,14 @@ export function CoauthorSidebar({
               />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center gap-2">
                 <button
+                  onClick={() => setCoverLightboxOpen(true)}
+                  className="p-1.5 bg-[#1E1E1E]/80 rounded-md text-cream hover:text-accent transition-colors"
+                  title="View enlarged"
+                  aria-label="View enlarged cover"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
                   onClick={() => setShowCoverPrompt((v) => !v)}
                   className="p-1.5 bg-[#1E1E1E]/80 rounded-md text-cream hover:text-accent transition-colors"
                   title="Regenerate cover"
@@ -95,6 +105,12 @@ export function CoauthorSidebar({
                   <Upload className="w-3.5 h-3.5" />
                 </button>
               </div>
+              <ImageLightboxOverlay
+                src={coverImageUrl}
+                alt={`${book.title} — cover`}
+                open={coverLightboxOpen}
+                onClose={() => setCoverLightboxOpen(false)}
+              />
             </div>
           ) : (
             <div className="mx-2 aspect-[2/3] bg-[#2A2A2A] rounded-md flex flex-col items-center justify-center gap-2 border border-dashed border-[#444]">

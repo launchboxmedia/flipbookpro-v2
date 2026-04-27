@@ -6,6 +6,7 @@ import type { Book, BookPage } from '@/types/database'
 import type { ImageStatus } from './CoauthorShell'
 import { STYLE_OPTIONS } from '@/lib/imageStyles'
 import { PALETTES } from '@/lib/palettes'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -263,13 +264,13 @@ export function ChapterStage({
               <span className="text-xs text-muted-foreground font-inter">Generating…</span>
             </div>
           ) : imageUrl ? (
-            <div className="relative group">
+            <ImageLightbox src={imageUrl} alt={page.chapter_title}>
               <img
                 src={imageUrl}
                 alt={page.chapter_title}
                 className="w-full aspect-video object-cover rounded-md"
               />
-            </div>
+            </ImageLightbox>
           ) : (
             <div className="w-full aspect-video bg-[#2A2A2A] rounded-md flex flex-col items-center justify-center gap-2 border border-dashed border-[#444]">
               <ImageIcon className="w-5 h-5 text-[#555]" />
