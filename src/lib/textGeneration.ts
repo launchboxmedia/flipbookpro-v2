@@ -29,12 +29,16 @@ function getGemini() {
   return new GoogleGenerativeAI(key)
 }
 
+export type ClaudeModel = 'claude-sonnet-4-6' | 'claude-haiku-4-5-20251001'
+
 export interface TextGenOptions {
   systemPrompt?: string
   userPrompt: string
   maxTokens?: number
   /** If true, injects WRITING_STANDARDS + HUMANIZATION_PROMPT into every call */
   humanize?: boolean
+  /** Claude model — defaults to Sonnet. Use Haiku for cheap/quick tasks. */
+  model?: ClaudeModel
 }
 
 function injectHumanization(prompt: string, humanize?: boolean): string {
@@ -44,13 +48,13 @@ function injectHumanization(prompt: string, humanize?: boolean): string {
 
 /** Non-streaming text generation with 3-level fallback */
 export async function generateText(opts: TextGenOptions): Promise<string> {
-  const { systemPrompt, maxTokens = 2000, humanize = true } = opts
+  const { systemPrompt, maxTokens = 2000, humanize = true, model = 'claude-sonnet-4-6' } = opts
   const userPrompt = injectHumanization(opts.userPrompt, humanize)
 
-  // ─── Primary: Claude Sonnet ───────────────────────────────────────────────
+  // ─── Primary: Claude (Sonnet by default; Haiku for cheap utilities) ──────
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model,
       max_tokens: maxTokens,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: 'user', content: userPrompt }],
@@ -58,7 +62,7 @@ export async function generateText(opts: TextGenOptions): Promise<string> {
     const text = extractText(msg.content)
     if (text) return text
   } catch (e) {
-    console.warn('[textGen] Claude Sonnet failed, falling back to Gemini Flash:', (e as Error).message)
+    console.warn(`[textGen] Claude ${model} failed, falling back to Gemini Flash:`, (e as Error).message)
   }
 
   // ─── Secondary: Gemini Flash ──────────────────────────────────────────────

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const { data: book } = await supabase
     .from('books')
-    .select('*')
+    .select('id, title, persona')
     .eq('id', params.bookId)
     .eq('user_id', user.id)
     .single()
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const { data: page } = await supabase
     .from('book_pages')
-    .select('*')
+    .select('id, chapter_title, chapter_brief')
     .eq('id', pageId)
     .eq('book_id', params.bookId)
     .single()

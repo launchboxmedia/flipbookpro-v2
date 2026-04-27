@@ -35,6 +35,7 @@ ${title.trim()}
 Return only the JSON object, no other text.`,
     maxTokens: 300,
     humanize: false,
+    model: 'claude-haiku-4-5-20251001',
   })
 
   try {

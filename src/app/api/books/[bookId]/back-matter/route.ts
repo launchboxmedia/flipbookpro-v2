@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { bookId: stri
 
   const { data: backMatterPages } = await supabase
     .from('book_pages')
-    .select('*')
+    .select('id, chapter_index, chapter_title, content, approved')
     .eq('book_id', params.bookId)
     .lt('chapter_index', 0)
     .order('chapter_index', { ascending: false })

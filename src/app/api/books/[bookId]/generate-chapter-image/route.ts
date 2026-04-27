@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const [{ data: book }, { data: page }, { data: profile }] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
-    supabase.from('book_pages').select('*').eq('id', pageId).eq('book_id', params.bookId).single(),
+    supabase.from('book_pages').select('id, chapter_title, chapter_brief, content, image_url').eq('id', pageId).eq('book_id', params.bookId).single(),
     supabase.from('profiles').select('brand_color, accent_color').eq('id', user.id).single(),
   ])
 
