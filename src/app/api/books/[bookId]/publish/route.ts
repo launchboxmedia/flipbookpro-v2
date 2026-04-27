@@ -28,19 +28,26 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Generate a unique slug
-  const baseSlug = slugify(book.title || 'untitled')
+  // Generate a unique slug — bounded retries so a pathological collision
+  // (or a DB outage) can't hang the route.
+  const baseSlug = slugify(book.title || 'untitled') || 'book'
+  const MAX_SLUG_ATTEMPTS = 50
   let slug = baseSlug
   let attempt = 0
-  while (true) {
+  while (attempt < MAX_SLUG_ATTEMPTS) {
     const { data: existing } = await supabase
       .from('published_books')
-      .select('id')
+      .select('id, book_id')
       .eq('slug', slug)
       .maybeSingle()
     if (!existing) break
+    // Allow re-publishing the same book to keep its existing slug
+    if (existing.book_id === params.bookId) break
     attempt++
     slug = `${baseSlug}-${attempt}`
+  }
+  if (attempt >= MAX_SLUG_ATTEMPTS) {
+    return NextResponse.json({ error: 'Could not allocate a unique slug.' }, { status: 409 })
   }
 
   // Build a two-sentence description from back-cover fields or chapters

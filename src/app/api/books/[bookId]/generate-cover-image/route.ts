@@ -5,6 +5,8 @@ import {
   buildCustomPrompt,
   extractCoverScene,
   generateWithImagen,
+  personGenerationFor,
+  storagePathFromPublicUrl,
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
 import { consumeRateLimit } from '@/lib/rateLimit'
@@ -56,7 +58,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     console.log(finalPrompt)
     console.log('====================================================\n')
 
-    const imageBuffer = await generateWithImagen(finalPrompt, '3:4')
+    const imageBuffer = await generateWithImagen(finalPrompt, {
+      aspectRatio: '3:4',
+      personGeneration: personGenerationFor(book),
+    })
 
     const filename = `covers/${params.bookId}-${Date.now()}.jpg`
     const { error: uploadError } = await supabase.storage
@@ -67,7 +72,16 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
     const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
 
-    await supabase.from('books').update({ cover_image_url: publicUrl }).eq('id', params.bookId)
+    const oldPath = storagePathFromPublicUrl(book.cover_image_url, 'book-images')
+    await supabase.from('books')
+      .update({ cover_image_url: publicUrl })
+      .eq('id', params.bookId)
+      .eq('user_id', user.id)
+    if (oldPath && oldPath !== filename) {
+      void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
+        if (error) console.error('[generate-cover-image] cleanup failed', error.message)
+      })
+    }
 
     return NextResponse.json({ imageUrl: publicUrl })
   } catch (e: unknown) {

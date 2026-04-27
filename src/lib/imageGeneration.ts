@@ -219,6 +219,17 @@ export function buildCoverPrompt(
   ].filter(Boolean).join(' ')
 }
 
+// Extracts the in-bucket path from a Supabase storage public URL. Returns
+// null if the URL doesn't match the expected shape — caller should skip
+// cleanup in that case.
+export function storagePathFromPublicUrl(url: string | null | undefined, bucket: string): string | null {
+  if (!url) return null
+  const marker = `/storage/v1/object/public/${bucket}/`
+  const idx = url.indexOf(marker)
+  if (idx === -1) return null
+  return url.slice(idx + marker.length)
+}
+
 // ── Image generation via Google Imagen 4 ────────────────────────────────────
 
 const IMAGEN_API_URL =
@@ -229,12 +240,29 @@ const IMAGEN_API_URL =
 // hallucinated garbled text onto covers and chapter art. Imagen 3 is no
 // longer available on this API key — Imagen 4 is the current default.
 
+export type PersonGeneration = 'ALLOW_ADULT' | 'DONT_ALLOW'
+
+export interface ImagenOptions {
+  aspectRatio?: '16:9' | '1:1' | '3:4' | '4:3' | '9:16'
+  personGeneration?: PersonGeneration
+}
+
+export function personGenerationFor(book: Pick<Book, 'persona'>): PersonGeneration {
+  return forbidsHumans(book) ? 'DONT_ALLOW' : 'ALLOW_ADULT'
+}
+
 export async function generateWithImagen(
   prompt: string,
-  aspectRatio: '16:9' | '1:1' | '3:4' | '4:3' | '9:16' = '16:9',
+  optsOrRatio: ImagenOptions['aspectRatio'] | ImagenOptions = '16:9',
 ): Promise<Buffer> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
+
+  const opts: ImagenOptions = typeof optsOrRatio === 'string'
+    ? { aspectRatio: optsOrRatio }
+    : optsOrRatio
+  const aspectRatio = opts.aspectRatio ?? '16:9'
+  const personGeneration = opts.personGeneration ?? 'ALLOW_ADULT'
 
   const url = `${IMAGEN_API_URL}?key=${apiKey}`
 
@@ -255,7 +283,7 @@ export async function generateWithImagen(
           parameters: {
             sampleCount: 1,
             aspectRatio,
-            personGeneration: 'ALLOW_ADULT',
+            personGeneration,
           },
         }),
       })

@@ -5,6 +5,8 @@ import {
   buildCustomPrompt,
   extractChapterScene,
   generateWithImagen,
+  personGenerationFor,
+  storagePathFromPublicUrl,
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
 import { consumeRateLimit } from '@/lib/rateLimit'
@@ -58,7 +60,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     console.log(finalPrompt)
     console.log('======================================================\n')
 
-    const imageBuffer = await generateWithImagen(finalPrompt, '16:9')
+    const imageBuffer = await generateWithImagen(finalPrompt, {
+      aspectRatio: '16:9',
+      personGeneration: personGenerationFor(book),
+    })
 
     const filename = `chapters/${params.bookId}/${pageId}-${Date.now()}.jpg`
     const { error: uploadError } = await supabase.storage
@@ -69,7 +74,14 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
     const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
 
+    const oldPath = storagePathFromPublicUrl(page.image_url, 'book-images')
     await supabase.from('book_pages').update({ image_url: publicUrl }).eq('id', pageId)
+    // Best-effort cleanup of the previous image. Don't block on errors.
+    if (oldPath && oldPath !== filename) {
+      void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
+        if (error) console.error('[generate-chapter-image] cleanup failed', error.message)
+      })
+    }
 
     return NextResponse.json({
       imageUrl: publicUrl,
