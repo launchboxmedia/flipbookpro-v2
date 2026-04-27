@@ -49,16 +49,18 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       finalPrompt = buildChapterPrompt(scene, book, paletteColors)
     }
 
-    console.log('\n========== [generate-chapter-image] PROMPT ==========')
-    console.log(`book.persona      : ${book.persona}`)
-    console.log(`book.visual_style : ${book.visual_style}`)
-    console.log(`book.palette      : ${book.palette} → ${paletteColors.source}`)
-    console.log(`palette colors    : primary=${paletteColors.primary} secondary=${paletteColors.secondary}`)
-    console.log(`page.chapter_title: ${page.chapter_title}`)
-    if (scene) console.log(`scene             : ${scene}`)
-    console.log('--- final prompt ---')
-    console.log(finalPrompt)
-    console.log('======================================================\n')
+    if (process.env.DEBUG_PROMPTS === '1') {
+      console.log('\n========== [generate-chapter-image] PROMPT ==========')
+      console.log(`book.persona      : ${book.persona}`)
+      console.log(`book.visual_style : ${book.visual_style}`)
+      console.log(`book.palette      : ${book.palette} → ${paletteColors.source}`)
+      console.log(`palette colors    : primary=${paletteColors.primary} secondary=${paletteColors.secondary}`)
+      console.log(`page.chapter_title: ${page.chapter_title}`)
+      if (scene) console.log(`scene             : ${scene}`)
+      console.log('--- final prompt ---')
+      console.log(finalPrompt)
+      console.log('======================================================\n')
+    }
 
     const imageBuffer = await generateWithImagen(finalPrompt, {
       aspectRatio: '16:9',

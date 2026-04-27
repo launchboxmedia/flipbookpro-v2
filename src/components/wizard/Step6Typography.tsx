@@ -279,7 +279,7 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {TYPOGRAPHY_OPTIONS.map((t) => (
           <button
             key={t.id}

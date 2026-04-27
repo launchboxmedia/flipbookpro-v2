@@ -12,6 +12,10 @@ export interface Book {
   status: BookStatus
   persona: string | null
   visual_style: string | null
+  vibe: string | null
+  writing_tone: string | null
+  reader_level: number | null
+  human_score: boolean | null
   cover_direction: string | null
   typography: string | null
   palette: string | null

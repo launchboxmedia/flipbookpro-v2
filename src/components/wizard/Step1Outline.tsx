@@ -122,11 +122,13 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
                 <span className="text-xs text-muted-foreground font-inter mt-2.5 w-5 shrink-0">{i + 1}</span>
                 <div className="flex-1 space-y-2">
                   <input
+                    aria-label={`Chapter ${i + 1} title`}
                     value={ch.title}
                     onChange={(e) => updateChapter(i, 'title', e.target.value)}
                     className="w-full px-2 py-1.5 rounded bg-[#2A2A2A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                   />
                   <textarea
+                    aria-label={`Chapter ${i + 1} brief`}
                     value={ch.brief}
                     onChange={(e) => updateChapter(i, 'brief', e.target.value)}
                     rows={2}

@@ -3,6 +3,12 @@ import { login } from './actions'
 import { AuthCard } from '@/components/auth/AuthCard'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 
+export const metadata = {
+  title: 'Sign in — FlipBookPro',
+  description: 'Sign in to FlipBookPro to write, illustrate, and publish your flipbook.',
+  robots: { index: false, follow: false },
+}
+
 export default function LoginPage({
   searchParams,
 }: {
