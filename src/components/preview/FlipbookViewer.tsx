@@ -114,6 +114,17 @@ const pageBase: React.CSSProperties = {
 const padLeft:  React.CSSProperties = { padding: '34px 24px 26px 38px' }  // outer gutter left
 const padRight: React.CSSProperties = { padding: '34px 38px 26px 24px' }  // outer gutter right
 
+// Body containers on chapter and back-matter pages use flex:1 + overflow:hidden
+// to fill the page below the header. The available height is rarely an exact
+// multiple of line-height, so any partial line that overflows would be clipped
+// mid-letter. The mask fades the bottom ~0.6em so a partial line softens to
+// transparent instead of looking sliced; full lines above are visually
+// unaffected.
+const bodyFadeMask: React.CSSProperties = {
+  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.6em), transparent 100%)',
+  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.6em), transparent 100%)',
+}
+
 // ── Page components — zero hardcoded colour values ──────────────────────────
 
 function BlankPage({ dark }: { dark?: boolean }) {
@@ -311,7 +322,7 @@ function ChapterTextPage({ page, num }: { page: BookPage; num: number }) {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)' }}>
+      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask }}>
         {!content ? (
           <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>Chapter not yet written.</p>
         ) : (
@@ -347,7 +358,7 @@ function BackMatterPage({ page, side }: { page: BookPage; side: 'left' | 'right'
         {page.chapter_title}
       </h2>
       <div style={{ width: 22, height: 2, background: 'var(--accent)', marginBottom: 16, flexShrink: 0 }} />
-      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)' }}>
+      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask }}>
         {paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)}
       </div>
     </div>
