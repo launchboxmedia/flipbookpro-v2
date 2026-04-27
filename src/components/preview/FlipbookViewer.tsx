@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Download, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, ArrowLeft, FileText, Printer } from 'lucide-react'
 import Link from 'next/link'
 import type { Book, BookPage, Profile } from '@/types/database'
 import type { BookTheme } from '@/lib/bookTheme'
@@ -519,6 +519,75 @@ function EdgeShadow({ edge }: { edge: 'left' | 'right' }) {
 
 // ── Main component ──────────────────────────────────────────────────────────
 
+function ExportMenu({ bookId }: { bookId: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onClickOut(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOut)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClickOut)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-sm font-inter text-muted-foreground hover:text-accent transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        Export
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-56 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg shadow-2xl py-1 z-50"
+        >
+          <a
+            href={`/api/books/${bookId}/export-html`}
+            role="menuitem"
+            className="flex items-center gap-3 px-3 py-2 text-sm font-inter text-cream/80 hover:bg-[#2A2A2A] hover:text-cream transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <FileText className="w-4 h-4 text-gold/70" />
+            <div className="flex-1">
+              <p className="leading-tight">HTML</p>
+              <p className="text-[10px] text-muted-foreground">Standalone web page</p>
+            </div>
+          </a>
+          <a
+            href={`/api/books/${bookId}/export-pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            role="menuitem"
+            className="flex items-center gap-3 px-3 py-2 text-sm font-inter text-cream/80 hover:bg-[#2A2A2A] hover:text-cream transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <Printer className="w-4 h-4 text-gold/70" />
+            <div className="flex-1">
+              <p className="leading-tight">PDF</p>
+              <p className="text-[10px] text-muted-foreground">Opens print dialog · Save as PDF</p>
+            </div>
+          </a>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false }: FlipbookViewerProps) {
   const spreads = useMemo(() => buildSpreads(chapters, backMatter), [chapters, backMatter])
 
@@ -691,10 +760,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
         </div>
 
         {isPublicView ? <div className="w-16" /> : (
-          <a href={`/api/books/${book.id}/export-html`} className="flex items-center gap-1.5 text-sm font-inter text-muted-foreground hover:text-accent transition-colors">
-            <Download className="w-4 h-4" />
-            Export
-          </a>
+          <ExportMenu bookId={book.id} />
         )}
       </header>
 

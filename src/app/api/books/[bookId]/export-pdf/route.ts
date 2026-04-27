@@ -243,10 +243,59 @@ body {
 
 @media print {
   .cover, .back-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-banner { display: none !important; }
+}
+
+.print-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #1A1A1A;
+  color: #F5F0E8;
+  border: 1px solid #2A2A2A;
+  border-radius: 8px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.print-banner-text { line-height: 1.4; }
+.print-banner-text strong { color: #C9A84C; font-weight: 600; }
+.print-banner button {
+  background: #C9A84C;
+  color: #111;
+  border: 0;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.print-banner button:hover { background: #d4b65a; }
+.print-banner-close {
+  background: transparent !important;
+  color: rgba(245,240,232,0.5) !important;
+  font-size: 18px !important;
+  padding: 0 4px !important;
+  line-height: 1;
 }
 </style>
 </head>
 <body>
+
+<div class="print-banner" id="printBanner">
+  <span class="print-banner-text">
+    <strong>Save as PDF:</strong> use the print dialog and choose "Save as PDF" as the destination.
+  </span>
+  <button onclick="window.print()">Open print dialog</button>
+  <button class="print-banner-close" onclick="document.getElementById('printBanner').remove()" aria-label="Dismiss">&times;</button>
+</div>
 
 <section class="cover">
   ${book.cover_image_url ? `<img src="${esc(book.cover_image_url)}" class="cover-img" alt="" />` : ''}
@@ -263,8 +312,10 @@ ${backMatterHtml}
 ${backCoverHtml}
 
 <script>
-window.addEventListener('load', () => {
-  setTimeout(() => window.print(), 400)
+// Auto-open print dialog on first load. The banner remains visible after the
+// user dismisses or completes the dialog so they can re-trigger if needed.
+window.addEventListener('load', function () {
+  setTimeout(function () { window.print() }, 600)
 })
 </script>
 </body>

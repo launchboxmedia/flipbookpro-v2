@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, List, BookOpen, FileText, Eye, CheckCircle2, ImageIcon, Loader2, RefreshCw, Upload, X, Wand2, ZoomIn } from 'lucide-react'
+import { ArrowLeft, List, BookOpen, FileText, Eye, CheckCircle2, ImageIcon, Loader2, RefreshCw, Upload, X, Wand2, ZoomIn, Download, Printer } from 'lucide-react'
 import { ImageLightboxOverlay } from '@/components/ui/ImageLightbox'
 
 const COVER_PROMPT_MODS: ReadonlyArray<string> = [
@@ -326,6 +326,33 @@ export function CoauthorSidebar({
               Generate Book
             </button>
           )}
+        </nav>
+
+        <nav className="space-y-1">
+          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">
+            Export
+          </p>
+
+          <a
+            href={`/api/books/${book.id}/export-html`}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-inter text-cream/70 hover:text-cream hover:bg-[#2A2A2A] transition-colors"
+            title="Download as standalone HTML"
+          >
+            <Download className="w-4 h-4" />
+            HTML
+          </a>
+
+          <a
+            href={`/api/books/${book.id}/export-pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-inter text-cream/70 hover:text-cream hover:bg-[#2A2A2A] transition-colors"
+            title="Open print dialog · Save as PDF"
+          >
+            <Printer className="w-4 h-4" />
+            PDF
+            <span className="ml-auto text-[10px] font-inter text-muted-foreground/60">Print</span>
+          </a>
         </nav>
       </div>
 
