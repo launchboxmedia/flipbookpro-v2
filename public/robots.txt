@@ -1,0 +1,12 @@
+User-agent: *
+Disallow: /dashboard
+Disallow: /book
+Disallow: /settings
+Disallow: /api
+Disallow: /admin
+
+Allow: /
+Allow: /pricing
+Allow: /read/
+Allow: /go/
+Allow: /challenge/

@@ -4,16 +4,20 @@ import { useState } from 'react'
 import { Step1Outline } from './Step1Outline'
 import { Step2Meta } from './Step2Meta'
 import { Step3Persona } from './Step3Persona'
-import { Step4Style } from './Step4Style'
-import { Step5Cover } from './Step5Cover'
-import { Step6Typography } from './Step6Typography'
+import { Step4Tone } from './Step4Tone'
+import { Step5ReaderLevel } from './Step5ReaderLevel'
+import { Step4Style as Step6Style } from './Step4Style'
+import { Step5Cover as Step7Cover } from './Step5Cover'
+import { Step6Typography as Step8Typography } from './Step6Typography'
 import { Check } from 'lucide-react'
 
 const STEPS = [
   'Outline',
   'Details',
-  'Persona',
-  'Visual Style',
+  'Audience',
+  'Tone',
+  'Reader',
+  'Illustrations',
   'Cover',
   'Typography',
 ]
@@ -25,28 +29,40 @@ export interface WizardData {
   subtitle: string
   authorName: string
   persona: string
+  vibe: string
+  writingTone: string
+  readerLevel: number
+  humanScore: boolean
   visualStyle: string
+  palette: string
   coverDirection: string
   typography: string
 }
 
 interface WizardShellProps {
   bookId: string
-  initialTitle: string
+  initialData?: Partial<WizardData>
+  maxChapters?: number
 }
 
-export function WizardShell({ bookId, initialTitle }: WizardShellProps) {
+export function WizardShell({ bookId, initialData, maxChapters = 6 }: WizardShellProps) {
   const [step, setStep] = useState(0)
   const [data, setData] = useState<WizardData>({
     outline: '',
     chapters: [],
-    title: initialTitle,
+    title: '',
     subtitle: '',
     authorName: '',
     persona: '',
+    vibe: '',
+    writingTone: '',
+    readerLevel: 5,
+    humanScore: false,
     visualStyle: '',
+    palette: '',
     coverDirection: '',
     typography: '',
+    ...initialData,
   })
 
   function next(patch: Partial<WizardData>) {
@@ -62,7 +78,9 @@ export function WizardShell({ bookId, initialTitle }: WizardShellProps) {
     <div className="min-h-screen bg-canvas">
       <div className="max-w-3xl mx-auto px-4 py-10">
         <div className="mb-10">
-          <h1 className="font-playfair text-3xl text-cream mb-6 text-center">New Book</h1>
+          <h1 className="font-playfair text-3xl text-cream mb-6 text-center">
+            {data.chapters.length > 0 ? 'Edit Book' : 'New Book'}
+          </h1>
           <div className="flex items-center justify-between">
             {STEPS.map((label, i) => (
               <div key={i} className="flex items-center">
@@ -83,7 +101,7 @@ export function WizardShell({ bookId, initialTitle }: WizardShellProps) {
                   </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`h-px w-8 sm:w-12 mx-1 ${i < step ? 'bg-accent' : 'bg-[#333]'}`} />
+                  <div className={`h-px w-6 sm:w-8 mx-1 ${i < step ? 'bg-accent' : 'bg-[#333]'}`} />
                 )}
               </div>
             ))}
@@ -91,12 +109,14 @@ export function WizardShell({ bookId, initialTitle }: WizardShellProps) {
         </div>
 
         <div className="bg-[#222] border border-[#333] rounded-xl p-8">
-          {step === 0 && <Step1Outline data={data} onNext={next} />}
+          {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
           {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
           {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}
-          {step === 3 && <Step4Style data={data} onNext={next} onBack={back} />}
-          {step === 4 && <Step5Cover data={data} onNext={next} onBack={back} />}
-          {step === 5 && <Step6Typography data={data} bookId={bookId} onBack={back} />}
+          {step === 3 && <Step4Tone data={data} onNext={next} onBack={back} />}
+          {step === 4 && <Step5ReaderLevel data={data} onNext={next} onBack={back} />}
+          {step === 5 && <Step6Style data={data} onNext={next} onBack={back} />}
+          {step === 6 && <Step7Cover data={data} onNext={next} onBack={back} />}
+          {step === 7 && <Step8Typography data={data} bookId={bookId} onBack={back} />}
         </div>
       </div>
     </div>

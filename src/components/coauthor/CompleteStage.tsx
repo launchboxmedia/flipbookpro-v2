@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, CheckCircle2, Image, Sparkles } from 'lucide-react'
+import { Loader2, CheckCircle2, Image, Sparkles, FileText, Download } from 'lucide-react'
 import Link from 'next/link'
 import type { Book, BookPage } from '@/types/database'
 
@@ -31,18 +31,21 @@ export function CompleteStage({ book, pages }: Props) {
       if (!res.ok) throw new Error('Image generation failed')
 
       const reader = res.body?.getReader()
+      if (!reader) throw new Error('Stream unavailable')
       const decoder = new TextDecoder()
 
-      if (reader) {
-        while (true) {
-          const { done: streamDone, value } = await reader.read()
-          if (streamDone) break
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
-          for (const line of lines) {
+      while (true) {
+        const { done: streamDone, value } = await reader.read()
+        if (streamDone) break
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
+        for (const line of lines) {
+          try {
             const data = JSON.parse(line.slice(6))
             if (data.progress !== undefined) setProgress(data.progress)
             if (data.done) { setDone(true); setGenerating(false) }
+          } catch {
+            // partial JSON line, skip
           }
         }
       }
@@ -65,7 +68,7 @@ export function CompleteStage({ book, pages }: Props) {
               All illustrations have been generated. Preview, publish, or export below.
             </p>
           </div>
-          <div className="flex gap-3 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center">
             <Link
               href={`/book/${book.id}/preview`}
               className="px-5 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors"
@@ -78,6 +81,22 @@ export function CompleteStage({ book, pages }: Props) {
             >
               Publish
             </Link>
+            <a
+              href={`/api/books/${book.id}/export-pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-5 py-2.5 border border-[#333] hover:border-[#444] text-muted-foreground hover:text-cream font-inter text-sm rounded-md transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Export PDF
+            </a>
+            <a
+              href={`/api/books/${book.id}/export-html`}
+              className="flex items-center gap-1.5 px-5 py-2.5 border border-[#333] hover:border-[#444] text-muted-foreground hover:text-cream font-inter text-sm rounded-md transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export HTML
+            </a>
           </div>
         </div>
       ) : (

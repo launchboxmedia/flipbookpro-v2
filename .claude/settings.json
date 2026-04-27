@@ -2,7 +2,32 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w 'approve: %{http_code}\\\\n' -X POST http://localhost:3000/api/books/test/approve-chapter -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -o /dev/null -w 'image: %{http_code}\\\\n' -X POST http://localhost:3000/api/books/test/generate-chapter-image -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} size:%{size_download} time:%{time_total}s\\\\n' --max-time 60 'https://image.pollinations.ai/prompt/professional%20book%20cover%20background%20dark%20tones?width=768&height=1024&nologo=true&model=flux&seed=12345')",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code} size:%{size_download} time:%{time_total}s\\\\n' --max-time 60 'https://image.pollinations.ai/prompt/Create%20a%20striking%20book%20cover%20background%20image%20for%20a%20book%20titled%20%22The%20Ultimate%20Business%20Guide%22.%20Subtitle%3A%20%22How%20to%20Build%20a%20Successful%20Company%22.%20The%20book%20covers%3A%20understanding%20market%20dynamics%3B%20building%20a%20strong%20team%3B%20financial%20planning%20for%20growth.%20Audience%3A%20for%20entrepreneurs%20%E2%80%94%20dynamic%2C%20forward-looking%2C%20bold.%20Visual%20style%3A%20detailed%20editorial%20illustration.%20Mood%3A%20dramatic%2C%20high-contrast%2C%20dark%20tones.?width=768&height=1024&nologo=true&model=flux&seed=42345')",
+      "Read(//c/Users/mjohn/flipbookpro/**)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -50 {}')",
+      "mcp__supabase__execute_sql",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)[:30]\\)\")",
+      "Bash(echo \"Started PID $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
+      "Bash(curl -sL http://localhost:3001)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/pricing)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/signup)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/dashboard)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/settings/billing)",
+      "Bash(curl -sL http://localhost:3001/login)",
+      "Bash(curl -sL http://localhost:3001/signup)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\mjohn\\flipbookpro-v2\\src\\components",
+      "c:\\Users\\mjohn\\flipbookpro-v2\\src\\app\\api\\books\\[bookId]"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

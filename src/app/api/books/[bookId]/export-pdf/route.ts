@@ -1,0 +1,270 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { checkSubscriptionPlan } from '@/lib/stripe'
+
+export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // PDF export is Standard and Pro only
+  const { data: profileForPlan } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single()
+
+  const plan = await checkSubscriptionPlan(profileForPlan?.stripe_customer_id ?? null)
+  if (plan === 'free') {
+    return NextResponse.json(
+      { error: 'PDF export requires a Standard or Pro plan. Upgrade at /pricing.' },
+      { status: 403 }
+    )
+  }
+
+  const { data: book } = await supabase
+    .from('books')
+    .select('*')
+    .eq('id', params.bookId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { data: pages } = await supabase
+    .from('book_pages')
+    .select('*')
+    .eq('book_id', params.bookId)
+    .order('chapter_index', { ascending: true })
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('logo_url, brand_color, full_name, author_bio, social_links')
+    .eq('id', user.id)
+    .single()
+
+  const accent = profile?.brand_color ?? '#C9A84C'
+  const chapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
+  const backMatter = (pages ?? []).filter((p) => p.chapter_index < 0 && p.content)
+
+  const fontSpec = (() => {
+    switch (book.typography) {
+      case 'executive_serif':
+        return { google: 'Source+Serif+4:ital,wght@0,400;0,600;1,400', body: "'Source Serif 4', Georgia, serif" }
+      case 'editorial_classic':
+      case 'bold_display':
+        return { google: 'Playfair+Display:ital,wght@0,400;0,700;1,400', body: "'Playfair Display', Georgia, serif" }
+      default:
+        return { google: 'Inter:wght@400;500', body: "'Inter', system-ui, sans-serif" }
+    }
+  })()
+
+  const tocHtml = chapters.length > 0 ? `
+    <section class="page toc">
+      <h2 class="toc-heading">Contents</h2>
+      <div class="rule"></div>
+      <ol class="toc-list">
+        ${chapters.map((ch, i) => `
+          <li>
+            <span class="num">${i + 1}</span>
+            <span>${esc(ch.chapter_title)}</span>
+          </li>
+        `).join('')}
+      </ol>
+    </section>
+  ` : ''
+
+  const chaptersHtml = chapters.map((ch, i) => `
+    <section class="page chapter">
+      <span class="chapter-label">Chapter ${i + 1}</span>
+      <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
+      <div class="rule"></div>
+      ${ch.image_url ? `<img src="${esc(ch.image_url)}" class="chapter-img" alt="" />` : ''}
+      <div class="body">${paragraphs(ch.content ?? '')}</div>
+    </section>
+  `).join('')
+
+  const backMatterHtml = backMatter.map((bm) => `
+    <section class="page chapter">
+      <h2 class="chapter-title">${esc(bm.chapter_title)}</h2>
+      <div class="rule"></div>
+      <div class="body">${paragraphs(bm.content ?? '')}</div>
+    </section>
+  `).join('')
+
+  const backCoverHtml = (book.back_cover_tagline || book.back_cover_description) ? `
+    <section class="page back-cover">
+      ${book.back_cover_tagline ? `<h2 class="back-tagline">${esc(book.back_cover_tagline)}</h2>` : ''}
+      ${book.back_cover_description ? `<p class="back-desc">${esc(book.back_cover_description)}</p>` : ''}
+      ${book.back_cover_cta_text && book.back_cover_cta_url
+        ? `<a href="${esc(book.back_cover_cta_url)}" class="back-cta">${esc(book.back_cover_cta_text)}</a>`
+        : ''}
+      ${book.author_name ? `<p class="back-author">${esc(book.author_name)}</p>` : ''}
+      ${profile?.logo_url ? `<img src="${esc(profile.logo_url)}" class="back-logo" alt="Logo" />` : ''}
+    </section>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>${esc(book.title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=${fontSpec.google}&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root { --accent: ${accent}; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+@page {
+  size: A4;
+  margin: 2.2cm 2.5cm;
+}
+
+body {
+  font-family: ${fontSpec.body};
+  color: #1A1A1A;
+  line-height: 1.75;
+  font-size: 11.5pt;
+  background: white;
+}
+
+.page { page-break-before: always; }
+.page:first-child { page-break-before: avoid; }
+
+/* Cover */
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #111;
+  color: #F5F0E8;
+  padding: 4rem 3rem;
+  position: relative;
+}
+.cover::before, .cover::after {
+  content: '';
+  position: absolute;
+  left: 2.5rem; right: 2.5rem;
+  height: 1px;
+  background: rgba(201,168,76,0.3);
+}
+.cover::before { top: 2.5rem; }
+.cover::after  { bottom: 2.5rem; }
+.cover-img {
+  width: 100%; max-height: 55vh;
+  object-fit: cover;
+  position: absolute; inset: 0;
+  opacity: 0.35;
+}
+.cover-content { position: relative; z-index: 1; }
+.cover-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.6rem;
+  line-height: 1.15;
+  margin-bottom: 0.75rem;
+}
+.cover-subtitle { font-size: 1rem; color: var(--accent); font-style: italic; margin-bottom: 1.5rem; }
+.cover-divider { width: 2rem; height: 1px; background: rgba(201,168,76,0.5); margin: 0 auto 1.25rem; }
+.cover-author { font-family: 'Inter', sans-serif; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #888; font-variant: small-caps; }
+
+/* TOC */
+.toc { padding-top: 3rem; }
+.toc-heading { font-family: 'Playfair Display', Georgia, serif; font-size: 1.8rem; margin-bottom: 0.75rem; }
+.toc-list { list-style: none; margin-top: 1.5rem; }
+.toc-list li { display: flex; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(0,0,0,0.07); font-size: 0.9rem; }
+.num { color: var(--accent); min-width: 1.5rem; font-family: 'Inter', sans-serif; font-size: 0.75rem; padding-top: 0.1em; }
+
+/* Chapter */
+.chapter { padding-top: 3rem; }
+.chapter-label { display: block; font-family: 'Inter', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.4rem; }
+.chapter-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.7rem; line-height: 1.2; margin-bottom: 0.75rem; }
+.rule { width: 2rem; height: 2px; background: var(--accent); margin-bottom: 1.75rem; }
+.chapter-img { width: 100%; max-height: 200pt; object-fit: cover; border-radius: 3px; margin-bottom: 1.5rem; }
+.body p { margin-bottom: 1.1em; }
+.body p:last-child { margin-bottom: 0; }
+
+/* Back cover */
+.back-cover {
+  min-height: 100vh;
+  background: #0F0F0F;
+  color: #F5F0E8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 3rem;
+}
+.back-tagline { font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; margin-bottom: 1.25rem; }
+.back-desc { font-family: ${fontSpec.body}; font-size: 0.95rem; color: rgba(245,240,232,0.7); max-width: 36rem; margin: 0 auto 2rem; line-height: 1.7; }
+.back-cta {
+  display: inline-block;
+  padding: 0.6rem 1.75rem;
+  background: var(--accent);
+  color: #111;
+  text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+}
+.back-author { font-family: 'Inter', sans-serif; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #555; font-variant: small-caps; margin-top: auto; }
+.back-logo { height: 2rem; width: auto; object-fit: contain; opacity: 0.8; margin-top: 1.5rem; }
+
+@media print {
+  .cover, .back-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<section class="cover">
+  ${book.cover_image_url ? `<img src="${esc(book.cover_image_url)}" class="cover-img" alt="" />` : ''}
+  <div class="cover-content">
+    <h1 class="cover-title">${esc(book.title)}</h1>
+    ${book.subtitle ? `<p class="cover-subtitle">${esc(book.subtitle)}</p>` : ''}
+    ${book.author_name ? `<div class="cover-divider"></div><p class="cover-author">${esc(book.author_name)}</p>` : ''}
+  </div>
+</section>
+
+${tocHtml}
+${chaptersHtml}
+${backMatterHtml}
+${backCoverHtml}
+
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => window.print(), 400)
+})
+</script>
+</body>
+</html>`
+
+  return new NextResponse(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+    },
+  })
+}
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function paragraphs(content: string): string {
+  return content
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${esc(p)}</p>`)
+    .join('')
+}

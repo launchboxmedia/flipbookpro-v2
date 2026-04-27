@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(where gh *)",
-      "Bash(winget list *)"
+      "Bash(winget list *)",
+      "mcp__supabase__list_tables",
+      "Bash(curl -sL \"http://localhost:3001/pricing\")",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   }
 }

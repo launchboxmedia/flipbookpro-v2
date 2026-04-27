@@ -1,0 +1,20 @@
+[     151ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/css/app/layout.css?v=1777290513117:0
+[     152ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/webpack.js?v=1777290513117:0
+[     152ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/main-app.js?v=1777290513117:0
+[     192ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/app-pages-internals.js:0
+[     193ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/app/error.js:0
+[     193ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/app/not-found.js:0
+[     208ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/chunks/app/page.js:0
+[    8478ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/css/app/layout.css?v=1777290521422:0
+[    8481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/webpack.js?v=1777290521422:0
+[    8481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/main-app.js?v=1777290521422:0
+[    8481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/app/error.js:0
+[    8481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/app-pages-internals.js:0
+[    8481ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/app/not-found.js:0
+[    8490ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/app/page.js:0
+[   11700ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/signup:0
+[   11751ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/fallback/webpack.js:0
+[   11751ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/fallback/main.js:0
+[   11752ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/fallback/react-refresh.js:0
+[   11752ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/fallback/pages/_app.js:0
+[   11752ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/_next/static/chunks/fallback/pages/_error.js:0

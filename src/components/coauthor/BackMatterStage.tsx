@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, ShoppingBag, Link2, FileText } from 'lucide-react'
+import { Loader2, ShoppingBag, Link2, FileText, BookOpen, Check } from 'lucide-react'
 import type { Book } from '@/types/database'
 
 interface Props {
@@ -11,20 +11,49 @@ interface Props {
 
 type BackMatterType = 'upsell' | 'affiliate' | 'custom'
 
-const TYPES = [
-  { id: 'upsell' as BackMatterType, label: 'Upsell Page', icon: ShoppingBag, description: 'Promote a product, course, or service.' },
-  { id: 'affiliate' as BackMatterType, label: 'Affiliate Page', icon: Link2, description: 'Share recommended resources with links.' },
-  { id: 'custom' as BackMatterType, label: 'Custom Page', icon: FileText, description: 'Write any content — bio, CTA, credits.' },
+const OPTIONAL_TYPES = [
+  { id: 'upsell' as BackMatterType,   label: 'Upsell Page',    icon: ShoppingBag, description: 'Promote a product, course, or service.' },
+  { id: 'affiliate' as BackMatterType, label: 'Affiliate Page', icon: Link2,       description: 'Share recommended resources with links.' },
+  { id: 'custom' as BackMatterType,   label: 'Custom Page',    icon: FileText,    description: 'Write any content — bio, CTA, credits.' },
 ]
 
 export function BackMatterStage({ book, onComplete }: Props) {
-  const [activeType, setActiveType] = useState<BackMatterType | null>(null)
-  const [contents, setContents] = useState<Record<string, string>>({})
-  const [titles, setTitles] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState<BackMatterType | null>(null)
-  const [saved, setSaved] = useState<Set<string>>(new Set())
+  // Back cover — required
+  const [tagline,     setTagline]     = useState(book.back_cover_tagline     ?? '')
+  const [description, setDescription] = useState(book.back_cover_description ?? '')
+  const [ctaText,     setCtaText]     = useState(book.back_cover_cta_text    ?? '')
+  const [ctaUrl,      setCtaUrl]      = useState(book.back_cover_cta_url     ?? '')
+  const [savingCover,  setSavingCover]  = useState(false)
+  const [savedCover,   setSavedCover]   = useState(false)
 
-  async function save(type: BackMatterType) {
+  // Optional pages
+  const [activeType, setActiveType] = useState<BackMatterType | null>(null)
+  const [contents,   setContents]   = useState<Record<string, string>>({})
+  const [titles,     setTitles]     = useState<Record<string, string>>({})
+  const [saving,     setSaving]     = useState<BackMatterType | null>(null)
+  const [saved,      setSaved]      = useState<Set<string>>(new Set())
+
+  async function saveBackCover() {
+    setSavingCover(true)
+    try {
+      await fetch(`/api/books/${book.id}/back-cover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          back_cover_tagline:     tagline.trim()     || null,
+          back_cover_description: description.trim() || null,
+          back_cover_cta_text:    ctaText.trim()     || null,
+          back_cover_cta_url:     ctaUrl.trim()      || null,
+        }),
+      })
+      setSavedCover(true)
+      setTimeout(() => setSavedCover(false), 2500)
+    } finally {
+      setSavingCover(false)
+    }
+  }
+
+  async function saveOptional(type: BackMatterType) {
     if (!contents[type]?.trim()) return
     setSaving(type)
     try {
@@ -33,7 +62,7 @@ export function BackMatterStage({ book, onComplete }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type,
-          title: titles[type] || TYPES.find((t) => t.id === type)?.label,
+          title:   titles[type] || OPTIONAL_TYPES.find((t) => t.id === type)?.label,
           content: contents[type],
         }),
       })
@@ -48,81 +77,150 @@ export function BackMatterStage({ book, onComplete }: Props) {
       <div className="mb-8">
         <h2 className="font-playfair text-3xl text-cream">Back Matter</h2>
         <p className="text-muted-foreground text-sm font-source-serif mt-1">
-          Add optional pages at the end of your flipbook. All are optional — skip any you don't need.
+          Configure the back cover and add optional pages at the end of your flipbook.
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        {TYPES.map((t) => {
-          const Icon = t.icon
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveType(activeType === t.id ? null : t.id)}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                activeType === t.id
-                  ? 'border-accent bg-accent/10'
-                  : saved.has(t.id)
-                  ? 'border-accent/40 bg-accent/5'
-                  : 'border-[#333] bg-[#222] hover:border-[#444]'
-              }`}
-            >
-              <Icon className={`w-5 h-5 mb-2 ${activeType === t.id ? 'text-accent' : 'text-muted-foreground'}`} />
-              <p className="text-sm font-inter font-medium text-cream">{t.label}</p>
-              <p className="text-xs font-source-serif text-muted-foreground mt-0.5">{t.description}</p>
-              {saved.has(t.id) && (
-                <p className="text-xs font-inter text-accent mt-2">Saved</p>
-              )}
-            </button>
-          )
-        })}
-      </div>
+      {/* ── Back Cover (required) ─────────────────────────────────────────── */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <BookOpen className="w-4 h-4 text-accent" />
+          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">Back Cover</h3>
+        </div>
 
-      {activeType && (
         <div className="bg-[#222] border border-[#333] rounded-xl p-6 space-y-4">
-          <h3 className="font-inter font-medium text-cream text-sm">
-            {TYPES.find((t) => t.id === activeType)?.label}
-          </h3>
-
           <div className="space-y-1">
-            <label className="text-xs font-inter text-muted-foreground">Page title</label>
+            <label className="text-xs font-inter text-muted-foreground">Tagline / subtitle</label>
             <input
-              value={titles[activeType] ?? ''}
-              onChange={(e) => setTitles((prev) => ({ ...prev, [activeType]: e.target.value }))}
-              placeholder={TYPES.find((t) => t.id === activeType)?.label}
-              className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              value={tagline}
+              onChange={(e) => setTagline(e.target.value)}
+              placeholder="The practical guide to decisions that matter"
+              className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-playfair text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-inter text-muted-foreground">Content</label>
+            <label className="text-xs font-inter text-muted-foreground">Description <span className="text-cream/30">(two sentences)</span></label>
             <textarea
-              value={contents[activeType] ?? ''}
-              onChange={(e) => setContents((prev) => ({ ...prev, [activeType]: e.target.value }))}
-              rows={6}
-              placeholder={
-                activeType === 'upsell'
-                  ? 'Describe your offer, price, and how to access it...'
-                  : activeType === 'affiliate'
-                  ? 'List your recommended resources with links...'
-                  : 'Write your custom page content...'
-              }
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="What readers will learn or gain. Why they should read it now."
               className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">CTA button text</label>
+              <input
+                value={ctaText}
+                onChange={(e) => setCtaText(e.target.value)}
+                placeholder="Get Instant Access"
+                className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">CTA URL</label>
+              <input
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+                placeholder="https://your-site.com"
+                type="url"
+                className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+          </div>
+
           <button
-            onClick={() => save(activeType)}
-            disabled={!contents[activeType]?.trim() || saving === activeType}
+            onClick={saveBackCover}
+            disabled={savingCover}
             className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
           >
-            {saving === activeType && <Loader2 className="w-4 h-4 animate-spin" />}
-            Save Page
+            {savingCover ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : savedCover ? (
+              <Check className="w-4 h-4" />
+            ) : null}
+            {savedCover ? 'Saved' : 'Save Back Cover'}
           </button>
         </div>
-      )}
+      </div>
 
-      <div className="mt-10 flex justify-end">
+      {/* ── Optional pages ────────────────────────────────────────────────── */}
+      <div className="mb-8">
+        <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider mb-4">
+          Optional Pages
+        </h3>
+
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          {OPTIONAL_TYPES.map((t) => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveType(activeType === t.id ? null : t.id)}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  activeType === t.id
+                    ? 'border-accent bg-accent/10'
+                    : saved.has(t.id)
+                    ? 'border-accent/40 bg-accent/5'
+                    : 'border-[#333] bg-[#222] hover:border-[#444]'
+                }`}
+              >
+                <Icon className={`w-5 h-5 mb-2 ${activeType === t.id ? 'text-accent' : 'text-muted-foreground'}`} />
+                <p className="text-sm font-inter font-medium text-cream">{t.label}</p>
+                <p className="text-xs font-source-serif text-muted-foreground mt-0.5">{t.description}</p>
+                {saved.has(t.id) && <p className="text-xs font-inter text-accent mt-2">Saved</p>}
+              </button>
+            )
+          })}
+        </div>
+
+        {activeType && (
+          <div className="bg-[#222] border border-[#333] rounded-xl p-6 space-y-4">
+            <h3 className="font-inter font-medium text-cream text-sm">
+              {OPTIONAL_TYPES.find((t) => t.id === activeType)?.label}
+            </h3>
+
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">Page title</label>
+              <input
+                value={titles[activeType] ?? ''}
+                onChange={(e) => setTitles((prev) => ({ ...prev, [activeType]: e.target.value }))}
+                placeholder={OPTIONAL_TYPES.find((t) => t.id === activeType)?.label}
+                className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">Content</label>
+              <textarea
+                value={contents[activeType] ?? ''}
+                onChange={(e) => setContents((prev) => ({ ...prev, [activeType]: e.target.value }))}
+                rows={6}
+                placeholder={
+                  activeType === 'upsell'    ? 'Describe your offer, price, and how to access it...'
+                  : activeType === 'affiliate' ? 'List your recommended resources with links...'
+                  : 'Write your custom page content...'
+                }
+                className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              />
+            </div>
+
+            <button
+              onClick={() => saveOptional(activeType)}
+              disabled={!contents[activeType]?.trim() || saving === activeType}
+              className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+            >
+              {saving === activeType && <Loader2 className="w-4 h-4 animate-spin" />}
+              Save Page
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end">
         <button
           onClick={onComplete}
           className="px-6 py-2.5 bg-gold hover:bg-gold/90 text-canvas font-inter text-sm font-semibold rounded-md transition-colors"

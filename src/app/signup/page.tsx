@@ -1,12 +1,52 @@
-import Link from 'next/link'
-import { signup } from '../login/actions'
-import { AuthCard } from '@/components/auth/AuthCard'
+'use client'
 
-export default function SignupPage({
-  searchParams,
-}: {
-  searchParams: { error?: string }
-}) {
+import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { AuthCard } from '@/components/auth/AuthCard'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
+
+export default function SignupPage() {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setMessage(null)
+    setLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    setLoading(false)
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    if (!data.session) {
+      setMessage('Check your email to confirm your account')
+      return
+    }
+
+    router.push('/dashboard')
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-md">
@@ -18,13 +58,29 @@ export default function SignupPage({
         </div>
 
         <AuthCard>
-          {searchParams.error && (
+          {message && (
+            <div className="mb-4 p-3 rounded-md bg-accent/10 border border-accent/20 text-accent text-sm font-inter">
+              {message}
+            </div>
+          )}
+          {error && (
             <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              {decodeURIComponent(searchParams.error)}
+              {error}
             </div>
           )}
 
-          <form action={signup} className="space-y-4">
+          <GoogleSignInButton />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#333]" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-[#222] px-3 text-xs font-inter text-cream/40">or sign up with email</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <label htmlFor="email" className="text-sm font-inter text-cream/80">
                 Email
@@ -57,9 +113,10 @@ export default function SignupPage({
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-accent hover:bg-accent/90 text-cream font-inter font-medium text-sm rounded-md transition-colors"
+              disabled={loading}
+              className="w-full py-2.5 px-4 bg-accent hover:bg-accent/90 text-cream font-inter font-medium text-sm rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 

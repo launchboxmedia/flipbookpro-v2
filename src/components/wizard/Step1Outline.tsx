@@ -1,15 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import type { WizardData } from './WizardShell'
-import { Loader2, Pencil, Trash2, Plus } from 'lucide-react'
+import { Loader2, Trash2, Plus, ArrowRight } from 'lucide-react'
 
 interface Props {
   data: WizardData
   onNext: (patch: Partial<WizardData>) => void
+  maxChapters?: number
 }
 
-export function Step1Outline({ data, onNext }: Props) {
+export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
   const [outline, setOutline] = useState(data.outline)
   const [chapters, setChapters] = useState<Array<{ title: string; brief: string }>>(data.chapters)
   const [detecting, setDetecting] = useState(false)
@@ -29,9 +31,17 @@ export function Step1Outline({ data, onNext }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ outline }),
       })
+      if (!res.ok && res.headers.get('content-type')?.includes('text/html')) {
+        throw new Error(`Server error ${res.status}`)
+      }
       const json = await res.json()
       if (json.error) throw new Error(json.error)
-      setChapters(json.chapters)
+      // Cap to plan limit
+      const capped = (json.chapters as Array<{ title: string; brief: string }>).slice(0, maxChapters)
+      if (json.chapters.length > maxChapters) {
+        setError(`Your plan allows up to ${maxChapters} chapters. Only the first ${maxChapters} were imported. Upgrade to add more.`)
+      }
+      setChapters(capped)
       setDetected(true)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Detection failed')
@@ -49,6 +59,7 @@ export function Step1Outline({ data, onNext }: Props) {
   }
 
   function addChapter() {
+    if (chapters.length >= maxChapters) return
     setChapters((prev) => [...prev, { title: 'New Chapter', brief: '' }])
   }
 
@@ -133,13 +144,24 @@ export function Step1Outline({ data, onNext }: Props) {
             </div>
           ))}
 
-          <button
-            onClick={addChapter}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-cream font-inter transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add chapter
-          </button>
+          {chapters.length < maxChapters ? (
+            <button
+              onClick={addChapter}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-cream font-inter transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add chapter
+            </button>
+          ) : (
+            <div className="flex items-center justify-between rounded-lg border border-[#333] bg-[#1A1A1A] px-4 py-3">
+              <p className="text-xs font-inter text-muted-foreground">
+                {maxChapters}-chapter limit reached on your current plan.
+              </p>
+              <Link href="/settings/billing" className="flex items-center gap-1 text-xs font-inter text-accent hover:text-accent/80 transition-colors whitespace-nowrap ml-4">
+                Upgrade <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

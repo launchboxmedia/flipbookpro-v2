@@ -1,21 +1,39 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
+import { AppSidebar } from '@/components/layout/AppSidebar'
+import { deriveTheme } from '@/lib/bookTheme'
 
 export default async function PreviewPage({ params }: { params: { bookId: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const [{ data: book }, { data: profile }, { data: allPages }] = await Promise.all([
+    supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('book_pages').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
+  ])
+
+  if (!book) redirect('/dashboard')
+
+  const chapters   = (allPages ?? []).filter((p) => p.chapter_index >= 0)
+  const backMatter = (allPages ?? []).filter((p) => p.chapter_index < 0)
+  const theme      = deriveTheme(book, profile ?? null)
+  const isPremium  = (profile?.plan ?? 'free') !== 'free'
+
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-playfair text-3xl text-cream mb-2">Flipbook Preview</h1>
-        <p className="text-muted-foreground font-source-serif mb-6">Feature 7 — coming soon</p>
-        <Link href={`/book/${params.bookId}/coauthor`} className="text-accent hover:text-accent/80 font-inter text-sm">
-          ← Back to Co-Author
-        </Link>
-      </div>
+    <div className="flex h-screen bg-canvas overflow-hidden">
+      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} />
+      <main className="flex-1 overflow-auto">
+        <FlipbookViewer
+          book={book}
+          chapters={chapters}
+          backMatter={backMatter}
+          theme={theme}
+          profile={profile ?? null}
+        />
+      </main>
     </div>
   )
 }

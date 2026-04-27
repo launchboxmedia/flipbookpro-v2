@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { login } from './actions'
 import { AuthCard } from '@/components/auth/AuthCard'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 
 export default function LoginPage({
   searchParams,
@@ -23,6 +24,17 @@ export default function LoginPage({
               {decodeURIComponent(searchParams.error)}
             </div>
           )}
+
+          <GoogleSignInButton />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#333]" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-[#222] px-3 text-xs font-inter text-cream/40">or continue with email</span>
+            </div>
+          </div>
 
           <form action={login} className="space-y-4">
             <div className="space-y-1">
@@ -61,12 +73,17 @@ export default function LoginPage({
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm font-inter text-muted-foreground">
-            No account?{' '}
-            <Link href="/signup" className="text-gold hover:text-gold/80 transition-colors">
-              Create one
+          <div className="mt-4 flex items-center justify-between text-sm font-inter text-muted-foreground">
+            <Link href="/reset-password" className="hover:text-cream transition-colors">
+              Forgot password?
             </Link>
-          </p>
+            <span>
+              No account?{' '}
+              <Link href="/signup" className="text-gold hover:text-gold/80 transition-colors">
+                Create one
+              </Link>
+            </span>
+          </div>
         </AuthCard>
       </div>
     </div>

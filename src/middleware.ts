@@ -28,7 +28,12 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup')
   const isPublicRoute = request.nextUrl.pathname.startsWith('/read') ||
-    request.nextUrl.pathname === '/'
+    request.nextUrl.pathname.startsWith('/auth/') ||
+    request.nextUrl.pathname.startsWith('/reset-password') ||
+    request.nextUrl.pathname.startsWith('/go/') ||
+    request.nextUrl.pathname.startsWith('/challenge/') ||
+    request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname === '/pricing'
 
   if (!user && !isAuthRoute && !isPublicRoute) {
     const url = request.nextUrl.clone()
