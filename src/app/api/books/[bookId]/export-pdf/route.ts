@@ -92,15 +92,18 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     </section>
   `).join('')
 
-  const backCoverHtml = (book.back_cover_tagline || book.back_cover_description) ? `
-    <section class="page back-cover">
-      ${book.back_cover_tagline ? `<h2 class="back-tagline">${esc(book.back_cover_tagline)}</h2>` : ''}
-      ${book.back_cover_description ? `<p class="back-desc">${esc(book.back_cover_description)}</p>` : ''}
-      ${book.back_cover_cta_text && book.back_cover_cta_url
-        ? `<a href="${esc(book.back_cover_cta_url)}" class="back-cta">${esc(book.back_cover_cta_text)}</a>`
-        : ''}
-      ${book.author_name ? `<p class="back-author">${esc(book.author_name)}</p>` : ''}
-      ${profile?.logo_url ? `<img src="${esc(profile.logo_url)}" class="back-logo" alt="Logo" />` : ''}
+  const backCoverHtml = (book.back_cover_tagline || book.back_cover_description || book.back_cover_image_url) ? `
+    <section class="page back-cover${book.back_cover_image_url ? ' back-cover-with-image' : ''}">
+      ${book.back_cover_image_url ? `<img src="${esc(book.back_cover_image_url)}" class="back-cover-img" alt="" />` : ''}
+      <div class="back-cover-content">
+        ${book.back_cover_tagline ? `<h2 class="back-tagline">${esc(book.back_cover_tagline)}</h2>` : ''}
+        ${book.back_cover_description ? `<p class="back-desc">${esc(book.back_cover_description)}</p>` : ''}
+        ${book.back_cover_cta_text && book.back_cover_cta_url
+          ? `<a href="${esc(book.back_cover_cta_url)}" class="back-cta">${esc(book.back_cover_cta_text)}</a>`
+          : ''}
+        ${book.author_name ? `<p class="back-author">${esc(book.author_name)}</p>` : ''}
+        ${profile?.logo_url ? `<img src="${esc(profile.logo_url)}" class="back-logo" alt="Logo" />` : ''}
+      </div>
     </section>
   ` : ''
 
@@ -191,12 +194,34 @@ body {
   min-height: 100vh;
   background: #0F0F0F;
   color: #F5F0E8;
+  position: relative;
+  overflow: hidden;
+}
+.back-cover-with-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 100%);
+  z-index: 1;
+}
+.back-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.back-cover-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 4rem 3rem;
+  min-height: 100vh;
 }
 .back-tagline { font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; margin-bottom: 1.25rem; }
 .back-desc { font-family: ${fontSpec.body}; font-size: 0.95rem; color: rgba(245,240,232,0.7); max-width: 36rem; margin: 0 auto 2rem; line-height: 1.7; }

@@ -360,17 +360,46 @@ function BackCoverPage({ book, profile }: { book: Book; profile: Profile | null 
   const description = book.back_cover_description || null
   const ctaText = book.back_cover_cta_text || null
   const ctaUrl  = book.back_cover_cta_url  || null
+  const backImage = book.back_cover_image_url || null
 
   return (
-    <div style={{ ...pageBase, background: 'var(--back-cover-bg)', position: 'relative', padding: '44px 36px', justifyContent: 'space-between' }}>
+    <div style={{ ...pageBase, background: 'var(--back-cover-bg)', position: 'relative', padding: '44px 36px', justifyContent: 'space-between', overflow: 'hidden' }}>
+      {/* Optional uploaded back-cover image — sits behind everything with a
+          dark gradient overlay so the text stays readable. */}
+      {backImage && (
+        <>
+          <img
+            src={backImage}
+            alt=""
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 100%)',
+              zIndex: 1,
+            }}
+          />
+        </>
+      )}
+
       {/* Top rule */}
-      <div style={{ position: 'absolute', top: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', top: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)', opacity: 0.5, zIndex: 2 }} />
 
       {/* Top spacer */}
-      <div />
+      <div style={{ position: 'relative', zIndex: 2 }} />
 
       {/* Centre content */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', padding: '0 8px' }}>
+      <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', padding: '0 8px' }}>
         {tagline && (
           <h2 style={{
             fontFamily: "'Playfair Display', Georgia, serif",
@@ -414,7 +443,7 @@ function BackCoverPage({ book, profile }: { book: Book; profile: Profile | null 
       </div>
 
       {/* Bottom: author + logo */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {author ? (
           <p style={{
             fontFamily: "'Inter', sans-serif",
@@ -434,7 +463,7 @@ function BackCoverPage({ book, profile }: { book: Book; profile: Profile | null 
       </div>
 
       {/* Bottom rule */}
-      <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)', opacity: 0.5, zIndex: 2 }} />
     </div>
   )
 }
