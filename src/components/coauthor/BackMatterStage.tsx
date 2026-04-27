@@ -32,11 +32,14 @@ export function BackMatterStage({ book, onComplete }: Props) {
   const [titles,     setTitles]     = useState<Record<string, string>>({})
   const [saving,     setSaving]     = useState<BackMatterType | null>(null)
   const [saved,      setSaved]      = useState<Set<string>>(new Set())
+  const [coverError, setCoverError] = useState('')
+  const [optionalError, setOptionalError] = useState('')
 
   async function saveBackCover() {
     setSavingCover(true)
+    setCoverError('')
     try {
-      await fetch(`/api/books/${book.id}/back-cover`, {
+      const res = await fetch(`/api/books/${book.id}/back-cover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -46,8 +49,14 @@ export function BackMatterStage({ book, onComplete }: Props) {
           back_cover_cta_url:     ctaUrl.trim()      || null,
         }),
       })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Save failed')
+      }
       setSavedCover(true)
       setTimeout(() => setSavedCover(false), 2500)
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : 'Save failed')
     } finally {
       setSavingCover(false)
     }
@@ -56,8 +65,9 @@ export function BackMatterStage({ book, onComplete }: Props) {
   async function saveOptional(type: BackMatterType) {
     if (!contents[type]?.trim()) return
     setSaving(type)
+    setOptionalError('')
     try {
-      await fetch(`/api/books/${book.id}/back-matter`, {
+      const res = await fetch(`/api/books/${book.id}/back-matter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,7 +76,13 @@ export function BackMatterStage({ book, onComplete }: Props) {
           content: contents[type],
         }),
       })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Save failed')
+      }
       setSaved((prev) => new Set(Array.from(prev).concat(type)))
+    } catch (e) {
+      setOptionalError(e instanceof Error ? e.message : 'Save failed')
     } finally {
       setSaving(null)
     }
@@ -144,6 +160,8 @@ export function BackMatterStage({ book, onComplete }: Props) {
             ) : null}
             {savedCover ? 'Saved' : 'Save Back Cover'}
           </button>
+
+          {coverError && <p className="text-red-400 text-xs font-inter">{coverError}</p>}
         </div>
       </div>
 
@@ -216,6 +234,8 @@ export function BackMatterStage({ book, onComplete }: Props) {
               {saving === activeType && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Page
             </button>
+
+            {optionalError && <p className="text-red-400 text-xs font-inter">{optionalError}</p>}
           </div>
         )}
       </div>

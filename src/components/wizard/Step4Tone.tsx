@@ -87,7 +87,7 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
       {/* Writing Tone */}
       <div>
         <p className="text-cream text-sm font-inter font-medium mb-3">Writing Tone</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {TONES.map((t) => (
             <button
               key={t.id}

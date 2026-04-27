@@ -259,7 +259,10 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, typography: selected }),
       })
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Failed to save')
+      }
       router.push(`/book/${bookId}/coauthor`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed')

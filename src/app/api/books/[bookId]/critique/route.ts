@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const { data: book } = await supabase
     .from('books')
-    .select('*, book_pages(*)')
+    .select('id, title, persona, book_pages(chapter_index, chapter_title, chapter_brief)')
     .eq('id', params.bookId)
     .eq('user_id', user.id)
     .single()
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const chapters = (book.book_pages ?? [])
+    .filter((p: { chapter_index: number }) => p.chapter_index >= 0)
     .sort((a: { chapter_index: number }, b: { chapter_index: number }) => a.chapter_index - b.chapter_index)
     .map((p: { chapter_title: string; chapter_brief: string }, i: number) => `${i + 1}. ${p.chapter_title}: ${p.chapter_brief ?? ''}`)
     .join('\n')

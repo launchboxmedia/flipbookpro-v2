@@ -29,7 +29,8 @@ export function Step5ReaderLevel({ data, onNext, onBack }: Props) {
   const current = LEVEL_LABELS[level]
 
   function handleNext() {
-    onNext({ readerLevel: level, humanScore })
+    const safeLevel = Math.max(1, Math.min(10, Math.round(level)))
+    onNext({ readerLevel: safeLevel, humanScore })
   }
 
   return (

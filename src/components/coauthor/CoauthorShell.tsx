@@ -26,6 +26,7 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
   const [imageErrors, setImageErrors] = useState<Record<string, string>>({})
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(book.cover_image_url)
   const [coverImageStatus, setCoverImageStatus] = useState<ImageStatus>('idle')
+  const [coverImageError, setCoverImageError] = useState<string | null>(null)
   const [visualStyle, setVisualStyle] = useState<string | null>(book.visual_style)
   const [palette, setPalette] = useState<string | null>(book.palette)
 
@@ -143,23 +144,26 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
 
   const generateCoverImage = useCallback(async (customPrompt?: string) => {
     setCoverImageStatus('generating')
+    setCoverImageError(null)
     try {
       const res = await fetch(`/api/books/${book.id}/generate-cover-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customPrompt }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed')
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Failed (${res.status})`)
       setCoverImageUrl(json.imageUrl)
       setCoverImageStatus('done')
-    } catch {
+    } catch (e) {
       setCoverImageStatus('error')
+      setCoverImageError(e instanceof Error ? e.message : 'Cover generation failed')
     }
   }, [book.id])
 
   const handleCoverUpload = useCallback(async (file: File) => {
     setCoverImageStatus('generating')
+    setCoverImageError(null)
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -167,12 +171,13 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
         method: 'POST',
         body: formData,
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed')
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Failed (${res.status})`)
       setCoverImageUrl(json.imageUrl)
       setCoverImageStatus('done')
-    } catch {
+    } catch (e) {
       setCoverImageStatus('error')
+      setCoverImageError(e instanceof Error ? e.message : 'Upload failed')
     }
   }, [book.id])
 

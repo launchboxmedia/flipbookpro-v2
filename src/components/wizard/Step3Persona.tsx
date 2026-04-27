@@ -80,7 +80,13 @@ export function Step3Persona({ data, onNext, onBack }: Props) {
 
       <div className="flex justify-between pt-2">
         <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
-        <button onClick={handleNext} className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
+        <button
+          onClick={handleNext}
+          disabled={!selected}
+          className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+        >
+          Continue
+        </button>
       </div>
     </div>
   )
