@@ -4,6 +4,19 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, List, BookOpen, FileText, Eye, CheckCircle2, ImageIcon, Loader2, RefreshCw, Upload, X, Wand2, ZoomIn } from 'lucide-react'
 import { ImageLightboxOverlay } from '@/components/ui/ImageLightbox'
+
+const COVER_PROMPT_MODS: ReadonlyArray<string> = [
+  'more dramatic',
+  'cinematic atmosphere',
+  'minimalist',
+  'bolder composition',
+  'softer mood',
+  'darker tone',
+  'brighter tone',
+  'vintage feel',
+  'tighter framing',
+  'wider, more spacious',
+]
 import type { Book, BookPage } from '@/types/database'
 import type { CoauthorStage } from './CoauthorShell'
 import type { ImageStatus } from './CoauthorShell'
@@ -37,6 +50,15 @@ export function CoauthorSidebar({
     onGenerateCover(coverPrompt.trim() || undefined)
     setShowCoverPrompt(false)
     setCoverPrompt('')
+  }
+
+  function appendCoverMod(mod: string) {
+    setCoverPrompt((prev) => {
+      const trimmed = prev.trim()
+      if (!trimmed) return mod
+      if (trimmed.toLowerCase().includes(mod.toLowerCase())) return prev
+      return `${trimmed}. ${mod}`
+    })
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -126,21 +148,45 @@ export function CoauthorSidebar({
               <textarea
                 value={coverPrompt}
                 onChange={(e) => setCoverPrompt(e.target.value)}
-                placeholder="Optional: describe the cover…"
-                rows={2}
-                className="w-full px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                placeholder="Describe the cover, or leave blank for AI auto-scene…"
+                rows={3}
+                disabled={isCoverGenerating}
+                className="w-full px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent resize-none disabled:opacity-50"
               />
+              <div className="flex flex-wrap gap-1">
+                {COVER_PROMPT_MODS.map((mod) => (
+                  <button
+                    key={mod}
+                    onClick={() => appendCoverMod(mod)}
+                    disabled={isCoverGenerating}
+                    className="px-2 py-0.5 text-[10px] font-inter text-cream/60 bg-[#2A2A2A] hover:bg-[#333] hover:text-cream border border-[#333] rounded-full transition-colors disabled:opacity-40"
+                    title={`Append: ${mod}`}
+                  >
+                    + {mod}
+                  </button>
+                ))}
+                {coverPrompt && (
+                  <button
+                    onClick={() => setCoverPrompt('')}
+                    disabled={isCoverGenerating}
+                    className="px-2 py-0.5 text-[10px] font-inter text-cream/40 hover:text-red-400 transition-colors disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleGenerateCover}
                   disabled={isCoverGenerating}
                   className="flex-1 py-1.5 bg-accent hover:bg-accent/90 text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
                 >
-                  Generate
+                  {coverImageUrl ? 'Regenerate' : 'Generate'}
                 </button>
                 <button
                   onClick={() => { setShowCoverPrompt(false); setCoverPrompt('') }}
                   className="p-1.5 text-muted-foreground hover:text-cream transition-colors"
+                  title="Close"
                 >
                   <X className="w-4 h-4" />
                 </button>
