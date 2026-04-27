@@ -27,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: pub.title,
     description,
+    robots: { index: true, follow: true },
     openGraph: {
       title: pub.title,
       description,
@@ -70,37 +71,64 @@ export default async function ReadPage({ params }: Props) {
   const backMatter = (allPages ?? []).filter((p: BookPage) => p.chapter_index < 0)
   const theme      = deriveTheme(book as Book, (authorProfile as Profile) ?? null)
 
+  // JSON-LD Book structured data — helps Google Book Search and rich
+  // social-card renderers identify the page as a book.
+  const url = `${process.env.NEXT_PUBLIC_APP_URL}/read/${pub.slug}`
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    name: pub.title,
+    ...(pub.author ? { author: { '@type': 'Person', name: pub.author } } : {}),
+    ...(pub.description ? { description: pub.description } : {}),
+    ...(pub.cover_image_url ? { image: pub.cover_image_url } : {}),
+    url,
+    inLanguage: 'en',
+  }
+  const structuredData = (
+    <script
+      type="application/ld+json"
+      // eslint-disable-next-line react/no-danger -- structured data must serialize as <script>
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+
   // Email gate — show gate if gate_type is 'email'
   if (pub.gate_type === 'email') {
     return (
-      <EmailGate
-        publishedBookId={pub.id}
-        book={book as Book}
-        coverImageUrl={pub.cover_image_url}
-        title={pub.title}
-        author={pub.author}
-        description={pub.description}
-      >
-        <FlipbookViewer
+      <>
+        {structuredData}
+        <EmailGate
+          publishedBookId={pub.id}
           book={book as Book}
-          chapters={chapters as BookPage[]}
-          backMatter={backMatter as BookPage[]}
-          theme={theme}
-          profile={(authorProfile as Profile) ?? null}
-          isPublicView
-        />
-      </EmailGate>
+          coverImageUrl={pub.cover_image_url}
+          title={pub.title}
+          author={pub.author}
+          description={pub.description}
+        >
+          <FlipbookViewer
+            book={book as Book}
+            chapters={chapters as BookPage[]}
+            backMatter={backMatter as BookPage[]}
+            theme={theme}
+            profile={(authorProfile as Profile) ?? null}
+            isPublicView
+          />
+        </EmailGate>
+      </>
     )
   }
 
   return (
-    <FlipbookViewer
-      book={book as Book}
-      chapters={chapters as BookPage[]}
-      backMatter={backMatter as BookPage[]}
-      theme={theme}
-      profile={(authorProfile as Profile) ?? null}
-      isPublicView
-    />
+    <>
+      {structuredData}
+      <FlipbookViewer
+        book={book as Book}
+        chapters={chapters as BookPage[]}
+        backMatter={backMatter as BookPage[]}
+        theme={theme}
+        profile={(authorProfile as Profile) ?? null}
+        isPublicView
+      />
+    </>
   )
 }

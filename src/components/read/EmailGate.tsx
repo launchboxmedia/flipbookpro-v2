@@ -17,6 +17,7 @@ export function EmailGate({ publishedBookId, coverImageUrl, title, author, descr
   const [submitted, setSubmitted] = useState(false)
   const [name, setName]   = useState('')
   const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('') // honeypot — must stay empty
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
 
@@ -29,7 +30,7 @@ export function EmailGate({ publishedBookId, coverImageUrl, title, author, descr
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), name: name.trim(), publishedBookId }),
+        body: JSON.stringify({ email: email.trim(), name: name.trim(), publishedBookId, website }),
       })
       if (!res.ok) {
         const j = await res.json()
@@ -76,6 +77,18 @@ export function EmailGate({ publishedBookId, coverImageUrl, title, author, descr
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Honeypot — visually hidden from real users, hidden from screen
+                readers, but auto-filling bots will populate it. */}
+            <input
+              type="text"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-10000px', width: '1px', height: '1px', opacity: 0 }}
+            />
             <div>
               <label className="block text-xs font-inter text-cream/70 mb-1.5">Name</label>
               <input

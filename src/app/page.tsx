@@ -6,10 +6,18 @@ import { BookOpen, Sparkles, Globe, Users, ArrowRight, Check, Layers, Zap } from
 export const metadata = {
   title: 'FlipBookPro — AI-Powered Flipbooks for Authors',
   description: 'Turn your ideas into beautifully illustrated flipbooks in minutes. AI-assisted writing, stunning visuals, and one-click publishing.',
+  robots: { index: true, follow: true },
+  alternates: { canonical: process.env.NEXT_PUBLIC_APP_URL ?? '/' },
   openGraph: {
     title: 'FlipBookPro — AI-Powered Flipbooks for Authors',
     description: 'Turn your ideas into beautifully illustrated flipbooks in minutes.',
     type: 'website',
+    url: process.env.NEXT_PUBLIC_APP_URL,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FlipBookPro — AI-Powered Flipbooks for Authors',
+    description: 'Turn your ideas into beautifully illustrated flipbooks in minutes.',
   },
 }
 
