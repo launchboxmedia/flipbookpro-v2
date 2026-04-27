@@ -4,12 +4,41 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-03-25.dahlia',
 })
 
+// Price IDs are sourced from env vars — set them in Vercel from your Stripe
+// dashboard (Products → pricing). The fallback strings are placeholders that
+// signal "not configured"; any call that resolves to one of these will be
+// rejected at runtime with a loud error.
+function priceFromEnv(envName: string, fallback: string): string {
+  const value = process.env[envName] ?? fallback
+  if (value.includes('REPLACE_WITH_REAL')) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`[stripe] ${envName} is not configured — set it in your hosting environment.`)
+    }
+  }
+  return value
+}
+
 export const PLANS = {
-  // ⚠️  REPLACE WITH REAL STRIPE PRICE IDs from dashboard.stripe.com → Products
-  standard_monthly: { priceId: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_monthly', amount: 900,  interval: 'month' },
-  standard_annual:  { priceId: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_annual',  amount: 7900, interval: 'year'  },
-  pro_monthly:      { priceId: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_monthly',       amount: 4900, interval: 'month' },
-  pro_annual:       { priceId: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_annual',        amount: 39900, interval: 'year' },
+  standard_monthly: {
+    priceId: priceFromEnv('STRIPE_PRICE_STANDARD_MONTHLY', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_monthly'),
+    amount: 900,
+    interval: 'month',
+  },
+  standard_annual: {
+    priceId: priceFromEnv('STRIPE_PRICE_STANDARD_ANNUAL', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_annual'),
+    amount: 7900,
+    interval: 'year',
+  },
+  pro_monthly: {
+    priceId: priceFromEnv('STRIPE_PRICE_PRO_MONTHLY', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_monthly'),
+    amount: 4900,
+    interval: 'month',
+  },
+  pro_annual: {
+    priceId: priceFromEnv('STRIPE_PRICE_PRO_ANNUAL', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_annual'),
+    amount: 39900,
+    interval: 'year',
+  },
 } as const
 
 export type PlanKey = keyof typeof PLANS
@@ -20,12 +49,21 @@ export const PLAN_LIMITS = {
   pro:      { booksPerMonth: 10, maxChapters: 15 },
 } as const
 
-// Map Stripe price IDs → plan names
-const PRICE_TO_PLAN: Record<string, 'standard' | 'pro'> = {
+// Map Stripe price IDs → plan names. Single source of truth — webhook and
+// checkout both consume this.
+export const PRICE_TO_PLAN: Record<string, 'standard' | 'pro'> = {
   [PLANS.standard_monthly.priceId]: 'standard',
   [PLANS.standard_annual.priceId]:  'standard',
   [PLANS.pro_monthly.priceId]:      'pro',
   [PLANS.pro_annual.priceId]:       'pro',
+}
+
+export function isKnownPriceId(priceId: string): boolean {
+  return priceId in PRICE_TO_PLAN
+}
+
+export function isStripeConfigured(): boolean {
+  return Object.values(PLANS).every((p) => !p.priceId.includes('REPLACE_WITH_REAL'))
 }
 
 /**
@@ -48,7 +86,6 @@ export async function checkSubscriptionPlan(stripeCustomerId: string | null): Pr
     const priceId = subs.data[0].items.data[0]?.price.id ?? ''
     return PRICE_TO_PLAN[priceId] ?? 'standard'
   } catch {
-    // If Stripe fails, fall back gracefully
     return 'free'
   }
 }
