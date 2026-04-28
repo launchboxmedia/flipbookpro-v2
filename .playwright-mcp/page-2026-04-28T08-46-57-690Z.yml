@@ -1,0 +1,155 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "FlipBookPro" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e7]
+          - generic [ref=e9]: FlipBookPro
+        - generic [ref=e11]: CE
+      - link "Upgrade to Premium" [ref=e13] [cursor=pointer]:
+        - /url: /settings/billing
+        - img [ref=e14]
+        - text: Upgrade to Premium
+      - navigation [ref=e16]:
+        - link "Dashboard" [ref=e17] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e19]
+          - text: Dashboard
+        - generic [ref=e24]:
+          - button "Library" [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]:
+              - img [ref=e27]
+              - text: Library
+            - img [ref=e29]
+          - generic [ref=e31]:
+            - link "Books" [ref=e32] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e34]
+              - text: Books
+            - link "Media" [ref=e36] [cursor=pointer]:
+              - /url: /media
+              - img [ref=e38]
+              - text: Media
+        - generic [ref=e42]:
+          - button "Build" [ref=e43] [cursor=pointer]:
+            - generic [ref=e44]:
+              - img [ref=e45]
+              - text: Build
+            - img [ref=e51]
+          - generic [ref=e53]:
+            - button "Outline" [ref=e55] [cursor=pointer]:
+              - img [ref=e57]
+              - text: Outline
+            - button "Theme" [ref=e59] [cursor=pointer]:
+              - img [ref=e61]
+              - text: Theme
+            - button "Chapters" [ref=e68] [cursor=pointer]:
+              - img [ref=e70]
+              - text: Chapters
+            - button "Review & Export" [disabled] [ref=e75]:
+              - img [ref=e77]
+              - text: Review & Export
+        - generic [ref=e80]:
+          - button "Account" [ref=e81] [cursor=pointer]:
+            - generic [ref=e82]:
+              - img [ref=e83]
+              - text: Account
+            - img [ref=e86]
+          - generic [ref=e88]:
+            - link "Profile" [ref=e89] [cursor=pointer]:
+              - /url: /settings/profile
+              - img [ref=e91]
+              - text: Profile
+            - link "Brand Profile" [ref=e94] [cursor=pointer]:
+              - /url: /settings/brand
+              - img [ref=e96]
+              - text: Brand Profile
+            - link "Billing" [ref=e100] [cursor=pointer]:
+              - /url: /settings/billing
+              - img [ref=e102]
+              - text: Billing
+        - generic [ref=e104]:
+          - button "Support" [ref=e105] [cursor=pointer]:
+            - generic [ref=e106]:
+              - img [ref=e107]
+              - text: Support
+            - img [ref=e109]
+          - generic [ref=e111]:
+            - link "Chat" [ref=e112] [cursor=pointer]:
+              - /url: /support/chat
+              - img [ref=e114]
+              - text: Chat
+            - link "Feedback" [ref=e116] [cursor=pointer]:
+              - /url: /support/feedback
+              - img [ref=e118]
+              - text: Feedback
+            - link "FAQ" [ref=e120] [cursor=pointer]:
+              - /url: /support/faq
+              - img [ref=e122]
+              - text: FAQ
+        - button "Admin" [ref=e126] [cursor=pointer]:
+          - generic [ref=e127]:
+            - img [ref=e128]
+            - text: Admin
+          - img [ref=e130]
+      - generic [ref=e132]:
+        - paragraph [ref=e133]: Cover
+        - generic [ref=e134]:
+          - img [ref=e135]
+          - generic [ref=e139]: No cover yet
+        - generic [ref=e206]:
+          - 'textbox "Optional: describe the cover…" [ref=e207]'
+          - generic [ref=e208]:
+            - button "Generate" [ref=e209] [cursor=pointer]
+            - button [ref=e210] [cursor=pointer]:
+              - img [ref=e211]
+        - generic [ref=e152]: 1/3
+      - generic [ref=e153]:
+        - button "Sign out" [ref=e155] [cursor=pointer]
+        - paragraph [ref=e156]: © 2025 LaunchBox Media
+    - main [ref=e157]:
+      - generic [ref=e158]:
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - paragraph [ref=e161]: Manuscript
+            - heading "Outline" [level=2] [ref=e162]
+            - paragraph [ref=e163]: Review your chapter structure before writing.
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - generic [ref=e166]: "1"
+              - generic [ref=e167]:
+                - paragraph [ref=e168]: The First 24 Hours
+                - paragraph [ref=e169]: What to do the moment you bring a new dog home.
+              - generic [ref=e170]:
+                - generic "Approved" [ref=e171]
+                - button "Write" [ref=e172] [cursor=pointer]:
+                  - text: Write
+                  - img [ref=e173]
+            - generic [ref=e175]:
+              - generic [ref=e176]: "2"
+              - generic [ref=e177]:
+                - paragraph [ref=e178]: The Three Rules
+                - paragraph [ref=e179]: The only three rules a new dog owner needs in the first week.
+              - button "Write" [ref=e181] [cursor=pointer]:
+                - text: Write
+                - img [ref=e182]
+            - generic [ref=e184]:
+              - generic [ref=e185]: "3"
+              - generic [ref=e186]:
+                - paragraph [ref=e187]: Your First Routine
+                - paragraph [ref=e188]: How to build a simple daily routine in week one.
+              - button "Write" [ref=e190] [cursor=pointer]:
+                - text: Write
+                - img [ref=e191]
+        - generic [ref=e194]:
+          - paragraph [ref=e195]: AI Critique
+          - paragraph [ref=e196]: Click Critique Outline when you're ready for structural feedback.
+          - generic [ref=e197]:
+            - button "Critique Outline" [ref=e198] [cursor=pointer]:
+              - img [ref=e199]
+              - text: Critique Outline
+            - button "Proceed to Writing" [ref=e202] [cursor=pointer]:
+              - text: Proceed to Writing
+              - img [ref=e203]
+  - alert [ref=e205]

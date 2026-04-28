@@ -1,0 +1,23 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e23]
+  - generic [ref=e24]:
+    - banner [ref=e25]:
+      - generic [ref=e26]: "First Week: The New Dog Owner's Survival Guide"
+      - combobox [ref=e28]:
+        - option "Table of Contents" [selected]
+        - option "Ch. 1 — The First 24 Hours"
+        - option "Ch. 2 — The Three Rules"
+        - option "Ch. 3 — Your First Routine"
+    - generic [ref=e29]:
+      - generic [ref=e37]:
+        - 'heading "First Week: The New Dog Owner''s Survival Guide" [level=1] [ref=e41]'
+        - generic [ref=e42]:
+          - paragraph [ref=e43]: Three rules and a routine for the first seven days
+          - paragraph [ref=e45]: E2E Test
+      - generic [ref=e49]:
+        - button [disabled] [ref=e50]:
+          - img [ref=e51]
+        - generic [ref=e53]: 1/6
+        - button [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+      - paragraph [ref=e57]: ← → arrow keys · swipe to navigate
