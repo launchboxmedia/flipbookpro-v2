@@ -1,0 +1,210 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e28]
+  - generic [ref=e1024]:
+    - complementary [ref=e1025]:
+      - generic [ref=e1026]:
+        - link "FlipBookPro" [ref=e1027] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e1029]
+          - generic [ref=e1031]: FlipBookPro
+        - generic [ref=e1033]: CE
+      - link "Upgrade to Premium" [ref=e1035] [cursor=pointer]:
+        - /url: /settings/billing
+        - img [ref=e1036]
+        - text: Upgrade to Premium
+      - navigation [ref=e1038]:
+        - link "Dashboard" [ref=e1039] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e1041]
+          - text: Dashboard
+        - generic [ref=e1046]:
+          - button "Library" [ref=e1047] [cursor=pointer]:
+            - generic [ref=e1048]:
+              - img [ref=e1049]
+              - text: Library
+            - img [ref=e1051]
+          - generic [ref=e1053]:
+            - link "Books" [ref=e1054] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e1056]
+              - text: Books
+            - link "Media" [ref=e1058] [cursor=pointer]:
+              - /url: /media
+              - img [ref=e1060]
+              - text: Media
+        - generic [ref=e1064]:
+          - button "Build" [ref=e1065] [cursor=pointer]:
+            - generic [ref=e1066]:
+              - img [ref=e1067]
+              - text: Build
+            - img [ref=e1073]
+          - generic [ref=e1075]:
+            - button "Outline" [ref=e1077] [cursor=pointer]:
+              - img [ref=e1079]
+              - text: Outline
+            - button "Theme" [ref=e1081] [cursor=pointer]:
+              - img [ref=e1083]
+              - text: Theme
+            - generic [ref=e1089]:
+              - button "Chapters" [ref=e1090] [cursor=pointer]:
+                - img [ref=e1092]
+                - text: Chapters
+              - generic [ref=e1317]:
+                - button "The First 24 Hours" [ref=e1318] [cursor=pointer]:
+                  - generic [ref=e1320]: The First 24 Hours
+                - button "The Three Rules" [ref=e1321] [cursor=pointer]:
+                  - generic [ref=e1323]: The Three Rules
+                - button "Your First Routine" [ref=e1324] [cursor=pointer]:
+                  - generic [ref=e1326]: Your First Routine
+            - button "Review & Export" [disabled] [ref=e1097]:
+              - img [ref=e1099]
+              - text: Review & Export
+        - generic [ref=e1102]:
+          - button "Account" [ref=e1103] [cursor=pointer]:
+            - generic [ref=e1104]:
+              - img [ref=e1105]
+              - text: Account
+            - img [ref=e1108]
+          - generic [ref=e1110]:
+            - link "Profile" [ref=e1111] [cursor=pointer]:
+              - /url: /settings/profile
+              - img [ref=e1113]
+              - text: Profile
+            - link "Brand Profile" [ref=e1116] [cursor=pointer]:
+              - /url: /settings/brand
+              - img [ref=e1118]
+              - text: Brand Profile
+            - link "Billing" [ref=e1122] [cursor=pointer]:
+              - /url: /settings/billing
+              - img [ref=e1124]
+              - text: Billing
+        - generic [ref=e1126]:
+          - button "Support" [ref=e1127] [cursor=pointer]:
+            - generic [ref=e1128]:
+              - img [ref=e1129]
+              - text: Support
+            - img [ref=e1131]
+          - generic [ref=e1133]:
+            - link "Chat" [ref=e1134] [cursor=pointer]:
+              - /url: /support/chat
+              - img [ref=e1136]
+              - text: Chat
+            - link "Feedback" [ref=e1138] [cursor=pointer]:
+              - /url: /support/feedback
+              - img [ref=e1140]
+              - text: Feedback
+            - link "FAQ" [ref=e1142] [cursor=pointer]:
+              - /url: /support/faq
+              - img [ref=e1144]
+              - text: FAQ
+        - button "Admin" [ref=e1148] [cursor=pointer]:
+          - generic [ref=e1149]:
+            - img [ref=e1150]
+            - text: Admin
+          - img [ref=e1152]
+      - generic [ref=e1154]:
+        - paragraph [ref=e1155]: Cover
+        - generic [ref=e1156]:
+          - img [ref=e1157]
+          - generic [ref=e1161]: No cover yet
+        - generic [ref=e1162]:
+          - button "Generate" [ref=e1163] [cursor=pointer]:
+            - img [ref=e1164]
+            - text: Generate
+          - button "Upload" [ref=e1167] [cursor=pointer]:
+            - img [ref=e1168]
+            - text: Upload
+        - generic [ref=e1173]: 1/3
+      - generic [ref=e1174]:
+        - button "Sign out" [ref=e1176] [cursor=pointer]
+        - paragraph [ref=e1177]: © 2025 LaunchBox Media
+    - main [ref=e1178]:
+      - generic [ref=e1327]:
+        - generic [ref=e1328]:
+          - generic [ref=e1329]:
+            - generic [ref=e1330]:
+              - generic [ref=e1331]: Chapter 1 of 3
+              - generic [ref=e1332]:
+                - button [ref=e1333] [cursor=pointer]:
+                  - img [ref=e1334]
+                - button [ref=e1336] [cursor=pointer]:
+                  - img [ref=e1337]
+            - heading "The First 24 Hours" [level=3] [ref=e1339]
+            - paragraph [ref=e1340]: What to do the moment you bring a new dog home.
+          - generic [ref=e1341]:
+            - generic [ref=e1343]: Illustration
+            - generic [ref=e1344]:
+              - generic [ref=e1345]: Style (whole book)
+              - combobox [ref=e1346]:
+                - option "Photorealistic"
+                - option "Cinematic"
+                - option "Illustrated"
+                - option "Watercolor" [selected]
+                - option "Minimalist"
+                - option "Vintage"
+            - generic [ref=e1347]:
+              - generic [ref=e1348]: Palette (whole book)
+              - combobox [ref=e1349]:
+                - option "Teal & Cream" [selected]
+                - option "Navy & Gold"
+                - option "Burgundy & Sand"
+                - option "Slate & Copper"
+                - option "Forest & Amber"
+                - option "Charcoal & Rose"
+                - option "Use my brand colors"
+            - 'button "View enlarged: The First 24 Hours" [ref=e1436]':
+              - img "The First 24 Hours" [ref=e1437]
+              - generic:
+                - img
+            - generic [ref=e1356]:
+              - generic [ref=e1357]: Image prompt— leave blank for AI auto-scene
+              - textbox "Describe what you want, or leave blank to let the AI pick a scene from the chapter…" [ref=e1358]
+              - generic [ref=e1359]:
+                - button "+ more dramatic lighting" [ref=e1360] [cursor=pointer]
+                - button "+ tighter framing" [ref=e1361] [cursor=pointer]
+                - button "+ wider, more atmospheric" [ref=e1362] [cursor=pointer]
+                - button "+ warmer tone" [ref=e1363] [cursor=pointer]
+                - button "+ cooler tone" [ref=e1364] [cursor=pointer]
+                - button "+ different angle" [ref=e1365] [cursor=pointer]
+                - button "+ more minimal" [ref=e1366] [cursor=pointer]
+                - button "+ more detailed" [ref=e1367] [cursor=pointer]
+                - button "+ softer mood" [ref=e1368] [cursor=pointer]
+                - button "+ more graphic / abstract" [ref=e1369] [cursor=pointer]
+              - generic [ref=e1370]:
+                - button "Regenerate" [ref=e1438] [cursor=pointer]:
+                  - img [ref=e1439]
+                  - text: Regenerate
+                - button "Upload" [ref=e1375] [cursor=pointer]:
+                  - img [ref=e1376]
+                  - text: Upload
+          - generic [ref=e1415]: Draft generated. Tell me what to change — I can adjust the tone, expand any section, or rewrite from a different angle.
+          - generic [ref=e1382]:
+            - textbox "Ask for changes… (Enter to send, Shift+Enter for new line)" [disabled] [ref=e1383]:
+              - /placeholder: Ask for changes…  (Enter to send, Shift+Enter for new line)
+            - button "Send" [disabled] [ref=e1384]:
+              - img [ref=e1385]
+        - generic [ref=e1388]:
+          - generic [ref=e1389]:
+            - generic [ref=e1390]:
+              - button "Generate Draft" [disabled] [ref=e1416]:
+                - img [ref=e1417]
+                - text: Generate Draft
+              - button "Analyze Draft" [ref=e1395] [cursor=pointer]:
+                - img [ref=e1396]
+                - text: Analyze Draft
+            - button "Approved — click to unapprove" [ref=e1427] [cursor=pointer]:
+              - img [ref=e1428]
+              - text: Approved — click to unapprove
+          - generic [ref=e1402]:
+            - generic [ref=e1431]:
+              - img [ref=e1432]
+              - text: Chapter locked. Unapprove to edit.
+            - textbox "Click 'Generate Draft' to create the chapter, or type directly..." [ref=e1403]: You are not ready. That's the honest truth, and that's fine — no one ever is. The moment you carry that dog through your front door, everything changes. Your home, which felt perfectly normal an hour ago, is now an overwhelming maze of smells, sounds, and strangers to a creature who had no say in any of this. Keep that in mind before you do anything else. Your first instinct will be to introduce the dog to every room, every person, and every toy you bought last week. Resist it. Give the dog one room — a quiet one — and let it stand there. Let it sniff the floor, circle the space, and figure out where it is. You are not ignoring the dog by doing this. You are giving it the one thing it actually needs right now, which is time. Water bowl down. Leash off. Sit nearby without hovering. If the dog approaches you, respond calmly. If it doesn't, that's also fine. First meetings between dogs and new owners are rarely the warm movie-moment people expect, and the gap between expectation and reality is where most first-day mistakes happen. Keep the house quieter than usual. No parties, no sudden visitors, no children running laps through the living room. Dogs read energy before they read intention, and a chaotic first afternoon can set a nervous tone that takes days to undo. Before night falls, take the dog outside on a leash — even if you have a yard. This is how it learns your routine starts here, outside, before it starts anywhere else. Feed at the same time you plan to feed every day going forward. Consistency on day one isn't a nice touch — it's the actual foundation you're building on, and the next few days depend on it entirely.
+          - generic [ref=e1404]:
+            - button "Outline" [ref=e1405] [cursor=pointer]:
+              - img [ref=e1406]
+              - text: Outline
+            - generic [ref=e1414]: 303 words
+            - button "Chapter 2" [ref=e1408] [cursor=pointer]:
+              - text: Chapter 2
+              - img [ref=e1409]

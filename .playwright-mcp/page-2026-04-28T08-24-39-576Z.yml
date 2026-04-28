@@ -1,0 +1,190 @@
+- generic [ref=e1]:
+  - alert [ref=e28]
+  - generic [ref=e193]:
+    - complementary [ref=e194]:
+      - generic [ref=e195]:
+        - link "FlipBookPro" [ref=e196] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e198]
+          - generic [ref=e200]: FlipBookPro
+        - generic [ref=e202]: CE
+      - link "Upgrade to Premium" [ref=e204] [cursor=pointer]:
+        - /url: /settings/billing
+        - img [ref=e205]
+        - text: Upgrade to Premium
+      - navigation [ref=e207]:
+        - link "Dashboard" [ref=e208] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e210]
+          - text: Dashboard
+        - generic [ref=e215]:
+          - button "Library" [ref=e216] [cursor=pointer]:
+            - generic [ref=e217]:
+              - img [ref=e218]
+              - text: Library
+            - img [ref=e220]
+          - generic [ref=e222]:
+            - link "Books" [ref=e223] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e225]
+              - text: Books
+            - link "Media" [ref=e227] [cursor=pointer]:
+              - /url: /media
+              - img [ref=e229]
+              - text: Media
+        - generic [ref=e233]:
+          - button "Build" [ref=e234] [cursor=pointer]:
+            - generic [ref=e235]:
+              - img [ref=e236]
+              - text: Build
+            - img [ref=e242]
+          - generic [ref=e244]:
+            - button "Discover" [disabled] [ref=e246]:
+              - img [ref=e248]
+              - text: Discover
+            - button "Outline" [disabled] [ref=e252]:
+              - img [ref=e254]
+              - text: Outline
+            - button "Theme" [disabled] [ref=e256]:
+              - img [ref=e258]
+              - text: Theme
+            - button "Chapters" [disabled] [ref=e265]:
+              - img [ref=e267]
+              - text: Chapters
+            - button "Review & Export" [disabled] [ref=e272]:
+              - img [ref=e274]
+              - text: Review & Export
+        - generic [ref=e277]:
+          - button "Account" [ref=e278] [cursor=pointer]:
+            - generic [ref=e279]:
+              - img [ref=e280]
+              - text: Account
+            - img [ref=e283]
+          - generic [ref=e285]:
+            - link "Profile" [ref=e286] [cursor=pointer]:
+              - /url: /settings/profile
+              - img [ref=e288]
+              - text: Profile
+            - link "Brand Profile" [ref=e291] [cursor=pointer]:
+              - /url: /settings/brand
+              - img [ref=e293]
+              - text: Brand Profile
+            - link "Billing" [ref=e297] [cursor=pointer]:
+              - /url: /settings/billing
+              - img [ref=e299]
+              - text: Billing
+        - generic [ref=e301]:
+          - button "Support" [ref=e302] [cursor=pointer]:
+            - generic [ref=e303]:
+              - img [ref=e304]
+              - text: Support
+            - img [ref=e306]
+          - generic [ref=e308]:
+            - link "Chat" [ref=e309] [cursor=pointer]:
+              - /url: /support/chat
+              - img [ref=e311]
+              - text: Chat
+            - link "Feedback" [ref=e313] [cursor=pointer]:
+              - /url: /support/feedback
+              - img [ref=e315]
+              - text: Feedback
+            - link "FAQ" [ref=e317] [cursor=pointer]:
+              - /url: /support/faq
+              - img [ref=e319]
+              - text: FAQ
+        - button "Admin" [ref=e323] [cursor=pointer]:
+          - generic [ref=e324]:
+            - img [ref=e325]
+            - text: Admin
+          - img [ref=e327]
+      - generic [ref=e329]:
+        - button "Sign out" [ref=e331] [cursor=pointer]
+        - paragraph [ref=e332]: © 2025 LaunchBox Media
+    - main [ref=e333]:
+      - generic [ref=e335]:
+        - generic [ref=e336]:
+          - heading "Edit Book" [level=1] [ref=e423]
+          - generic [ref=e338]:
+            - generic [ref=e340]:
+              - img [ref=e424]
+              - generic [ref=e342]: Outline
+            - generic [ref=e345]:
+              - img [ref=e441]
+              - generic [ref=e347]: Details
+            - generic [ref=e350]:
+              - img [ref=e478]
+              - generic [ref=e352]: Audience
+            - generic [ref=e355]:
+              - img [ref=e516]
+              - generic [ref=e357]: Tone
+            - generic [ref=e360]:
+              - img [ref=e542]
+              - generic [ref=e362]: Reader
+            - generic [ref=e365]:
+              - generic [ref=e366]: "6"
+              - generic [ref=e367]: Illustrations
+            - generic [ref=e370]:
+              - generic [ref=e371]: "7"
+              - generic [ref=e372]: Cover
+            - generic [ref=e375]:
+              - generic [ref=e376]: "8"
+              - generic [ref=e377]: Typography
+        - generic [ref=e544]:
+          - generic [ref=e545]:
+            - heading "Visual Style" [level=2] [ref=e546]
+            - paragraph [ref=e547]: Every chapter gets one illustration in this style.
+          - generic [ref=e548]:
+            - button "Watercolor Soft washes, organic edges, painterly warmth." [active] [ref=e549] [cursor=pointer]:
+              - img [ref=e551]
+              - paragraph [ref=e559]: Watercolor
+              - paragraph [ref=e560]: Soft washes, organic edges, painterly warmth.
+            - button "Photorealistic High-detail photography-style, crisp and lifelike." [ref=e561] [cursor=pointer]:
+              - img [ref=e563]
+              - paragraph [ref=e573]: Photorealistic
+              - paragraph [ref=e574]: High-detail photography-style, crisp and lifelike.
+            - button "Cinematic Dramatic lighting, film grain, wide-format mood." [ref=e575] [cursor=pointer]:
+              - img [ref=e577]
+              - paragraph [ref=e589]: Cinematic
+              - paragraph [ref=e590]: Dramatic lighting, film grain, wide-format mood.
+            - button "Editorial Illustrated Ink and wash, textured paper, professional book art." [ref=e591] [cursor=pointer]:
+              - img [ref=e593]
+              - paragraph [ref=e605]: Editorial Illustrated
+              - paragraph [ref=e606]: Ink and wash, textured paper, professional book art.
+            - button "Minimalist Clean lines, limited palette, geometric and bold." [ref=e607] [cursor=pointer]:
+              - img [ref=e609]
+              - paragraph [ref=e619]: Minimalist
+              - paragraph [ref=e620]: Clean lines, limited palette, geometric and bold.
+            - button "Vintage Aged paper, engraving style, sepia-toned classics." [ref=e621] [cursor=pointer]:
+              - img [ref=e623]
+              - paragraph [ref=e632]: Vintage
+              - paragraph [ref=e633]: Aged paper, engraving style, sepia-toned classics.
+          - generic [ref=e634]:
+            - generic [ref=e635]:
+              - heading "Color Palette" [level=3] [ref=e636]
+              - paragraph [ref=e637]: Anchors every chapter and cover image to a cohesive set of colors.
+            - generic [ref=e638]:
+              - button "Teal & Cream Classic, trustworthy, professional." [ref=e639] [cursor=pointer]:
+                - paragraph [ref=e644]: Teal & Cream
+                - paragraph [ref=e645]: Classic, trustworthy, professional.
+              - button "Navy & Gold Authoritative, premium, financial." [ref=e646] [cursor=pointer]:
+                - paragraph [ref=e651]: Navy & Gold
+                - paragraph [ref=e652]: Authoritative, premium, financial.
+              - button "Burgundy & Sand Sophisticated, warm, leadership." [ref=e653] [cursor=pointer]:
+                - paragraph [ref=e658]: Burgundy & Sand
+                - paragraph [ref=e659]: Sophisticated, warm, leadership.
+              - button "Slate & Copper Modern, technical, precise." [ref=e660] [cursor=pointer]:
+                - paragraph [ref=e665]: Slate & Copper
+                - paragraph [ref=e666]: Modern, technical, precise.
+              - button "Forest & Amber Natural, grounded, health and wellness." [ref=e667] [cursor=pointer]:
+                - paragraph [ref=e672]: Forest & Amber
+                - paragraph [ref=e673]: Natural, grounded, health and wellness.
+              - button "Charcoal & Rose Contemporary, personal development, memoir." [ref=e674] [cursor=pointer]:
+                - paragraph [ref=e679]: Charcoal & Rose
+                - paragraph [ref=e680]: Contemporary, personal development, memoir.
+              - button "Use my brand colors Set a brand color in your brand profile to enable this." [disabled] [ref=e681]:
+                - generic [ref=e686]:
+                  - paragraph [ref=e687]: Use my brand colors
+                  - paragraph [ref=e688]: Set a brand color in your brand profile to enable this.
+          - generic [ref=e689]:
+            - button "Back" [ref=e690] [cursor=pointer]
+            - button "Continue" [ref=e691] [cursor=pointer]

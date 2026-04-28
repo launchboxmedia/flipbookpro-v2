@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "FlipBookPro" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Create your account
+    - generic [ref=e7]:
+      - button "Continue with Google" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+        - text: Continue with Google
+      - generic [ref=e18]: or sign up with email
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - text: Email
+          - textbox "Email" [ref=e21]:
+            - /placeholder: you@example.com
+        - generic [ref=e22]:
+          - text: Password
+          - textbox "Password" [ref=e23]:
+            - /placeholder: ••••••••
+          - paragraph [ref=e24]: Minimum 8 characters
+        - button "Create Account" [ref=e25] [cursor=pointer]
+      - paragraph [ref=e26]:
+        - text: Already have an account?
+        - link "Sign in" [ref=e27] [cursor=pointer]:
+          - /url: /login
+  - alert [ref=e28]

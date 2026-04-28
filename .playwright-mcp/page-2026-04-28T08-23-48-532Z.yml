@@ -1,0 +1,169 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e28]
+  - generic [ref=e193]:
+    - complementary [ref=e194]:
+      - generic [ref=e195]:
+        - link "FlipBookPro" [ref=e196] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e198]
+          - generic [ref=e200]: FlipBookPro
+        - generic [ref=e202]: CE
+      - link "Upgrade to Premium" [ref=e204] [cursor=pointer]:
+        - /url: /settings/billing
+        - img [ref=e205]
+        - text: Upgrade to Premium
+      - navigation [ref=e207]:
+        - link "Dashboard" [ref=e208] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e210]
+          - text: Dashboard
+        - generic [ref=e215]:
+          - button "Library" [ref=e216] [cursor=pointer]:
+            - generic [ref=e217]:
+              - img [ref=e218]
+              - text: Library
+            - img [ref=e220]
+          - generic [ref=e222]:
+            - link "Books" [ref=e223] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e225]
+              - text: Books
+            - link "Media" [ref=e227] [cursor=pointer]:
+              - /url: /media
+              - img [ref=e229]
+              - text: Media
+        - generic [ref=e233]:
+          - button "Build" [ref=e234] [cursor=pointer]:
+            - generic [ref=e235]:
+              - img [ref=e236]
+              - text: Build
+            - img [ref=e242]
+          - generic [ref=e244]:
+            - button "Discover" [disabled] [ref=e246]:
+              - img [ref=e248]
+              - text: Discover
+            - button "Outline" [disabled] [ref=e252]:
+              - img [ref=e254]
+              - text: Outline
+            - button "Theme" [disabled] [ref=e256]:
+              - img [ref=e258]
+              - text: Theme
+            - button "Chapters" [disabled] [ref=e265]:
+              - img [ref=e267]
+              - text: Chapters
+            - button "Review & Export" [disabled] [ref=e272]:
+              - img [ref=e274]
+              - text: Review & Export
+        - generic [ref=e277]:
+          - button "Account" [ref=e278] [cursor=pointer]:
+            - generic [ref=e279]:
+              - img [ref=e280]
+              - text: Account
+            - img [ref=e283]
+          - generic [ref=e285]:
+            - link "Profile" [ref=e286] [cursor=pointer]:
+              - /url: /settings/profile
+              - img [ref=e288]
+              - text: Profile
+            - link "Brand Profile" [ref=e291] [cursor=pointer]:
+              - /url: /settings/brand
+              - img [ref=e293]
+              - text: Brand Profile
+            - link "Billing" [ref=e297] [cursor=pointer]:
+              - /url: /settings/billing
+              - img [ref=e299]
+              - text: Billing
+        - generic [ref=e301]:
+          - button "Support" [ref=e302] [cursor=pointer]:
+            - generic [ref=e303]:
+              - img [ref=e304]
+              - text: Support
+            - img [ref=e306]
+          - generic [ref=e308]:
+            - link "Chat" [ref=e309] [cursor=pointer]:
+              - /url: /support/chat
+              - img [ref=e311]
+              - text: Chat
+            - link "Feedback" [ref=e313] [cursor=pointer]:
+              - /url: /support/feedback
+              - img [ref=e315]
+              - text: Feedback
+            - link "FAQ" [ref=e317] [cursor=pointer]:
+              - /url: /support/faq
+              - img [ref=e319]
+              - text: FAQ
+        - button "Admin" [ref=e323] [cursor=pointer]:
+          - generic [ref=e324]:
+            - img [ref=e325]
+            - text: Admin
+          - img [ref=e327]
+      - generic [ref=e329]:
+        - button "Sign out" [ref=e331] [cursor=pointer]
+        - paragraph [ref=e332]: © 2025 LaunchBox Media
+    - main [ref=e333]:
+      - generic [ref=e335]:
+        - generic [ref=e336]:
+          - heading "Edit Book" [level=1] [ref=e423]
+          - generic [ref=e338]:
+            - generic [ref=e340]:
+              - img [ref=e424]
+              - generic [ref=e342]: Outline
+            - generic [ref=e345]:
+              - img [ref=e441]
+              - generic [ref=e347]: Details
+            - generic [ref=e350]:
+              - img [ref=e478]
+              - generic [ref=e352]: Audience
+            - generic [ref=e355]:
+              - generic [ref=e356]: "4"
+              - generic [ref=e357]: Tone
+            - generic [ref=e360]:
+              - generic [ref=e361]: "5"
+              - generic [ref=e362]: Reader
+            - generic [ref=e365]:
+              - generic [ref=e366]: "6"
+              - generic [ref=e367]: Illustrations
+            - generic [ref=e370]:
+              - generic [ref=e371]: "7"
+              - generic [ref=e372]: Cover
+            - generic [ref=e375]:
+              - generic [ref=e376]: "8"
+              - generic [ref=e377]: Typography
+        - generic [ref=e480]:
+          - generic [ref=e481]:
+            - heading "What's the vibe?" [level=2] [ref=e482]
+            - paragraph [ref=e483]: Set the mood and tone for your book.
+          - generic [ref=e484]:
+            - button "📚 Educational Informative and clear" [ref=e485] [cursor=pointer]:
+              - generic [ref=e486]: 📚
+              - generic [ref=e487]:
+                - paragraph [ref=e488]: Educational
+                - paragraph [ref=e489]: Informative and clear
+            - button "🌅 Inspirational Uplifting and hopeful" [ref=e490] [cursor=pointer]:
+              - generic [ref=e491]: 🌅
+              - generic [ref=e492]:
+                - paragraph [ref=e493]: Inspirational
+                - paragraph [ref=e494]: Uplifting and hopeful
+            - button "🔬 Research Mode Each chapter will be fact-checked and enriched with deep research" [ref=e495] [cursor=pointer]:
+              - generic [ref=e496]: 🔬
+              - generic [ref=e497]:
+                - paragraph [ref=e498]: Research Mode
+                - paragraph [ref=e499]: Each chapter will be fact-checked and enriched with deep research
+          - generic [ref=e500]:
+            - paragraph [ref=e501]: Writing Tone
+            - generic [ref=e502]:
+              - button "💼 Professional" [ref=e503] [cursor=pointer]:
+                - generic [ref=e504]: 💼
+                - text: Professional
+              - button "😏 Witty" [ref=e505] [cursor=pointer]:
+                - generic [ref=e506]: 😏
+                - text: Witty
+              - button "🎯 Direct" [ref=e507] [cursor=pointer]:
+                - generic [ref=e508]: 🎯
+                - text: Direct
+              - button "💛 Empathetic" [ref=e509] [cursor=pointer]:
+                - generic [ref=e510]: 💛
+                - text: Empathetic
+          - generic [ref=e511]:
+            - button "Back" [ref=e512] [cursor=pointer]
+            - button "Continue" [ref=e513] [cursor=pointer]
