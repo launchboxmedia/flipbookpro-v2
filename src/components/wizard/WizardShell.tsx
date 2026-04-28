@@ -75,40 +75,53 @@ export function WizardShell({ bookId, initialData, maxChapters = 6 }: WizardShel
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <div className="max-w-3xl mx-auto px-4 py-10">
+    <div className="min-h-screen bg-canvas relative overflow-hidden">
+      {/* Subtle gold radial accent */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.08)_0%,transparent_55%)]" />
+
+      <div className="relative max-w-3xl mx-auto px-4 py-12">
         <div className="mb-10">
-          <h1 className="font-playfair text-3xl text-cream mb-6 text-center">
+          <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.22em] mb-2 text-center">
             {data.chapters.length > 0 ? 'Edit Book' : 'New Book'}
+          </p>
+          <h1 className="font-playfair text-4xl text-cream font-semibold mb-7 text-center">
+            Set the foundations
           </h1>
           <div className="flex items-center justify-between">
             {STEPS.map((label, i) => (
               <div key={i} className="flex items-center">
-                <div className="flex flex-col items-center gap-1">
+                <div className="flex flex-col items-center gap-1.5">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-inter font-medium transition-colors ${
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-inter font-medium transition-all ${
                       i < step
-                        ? 'bg-accent text-cream'
+                        ? 'bg-gold text-ink-1 shadow-[0_0_18px_-4px_rgba(201,168,76,0.5)]'
                         : i === step
-                        ? 'bg-gold text-canvas'
-                        : 'bg-[#2A2A2A] text-muted-foreground border border-[#333]'
+                        ? 'bg-gold text-ink-1 ring-2 ring-gold/40 ring-offset-2 ring-offset-canvas'
+                        : 'bg-ink-2 text-ink-subtle border border-ink-3'
                     }`}
                   >
                     {i < step ? <Check className="w-4 h-4" /> : i + 1}
                   </div>
-                  <span className={`text-xs font-inter hidden sm:block ${i === step ? 'text-gold' : 'text-muted-foreground'}`}>
+                  <span className={`text-[10px] font-inter hidden sm:block tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
                     {label}
                   </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`h-px w-6 sm:w-8 mx-1 ${i < step ? 'bg-accent' : 'bg-[#333]'}`} />
+                  <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-ink-3'}`} />
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-[#222] border border-[#333] rounded-xl p-8">
+        {/*
+          The step content sits in an elevated dark "card" with a subtle gold
+          edge to feel deliberate and considered (not a flat form).
+          Note: the step components themselves still use dark form controls.
+          Migrating each step to a cream surface is a separate follow-up
+          tracked alongside the rest of the design-token migration.
+        */}
+        <div className="bg-ink-2 border border-ink-3 rounded-2xl p-9 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)] ring-1 ring-gold/10">
           {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
           {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
           {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}

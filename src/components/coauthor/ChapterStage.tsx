@@ -39,13 +39,13 @@ const CHAPTER_PROMPT_MODS: ReadonlyArray<string> = [
 ]
 
 const FLAG_META: Record<ChapterFlagType, { label: string; icon: React.ReactNode; color: string }> = {
-  OPENING:     { label: 'Opening',      icon: <Sparkles className="w-3 h-3" />,           color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-  CLARITY:     { label: 'Clarity',      icon: <Eye className="w-3 h-3" />,                color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-  VOICE:       { label: 'Voice',        icon: <MessageSquareWarning className="w-3 h-3"/>, color: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
-  FLOW:        { label: 'Flow',         icon: <FileText className="w-3 h-3" />,           color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
-  EXAMPLE:     { label: 'Example',      icon: <Lightbulb className="w-3 h-3" />,          color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
-  CLOSING:     { label: 'Closing',      icon: <FileText className="w-3 h-3" />,           color: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
-  BRIEF_DRIFT: { label: 'Brief drift',  icon: <AlertTriangle className="w-3 h-3" />,      color: 'bg-red-500/15 text-red-400 border-red-500/30' },
+  OPENING:     { label: 'Opening',      icon: <Sparkles className="w-3 h-3" />,            color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  CLARITY:     { label: 'Clarity',      icon: <Eye className="w-3 h-3" />,                 color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  VOICE:       { label: 'Voice',        icon: <MessageSquareWarning className="w-3 h-3"/>, color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  FLOW:        { label: 'Flow',         icon: <FileText className="w-3 h-3" />,            color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+  EXAMPLE:     { label: 'Example',      icon: <Lightbulb className="w-3 h-3" />,           color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  CLOSING:     { label: 'Closing',      icon: <FileText className="w-3 h-3" />,            color: 'bg-orange-100 text-orange-800 border-orange-200' },
+  BRIEF_DRIFT: { label: 'Brief drift',  icon: <AlertTriangle className="w-3 h-3" />,       color: 'bg-rose-100 text-rose-800 border-rose-200' },
 }
 
 interface Props {
@@ -541,32 +541,32 @@ export function ChapterStage({
         </div>
       </div>
 
-      {/* Right panel — draft */}
-      <div className="flex-1 flex flex-col bg-canvas overflow-hidden">
-        <div className="px-8 py-5 border-b border-[#333] flex items-center justify-between">
+      {/* Right panel — cream writing surface (the manuscript) */}
+      <div className="flex-1 flex flex-col bg-cream-1 overflow-hidden">
+        <div className="px-8 py-5 border-b border-cream-3 flex items-center justify-between bg-cream-2">
           <div className="flex items-center gap-3">
             <button
               onClick={generateDraft}
               disabled={generating || approved}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2A2A2A] hover:bg-[#333] border border-[#333] text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-ink-1 hover:bg-ink-2 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm"
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-              {generating ? 'Generating...' : 'Generate Draft'}
+              {generating ? 'Generating…' : 'Generate Draft'}
             </button>
             <button
               onClick={runAnalysis}
               disabled={analyzing || !draft || draft.trim().length < 50}
               title={!draft || draft.trim().length < 50 ? 'Generate or paste a draft first' : 'AI analysis of the draft'}
-              className="flex items-center gap-2 px-4 py-2 bg-[#2A2A2A] hover:bg-[#333] border border-[#333] text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-cream-3 hover:bg-cream-3/80 border border-cream-3 text-ink-1 text-sm font-inter rounded-md transition-colors disabled:opacity-50"
             >
               {analyzing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : hasAnalyzed ? (
-                <RefreshCw className="w-4 h-4 text-gold" />
+                <RefreshCw className="w-4 h-4 text-gold-dim" />
               ) : (
-                <Sparkles className="w-4 h-4 text-gold" />
+                <Sparkles className="w-4 h-4 text-gold-dim" />
               )}
-              {analyzing ? 'Analyzing...' : hasAnalyzed ? 'Re-analyze' : 'Analyze Draft'}
+              {analyzing ? 'Analyzing…' : hasAnalyzed ? 'Re-analyze' : 'Analyze Draft'}
             </button>
           </div>
 
@@ -575,8 +575,8 @@ export function ChapterStage({
             disabled={approving || !draft}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-inter font-medium rounded-md transition-colors disabled:opacity-40 ${
               approved
-                ? 'bg-accent/20 text-accent border border-accent/30 hover:bg-red-900/20 hover:text-red-400 hover:border-red-400/30'
-                : 'bg-accent hover:bg-accent/90 text-cream'
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
             }`}
           >
             {approving ? (
@@ -590,22 +590,22 @@ export function ChapterStage({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8">
+        <div className="flex-1 overflow-y-auto px-10 py-10">
           {approved && (
-            <div className="mb-4 flex items-center gap-2 text-accent text-xs font-inter">
+            <div className="mb-4 flex items-center gap-2 text-emerald-700 text-xs font-inter">
               <Lock className="w-3.5 h-3.5" />
               Chapter locked. Unapprove to edit.
             </div>
           )}
 
           {analyzeError && (
-            <div className="mb-4 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-inter">
+            <div className="mb-4 px-3 py-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-inter">
               {analyzeError}
             </div>
           )}
 
           {hasAnalyzed && !analyzing && visibleFlags.length === 0 && flags.length === 0 && (
-            <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-inter">
+            <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-inter">
               <Check className="w-3.5 h-3.5" />
               No issues found — draft looks solid.
             </div>
@@ -614,12 +614,12 @@ export function ChapterStage({
           {visibleFlags.length > 0 && (
             <div className="mb-6 space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-inter font-medium text-cream/70 uppercase tracking-wider">
+                <p className="text-xs font-inter font-medium text-ink-1/70 uppercase tracking-wider">
                   AI Analysis · {visibleFlags.length} flag{visibleFlags.length !== 1 ? 's' : ''}
                 </p>
                 <button
                   onClick={() => setDismissedFlags(new Set(flags.map((_, i) => i)))}
-                  className="text-[11px] font-inter text-muted-foreground hover:text-cream transition-colors"
+                  className="text-[11px] font-inter text-ink-1/50 hover:text-ink-1 transition-colors"
                 >
                   Dismiss all
                 </button>
@@ -631,7 +631,7 @@ export function ChapterStage({
                 return (
                   <div
                     key={originalIndex}
-                    className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-4"
+                    className="bg-white border border-cream-3 rounded-xl p-4 shadow-sm"
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-inter font-semibold border ${meta.color}`}>
@@ -639,24 +639,24 @@ export function ChapterStage({
                         {meta.label}
                       </span>
                       <span className={`text-[10px] font-inter px-1.5 py-0.5 rounded ${
-                        flag.severity === 'high'   ? 'bg-red-500/15 text-red-400'
-                        : flag.severity === 'medium' ? 'bg-amber-500/15 text-amber-400'
-                        : 'bg-cream/10 text-cream/60'
+                        flag.severity === 'high'   ? 'bg-rose-100 text-rose-700'
+                        : flag.severity === 'medium' ? 'bg-amber-100 text-amber-700'
+                        : 'bg-ink-1/10 text-ink-1/60'
                       }`}>
                         {flag.severity}
                       </span>
                     </div>
-                    <p className="text-cream/90 text-sm font-source-serif mb-1.5 leading-relaxed">
+                    <p className="text-ink-1 text-sm font-source-serif mb-1.5 leading-relaxed">
                       {flag.issue}
                     </p>
-                    <p className="text-cream/55 text-xs font-source-serif italic mb-3 leading-relaxed">
+                    <p className="text-ink-1/60 text-xs font-source-serif italic mb-3 leading-relaxed">
                       {flag.suggestion}
                     </p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => applyFlag(originalIndex)}
                         disabled={approved || applyingFlag !== null || chatLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 disabled:opacity-40 text-emerald-400 text-[11px] font-inter rounded-md transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-[11px] font-inter rounded-md transition-colors"
                         title={approved ? 'Unapprove to apply changes' : 'Send this suggestion to the chat to revise the draft'}
                       >
                         {isApplying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
@@ -665,7 +665,7 @@ export function ChapterStage({
                       <button
                         onClick={() => dismissFlag(originalIndex)}
                         disabled={isApplying}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2A2A2A] hover:bg-[#333] text-muted-foreground text-[11px] font-inter rounded-md transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-cream-3 hover:bg-cream-3/70 text-ink-1/60 text-[11px] font-inter rounded-md transition-colors disabled:opacity-40"
                       >
                         <X className="w-3 h-3" />
                         Dismiss
@@ -684,20 +684,20 @@ export function ChapterStage({
               onPageUpdate({ id: page.id, content: e.target.value })
             }}
             readOnly={approved}
-            placeholder="Click 'Generate Draft' to create the chapter, or type directly..."
-            className="w-full min-h-[500px] bg-transparent text-cream/90 font-source-serif text-base leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground disabled:opacity-60"
+            placeholder="Click 'Generate Draft' to create the chapter, or type directly…"
+            className="w-full min-h-[500px] bg-transparent text-ink-1 font-source-serif text-base leading-relaxed resize-none focus:outline-none placeholder:text-ink-1/30 disabled:opacity-60"
           />
         </div>
 
-        <div className="px-8 py-4 border-t border-[#333] flex justify-between items-center">
-          <button onClick={onPrev} className="flex items-center gap-1.5 text-sm font-inter text-muted-foreground hover:text-cream transition-colors">
+        <div className="px-8 py-4 border-t border-cream-3 bg-cream-2 flex justify-between items-center">
+          <button onClick={onPrev} className="flex items-center gap-1.5 text-sm font-inter text-ink-1/60 hover:text-ink-1 transition-colors">
             <ChevronLeft className="w-4 h-4" />
             {pageIndex === 0 ? 'Outline' : `Chapter ${pageIndex}`}
           </button>
-          <span className="text-xs font-inter text-muted-foreground">
+          <span className="text-xs font-inter text-ink-1/40">
             {draft ? `${draft.split(/\s+/).filter(Boolean).length} words` : ''}
           </span>
-          <button onClick={onNext} className="flex items-center gap-1.5 text-sm font-inter text-muted-foreground hover:text-cream transition-colors">
+          <button onClick={onNext} className="flex items-center gap-1.5 text-sm font-inter text-ink-1/60 hover:text-ink-1 transition-colors">
             {pageIndex === totalPages - 1 ? 'Back Matter' : `Chapter ${pageIndex + 2}`}
             <ChevronRight className="w-4 h-4" />
           </button>

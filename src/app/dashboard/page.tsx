@@ -69,7 +69,8 @@ export default async function DashboardPage() {
                 </div>
                 <p className="font-playfair text-sm text-cream font-semibold mt-0.5">
                   {monthlyUsed} / {monthlyLimit}
-                  <span className="font-inter text-[11px] text-ink-muted ml-1.5 font-normal">
+                  <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
+                  <span className="font-inter text-[11px] text-ink-muted font-normal">
                     {slotsLeft === 0 ? 'limit reached' : `${slotsLeft} left`}
                   </span>
                 </p>
