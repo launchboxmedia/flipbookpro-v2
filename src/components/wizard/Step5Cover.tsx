@@ -253,8 +253,8 @@ export function Step5Cover({ data, onNext, onBack }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-playfair text-2xl text-cream mb-1">Cover Direction</h2>
-        <p className="text-muted-foreground text-sm font-source-serif">
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">Cover Direction</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif">
           This guides the AI when generating your book cover.
         </p>
       </div>
@@ -267,7 +267,7 @@ export function Step5Cover({ data, onNext, onBack }: Props) {
             className={`text-left p-3 rounded-xl border transition-all ${
               selected === c.id
                 ? 'border-gold bg-gold/10'
-                : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                : 'border-cream-3 bg-white hover:border-gold/40'
             }`}
           >
             {/* Book cover preview — portrait aspect ratio */}
@@ -276,10 +276,10 @@ export function Step5Cover({ data, onNext, onBack }: Props) {
             }`} style={{ aspectRatio: '3/4' }}>
               {c.preview}
             </div>
-            <p className={`font-inter font-medium text-sm mb-0.5 ${selected === c.id ? 'text-gold' : 'text-cream'}`}>
+            <p className={`font-inter font-medium text-sm mb-0.5 ${selected === c.id ? 'text-gold' : 'text-ink-1'}`}>
               {c.label}
             </p>
-            <p className="text-muted-foreground text-xs font-source-serif">{c.description}</p>
+            <p className="text-ink-1/60 text-xs font-source-serif">{c.description}</p>
           </button>
         ))}
       </div>
@@ -287,8 +287,8 @@ export function Step5Cover({ data, onNext, onBack }: Props) {
       {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
 
       <div className="flex justify-between pt-2">
-        <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
-        <button onClick={handleNext} className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
+        <button onClick={onBack} className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors">Back</button>
+        <button onClick={handleNext} className="px-6 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
       </div>
     </div>
   )

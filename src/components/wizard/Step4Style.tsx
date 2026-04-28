@@ -245,8 +245,8 @@ export function Step4Style({ data, onNext, onBack }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="font-playfair text-2xl text-cream mb-1">Visual Style</h2>
-        <p className="text-muted-foreground text-sm font-source-serif">
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">Visual Style</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif">
           Every chapter gets one illustration in this style.
         </p>
       </div>
@@ -258,25 +258,25 @@ export function Step4Style({ data, onNext, onBack }: Props) {
             onClick={() => setSelected(s.id)}
             className={`text-left p-4 rounded-xl border transition-all ${
               selected === s.id
-                ? 'border-accent bg-accent/10'
-                : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                ? 'border-gold bg-gold/10'
+                : 'border-cream-3 bg-white hover:border-gold/40'
             }`}
           >
             <div className={`w-full aspect-video rounded-lg mb-3 overflow-hidden ring-2 transition-all ${
-              selected === s.id ? 'ring-accent' : 'ring-transparent'
+              selected === s.id ? 'ring-gold' : 'ring-transparent'
             }`}>
               {s.preview}
             </div>
-            <p className="font-inter font-medium text-cream text-sm">{s.label}</p>
-            <p className="text-muted-foreground text-xs font-source-serif mt-0.5">{s.description}</p>
+            <p className="font-inter font-medium text-ink-1 text-sm">{s.label}</p>
+            <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{s.description}</p>
           </button>
         ))}
       </div>
 
-      <div className="space-y-4 pt-2 border-t border-[#2A2A2A]">
+      <div className="space-y-4 pt-2 border-t border-cream-3">
         <div>
-          <h3 className="font-playfair text-xl text-cream mb-1">Color Palette</h3>
-          <p className="text-muted-foreground text-sm font-source-serif">
+          <h3 className="font-playfair text-xl text-ink-1 mb-1">Color Palette</h3>
+          <p className="text-ink-1/60 text-sm font-source-serif">
             Anchors every chapter and cover image to a cohesive set of colors.
           </p>
         </div>
@@ -288,21 +288,21 @@ export function Step4Style({ data, onNext, onBack }: Props) {
               onClick={() => setPalette(p.id)}
               className={`text-left p-4 rounded-xl border transition-all ${
                 palette === p.id
-                  ? 'border-accent bg-accent/10'
-                  : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                  ? 'border-gold bg-gold/10'
+                  : 'border-cream-3 bg-white hover:border-gold/40'
               }`}
             >
               <div
                 className={`w-full h-12 rounded-lg mb-3 overflow-hidden ring-2 transition-all flex ${
-                  palette === p.id ? 'ring-accent' : 'ring-transparent'
+                  palette === p.id ? 'ring-gold' : 'ring-transparent'
                 }`}
               >
                 <div className="flex-1" style={{ backgroundColor: p.primary }} />
                 <div className="flex-1" style={{ backgroundColor: p.secondary }} />
                 <div className="flex-1" style={{ backgroundColor: p.background }} />
               </div>
-              <p className="font-inter font-medium text-cream text-sm">{p.name}</p>
-              <p className="text-muted-foreground text-xs font-source-serif mt-0.5">{p.descriptor}</p>
+              <p className="font-inter font-medium text-ink-1 text-sm">{p.name}</p>
+              <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{p.descriptor}</p>
             </button>
           ))}
 
@@ -311,16 +311,16 @@ export function Step4Style({ data, onNext, onBack }: Props) {
             disabled={!brandReady}
             className={`text-left p-4 rounded-xl border transition-all col-span-2 ${
               palette === 'brand'
-                ? 'border-accent bg-accent/10'
+                ? 'border-gold bg-gold/10'
                 : brandReady
-                ? 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
-                : 'border-[#2A2A2A] bg-[#161616] opacity-60 cursor-not-allowed'
+                ? 'border-cream-3 bg-white hover:border-gold/40'
+                : 'border-cream-3 bg-cream-2 opacity-60 cursor-not-allowed'
             }`}
           >
             <div className="flex items-center gap-3">
               <div
                 className={`h-12 w-24 rounded-lg overflow-hidden ring-2 transition-all flex ${
-                  palette === 'brand' ? 'ring-accent' : 'ring-transparent'
+                  palette === 'brand' ? 'ring-gold' : 'ring-transparent'
                 }`}
               >
                 <div
@@ -333,8 +333,8 @@ export function Step4Style({ data, onNext, onBack }: Props) {
                 />
               </div>
               <div className="flex-1">
-                <p className="font-inter font-medium text-cream text-sm">Use my brand colors</p>
-                <p className="text-muted-foreground text-xs font-source-serif mt-0.5">
+                <p className="font-inter font-medium text-ink-1 text-sm">Use my brand colors</p>
+                <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">
                   {brandReady
                     ? 'Pulls from your brand profile (primary + accent).'
                     : 'Set a brand color in your brand profile to enable this.'}
@@ -348,8 +348,8 @@ export function Step4Style({ data, onNext, onBack }: Props) {
       {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
 
       <div className="flex justify-between pt-2">
-        <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
-        <button onClick={handleNext} className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
+        <button onClick={onBack} className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors">Back</button>
+        <button onClick={handleNext} className="px-6 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
       </div>
     </div>
   )

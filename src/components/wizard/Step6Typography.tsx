@@ -273,8 +273,8 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-playfair text-2xl text-cream mb-1">Typography</h2>
-        <p className="text-muted-foreground text-sm font-source-serif">
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">Typography</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif">
           This sets the text style used throughout your flipbook.
         </p>
       </div>
@@ -286,18 +286,18 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
             onClick={() => setSelected(t.id)}
             className={`text-left p-3 rounded-xl border transition-all ${
               selected === t.id
-                ? 'border-accent bg-accent/10'
-                : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                ? 'border-gold bg-gold/10'
+                : 'border-cream-3 bg-white hover:border-gold/40'
             }`}
           >
             {/* Landscape page spread preview */}
             <div className={`w-full rounded-lg mb-3 overflow-hidden ring-2 transition-all shadow-sm ${
-              selected === t.id ? 'ring-accent' : 'ring-transparent'
+              selected === t.id ? 'ring-gold' : 'ring-transparent'
             }`} style={{ aspectRatio: '16/10' }}>
               {t.preview}
             </div>
-            <p className="font-inter font-medium text-cream text-sm">{t.label}</p>
-            <p className="text-muted-foreground text-xs font-source-serif mt-0.5">{t.description}</p>
+            <p className="font-inter font-medium text-ink-1 text-sm">{t.label}</p>
+            <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{t.description}</p>
           </button>
         ))}
       </div>
@@ -305,11 +305,11 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
       {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
 
       <div className="flex justify-between pt-2">
-        <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
+        <button onClick={onBack} className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors">Back</button>
         <button
           onClick={handleSave}
           disabled={saving || !selected}
-          className="flex items-center gap-2 px-6 py-2.5 bg-gold hover:bg-gold/90 text-canvas font-inter text-sm font-semibold rounded-md transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 px-6 py-2.5 bg-gold hover:bg-gold/90 text-ink-1 font-inter text-sm font-semibold rounded-md transition-colors disabled:opacity-40"
         >
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           {saving ? 'Creating book...' : 'Create Book'}

@@ -43,8 +43,8 @@ export function Step3Persona({ data, onNext, onBack }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-playfair text-2xl text-cream mb-1">Your Persona</h2>
-        <p className="text-muted-foreground text-sm font-source-serif">
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">Your Persona</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif">
           This shapes the tone of the writing and the style of the illustrations.
         </p>
       </div>
@@ -58,17 +58,17 @@ export function Step3Persona({ data, onNext, onBack }: Props) {
               onClick={() => setSelected(p.id)}
               className={`text-left p-4 rounded-xl border transition-all ${
                 selected === p.id
-                  ? 'border-accent bg-accent/10'
-                  : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                  ? 'border-gold bg-gold/10'
+                  : 'border-cream-3 bg-white hover:border-gold/40'
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`mt-0.5 p-2 rounded-lg ${selected === p.id ? 'bg-accent/20' : 'bg-[#2A2A2A]'}`}>
-                  <Icon className={`w-4 h-4 ${selected === p.id ? 'text-accent' : 'text-muted-foreground'}`} />
+                <div className={`mt-0.5 p-2 rounded-lg ${selected === p.id ? 'bg-gold/20' : 'bg-white-2'}`}>
+                  <Icon className={`w-4 h-4 ${selected === p.id ? 'text-gold-dim' : 'text-ink-1/60'}`} />
                 </div>
                 <div>
-                  <p className="font-inter font-medium text-cream text-sm">{p.label}</p>
-                  <p className="text-muted-foreground text-xs font-source-serif mt-0.5">{p.description}</p>
+                  <p className="font-inter font-medium text-ink-1 text-sm">{p.label}</p>
+                  <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{p.description}</p>
                 </div>
               </div>
             </button>
@@ -79,11 +79,11 @@ export function Step3Persona({ data, onNext, onBack }: Props) {
       {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
 
       <div className="flex justify-between pt-2">
-        <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
+        <button onClick={onBack} className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors">Back</button>
         <button
           onClick={handleNext}
           disabled={!selected}
-          className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+          className="px-6 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
         >
           Continue
         </button>

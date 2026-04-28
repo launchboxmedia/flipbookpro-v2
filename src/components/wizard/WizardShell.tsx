@@ -114,14 +114,9 @@ export function WizardShell({ bookId, initialData, maxChapters = 6 }: WizardShel
           </div>
         </div>
 
-        {/*
-          The step content sits in an elevated dark "card" with a subtle gold
-          edge to feel deliberate and considered (not a flat form).
-          Note: the step components themselves still use dark form controls.
-          Migrating each step to a cream surface is a separate follow-up
-          tracked alongside the rest of the design-token migration.
-        */}
-        <div className="bg-ink-2 border border-ink-3 rounded-2xl p-9 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)] ring-1 ring-gold/10">
+        {/* Cream "page" on a dark canvas — feels like a deliberate
+            manuscript step rather than a dark form. */}
+        <div className="bg-cream-1 border border-cream-3 rounded-2xl p-9 shadow-[0_28px_60px_-24px_rgba(0,0,0,0.55)] ring-1 ring-gold/15">
           {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
           {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
           {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}

@@ -52,8 +52,8 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-playfair text-2xl text-cream mb-1">What&apos;s the vibe?</h2>
-        <p className="text-muted-foreground text-sm font-source-serif">
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">What&apos;s the vibe?</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif">
           Set the mood and tone for your book.
         </p>
       </div>
@@ -66,18 +66,18 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
             onClick={() => setVibe(v.id)}
             className={`w-full text-left flex items-start gap-4 p-4 rounded-xl border transition-all ${
               vibe === v.id
-                ? 'border-accent bg-accent/10'
-                : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                ? 'border-gold bg-gold/10'
+                : 'border-cream-3 bg-white hover:border-gold/40'
             }`}
           >
             <span className="text-2xl mt-0.5">{v.emoji}</span>
             <div>
-              <p className="font-inter font-medium text-cream text-sm">{v.label}</p>
-              <p className="text-muted-foreground text-xs font-source-serif mt-0.5">{v.description}</p>
+              <p className="font-inter font-medium text-ink-1 text-sm">{v.label}</p>
+              <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{v.description}</p>
             </div>
             {vibe === v.id && (
-              <div className="ml-auto mt-0.5 w-4 h-4 rounded-full bg-accent flex items-center justify-center shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-cream"/>
+              <div className="ml-auto mt-0.5 w-4 h-4 rounded-full bg-gold flex items-center justify-center shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-white"/>
               </div>
             )}
           </button>
@@ -86,7 +86,7 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
 
       {/* Writing Tone */}
       <div>
-        <p className="text-cream text-sm font-inter font-medium mb-3">Writing Tone</p>
+        <p className="text-ink-1 text-sm font-inter font-medium mb-3">Writing Tone</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {TONES.map((t) => (
             <button
@@ -94,8 +94,8 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
               onClick={() => setWritingTone(t.id)}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-inter transition-all ${
                 writingTone === t.id
-                  ? 'border-accent bg-accent/10 text-cream'
-                  : 'border-[#333] bg-[#1A1A1A] text-muted-foreground hover:border-[#444] hover:text-cream'
+                  ? 'border-gold bg-gold/10 text-ink-1'
+                  : 'border-cream-3 bg-white text-ink-1/60 hover:border-gold/40 hover:text-ink-1'
               }`}
             >
               <span>{t.emoji}</span>
@@ -108,8 +108,8 @@ export function Step4Tone({ data, onNext, onBack }: Props) {
       {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
 
       <div className="flex justify-between pt-2">
-        <button onClick={onBack} className="px-4 py-2.5 text-muted-foreground hover:text-cream font-inter text-sm transition-colors">Back</button>
-        <button onClick={handleNext} className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
+        <button onClick={onBack} className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors">Back</button>
+        <button onClick={handleNext} className="px-6 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm font-medium rounded-md transition-colors">Continue</button>
       </div>
     </div>
   )
