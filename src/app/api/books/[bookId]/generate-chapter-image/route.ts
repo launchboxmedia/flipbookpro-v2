@@ -4,7 +4,7 @@ import {
   buildChapterPrompt,
   buildCustomPrompt,
   extractChapterScene,
-  generateWithImagen,
+  generateImage,
   personGenerationFor,
   storagePathFromPublicUrl,
 } from '@/lib/imageGeneration'
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       console.log('======================================================\n')
     }
 
-    const imageBuffer = await generateWithImagen(finalPrompt, {
+    const { buffer: imageBuffer, provider } = await generateImage(finalPrompt, {
       aspectRatio: '16:9',
       personGeneration: personGenerationFor(book),
     })
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
         paletteColors,
         scene,
         finalPrompt,
+        provider,
       },
     })
   } catch (e: unknown) {

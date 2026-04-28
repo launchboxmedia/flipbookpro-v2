@@ -4,7 +4,7 @@ import {
   buildCoverPrompt,
   buildCustomPrompt,
   extractCoverScene,
-  generateWithImagen,
+  generateImage,
   personGenerationFor,
   storagePathFromPublicUrl,
 } from '@/lib/imageGeneration'
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       console.log('====================================================\n')
     }
 
-    const imageBuffer = await generateWithImagen(finalPrompt, {
+    const { buffer: imageBuffer } = await generateImage(finalPrompt, {
       aspectRatio: '3:4',
       personGeneration: personGenerationFor(book),
     })
