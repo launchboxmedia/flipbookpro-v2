@@ -29,9 +29,9 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-canvas text-cream overflow-hidden">
       {/* Nav */}
-      <header className="border-b border-[#2A2A2A] px-6 py-4 flex items-center justify-between sticky top-0 z-50 bg-canvas/95 backdrop-blur-md">
+      <header className="border-b border-ink-3 px-6 py-4 flex items-center justify-between sticky top-0 z-50 bg-canvas/95 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-accent to-accent/60 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-gold to-gold-soft flex items-center justify-center">
             <BookOpen className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="font-playfair text-xl text-cream">FlipBookPro</span>
@@ -62,7 +62,7 @@ export default async function Home() {
         <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(201,168,76,0.04)_0%,transparent_60%)] pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-6 pt-28 pb-24 text-center relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#333] rounded-full text-xs font-inter text-cream/50 mb-8 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-ink-3 rounded-full text-xs font-inter text-cream/50 mb-8 backdrop-blur-sm">
             <Sparkles className="w-3 h-3 text-gold" />
             Powered by Claude AI &amp; Gemini
           </div>
@@ -88,7 +88,7 @@ export default async function Home() {
             </Link>
             <Link
               href="/pricing"
-              className="px-7 py-3.5 border border-[#333] hover:border-[#444] text-cream/60 hover:text-cream font-inter text-sm rounded-lg transition-colors"
+              className="px-7 py-3.5 border border-ink-3 hover:border-ink-4 text-cream/60 hover:text-cream font-inter text-sm rounded-lg transition-colors"
             >
               See pricing
             </Link>
@@ -98,7 +98,7 @@ export default async function Home() {
       </section>
 
       {/* Feature strip */}
-      <section className="border-t border-[#2A2A2A] bg-[#131313]">
+      <section className="border-t border-ink-3 bg-ink-1/60">
         <div className="max-w-5xl mx-auto px-6 py-20 grid grid-cols-1 sm:grid-cols-3 gap-12">
           {[
             {
@@ -118,7 +118,7 @@ export default async function Home() {
             },
           ].map((f) => (
             <div key={f.title} className="space-y-3">
-              <div className="w-10 h-10 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-ink-2 border border-ink-3 rounded-xl flex items-center justify-center">
                 {f.icon}
               </div>
               <h3 className="font-playfair text-lg text-cream">{f.title}</h3>
@@ -140,7 +140,7 @@ export default async function Home() {
             { step: '04', title: 'Publish & grow', body: 'Flip through the preview, set up an email gate, and publish a shareable link. Leads captured automatically.', icon: <Globe className="w-4 h-4" /> },
           ].map((item) => (
             <div key={item.step} className="flex gap-6 items-start group">
-              <div className="w-10 h-10 rounded-full border border-[#333] bg-[#1A1A1A] flex items-center justify-center text-gold/50 shrink-0 group-hover:border-gold/30 transition-colors">
+              <div className="w-10 h-10 rounded-full border border-ink-3 bg-ink-2 flex items-center justify-center text-gold/50 shrink-0 group-hover:border-gold/30 transition-colors">
                 {item.icon}
               </div>
               <div>
@@ -156,7 +156,7 @@ export default async function Home() {
       </section>
 
       {/* Pricing preview */}
-      <section className="border-t border-[#2A2A2A] bg-[#131313]">
+      <section className="border-t border-ink-3 bg-ink-1/60">
         <div className="max-w-4xl mx-auto px-6 py-24 text-center">
           <p className="text-[10px] font-inter font-semibold text-gold/60 uppercase tracking-[0.2em] mb-3">Pricing</p>
           <h2 className="font-playfair text-3xl text-cream mb-4">Simple, transparent pricing</h2>
@@ -169,7 +169,7 @@ export default async function Home() {
             ].map((plan) => (
               <div
                 key={plan.name}
-                className={`rounded-2xl border p-6 text-left transition-all ${plan.highlight ? 'border-accent/40 bg-accent/5 shadow-[0_0_40px_rgba(74,124,89,0.08)]' : 'border-[#2A2A2A] bg-[#181818]'}`}
+                className={`rounded-2xl border p-6 text-left transition-all ${plan.highlight ? 'border-gold/40 bg-gold/8 shadow-[0_0_40px_rgba(201,168,76,0.12)]' : 'border-ink-3 bg-ink-2'}`}
               >
                 <p className="font-inter font-semibold text-[11px] text-cream/60 uppercase tracking-[0.15em] mb-1">{plan.name}</p>
                 <div className="flex items-baseline gap-1 mb-5">
@@ -215,10 +215,10 @@ export default async function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#2A2A2A] px-6 py-8">
+      <footer className="border-t border-ink-3 px-6 py-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-gradient-to-br from-accent to-accent/60 flex items-center justify-center">
+            <div className="w-5 h-5 rounded bg-gradient-to-br from-gold to-gold-soft flex items-center justify-center">
               <BookOpen className="w-2.5 h-2.5 text-white" />
             </div>
             <span className="font-playfair text-cream/40 text-sm">FlipBookPro</span>
