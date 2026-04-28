@@ -7,6 +7,15 @@ import type { Profile } from '@/types/database'
 
 interface Props {
   profile: Profile | null
+  // Price IDs are passed from the server-side page so this client component
+  // never reads env vars directly. Keeps the lib/stripe.ts ↔ env wiring in
+  // one place.
+  priceIds: {
+    standardMonthly: string
+    standardYearly:  string
+    proMonthly:      string
+    proYearly:       string
+  }
 }
 
 const PLANS = [
@@ -25,8 +34,6 @@ const PLANS = [
     interval: '/mo',
     annual: '$79/yr',
     features: ['3 books per month', 'Up to 8 chapters', 'All export formats', 'Lead capture + MailerLite', 'Priority support'],
-    monthly: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_monthly', // REPLACE WITH REAL STRIPE PRICE ID
-    yearly:  'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_annual',  // REPLACE WITH REAL STRIPE PRICE ID
   },
   {
     id: 'pro',
@@ -35,12 +42,10 @@ const PLANS = [
     interval: '/mo',
     annual: '$399/yr',
     features: ['10 books per month', 'Up to 15 chapters', 'All features', 'Stripe Connect book sales', 'Brand identity', 'Telegram notifications'],
-    monthly: 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_monthly', // REPLACE WITH REAL STRIPE PRICE ID
-    yearly:  'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_annual',  // REPLACE WITH REAL STRIPE PRICE ID
   },
 ] as const
 
-export function BillingPanel({ profile }: Props) {
+export function BillingPanel({ profile, priceIds }: Props) {
   const currentPlan = profile?.plan ?? 'free'
   const [billing, setBilling]   = useState<'monthly' | 'annual'>('monthly')
   const [loading, setLoading]   = useState<string | null>(null)
@@ -118,8 +123,9 @@ export function BillingPanel({ profile }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {PLANS.map((plan) => {
             const isCurrent = currentPlan === plan.id
-            const priceId = plan.id !== 'free'
-              ? (billing === 'monthly' ? plan.monthly : plan.yearly)
+            const priceId =
+              plan.id === 'standard' ? (billing === 'monthly' ? priceIds.standardMonthly : priceIds.standardYearly)
+              : plan.id === 'pro'    ? (billing === 'monthly' ? priceIds.proMonthly      : priceIds.proYearly)
               : null
 
             return (

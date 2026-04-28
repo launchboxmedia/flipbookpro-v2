@@ -24,8 +24,8 @@ export const PLANS = {
     amount: 900,
     interval: 'month',
   },
-  standard_annual: {
-    priceId: priceFromEnv('STRIPE_PRICE_STANDARD_ANNUAL', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_annual'),
+  standard_yearly: {
+    priceId: priceFromEnv('STRIPE_PRICE_STANDARD_YEARLY', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_standard_yearly'),
     amount: 7900,
     interval: 'year',
   },
@@ -34,8 +34,8 @@ export const PLANS = {
     amount: 4900,
     interval: 'month',
   },
-  pro_annual: {
-    priceId: priceFromEnv('STRIPE_PRICE_PRO_ANNUAL', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_annual'),
+  pro_yearly: {
+    priceId: priceFromEnv('STRIPE_PRICE_PRO_YEARLY', 'price_REPLACE_WITH_REAL_STRIPE_PRICE_ID_pro_yearly'),
     amount: 39900,
     interval: 'year',
   },
@@ -50,12 +50,13 @@ export const PLAN_LIMITS = {
 } as const
 
 // Map Stripe price IDs → plan names. Single source of truth — webhook and
-// checkout both consume this.
+// checkout both consume this. Both intervals (monthly + yearly) of each tier
+// resolve to the same plan name.
 export const PRICE_TO_PLAN: Record<string, 'standard' | 'pro'> = {
   [PLANS.standard_monthly.priceId]: 'standard',
-  [PLANS.standard_annual.priceId]:  'standard',
+  [PLANS.standard_yearly.priceId]:  'standard',
   [PLANS.pro_monthly.priceId]:      'pro',
-  [PLANS.pro_annual.priceId]:       'pro',
+  [PLANS.pro_yearly.priceId]:       'pro',
 }
 
 export function isKnownPriceId(priceId: string): boolean {
