@@ -41,7 +41,7 @@ export default function StripeConnectButton({
           <span className="h-2 w-2 rounded-full bg-green-500" />
           Stripe Connected
         </span>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-ink-1/60">
           {stripeConnectId}
         </span>
       </div>

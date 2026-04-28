@@ -73,24 +73,24 @@ export function BillingPanel({ profile }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-cream-1">
       <div className="max-w-3xl mx-auto px-6 py-10">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cream font-inter transition-colors mb-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 hover:text-ink-1 font-inter transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" /> Dashboard
         </Link>
 
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-playfair text-3xl text-cream">Billing</h1>
-            <p className="text-muted-foreground font-inter text-sm mt-1">
-              Current plan: <span className="text-cream capitalize">{currentPlan}</span>
+            <h1 className="font-playfair text-3xl text-ink-1">Billing</h1>
+            <p className="text-ink-1/60 font-inter text-sm mt-1">
+              Current plan: <span className="text-ink-1 capitalize">{currentPlan}</span>
             </p>
           </div>
           {profile?.stripe_customer_id && (
             <button
               onClick={openPortal}
               disabled={portalLoading}
-              className="flex items-center gap-2 px-4 py-2 border border-[#333] hover:border-[#444] text-muted-foreground hover:text-cream font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
             >
               {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Manage Subscription
@@ -106,8 +106,8 @@ export function BillingPanel({ profile }: Props) {
               onClick={() => setBilling(b)}
               className={`px-4 py-1.5 rounded-full font-inter text-sm transition-colors ${
                 billing === b
-                  ? 'bg-accent text-cream'
-                  : 'text-muted-foreground hover:text-cream border border-[#333]'
+                  ? 'bg-gold text-ink-1'
+                  : 'text-ink-1/60 hover:text-ink-1 border border-cream-3'
               }`}
             >
               {b === 'monthly' ? 'Monthly' : 'Annual (save ~30%)'}
@@ -127,24 +127,24 @@ export function BillingPanel({ profile }: Props) {
                 key={plan.id}
                 className={`rounded-2xl border p-6 flex flex-col gap-5 ${
                   plan.id === 'pro'
-                    ? 'border-accent bg-accent/5'
-                    : 'border-[#2A2A2A] bg-[#1A1A1A]'
+                    ? 'border-gold bg-gold/5'
+                    : 'border-cream-3 bg-white'
                 }`}
               >
                 <div>
-                  <p className="font-inter font-semibold text-cream text-sm uppercase tracking-widest mb-2">{plan.name}</p>
+                  <p className="font-inter font-semibold text-ink-1 text-sm uppercase tracking-widest mb-2">{plan.name}</p>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-playfair text-3xl text-cream font-bold">{plan.price}</span>
-                    <span className="font-inter text-sm text-muted-foreground">{plan.interval}</span>
+                    <span className="font-playfair text-3xl text-ink-1 font-bold">{plan.price}</span>
+                    <span className="font-inter text-sm text-ink-1/60">{plan.interval}</span>
                   </div>
                   {plan.id !== 'free' && (
-                    <p className="text-xs font-inter text-muted-foreground mt-0.5">{plan.annual}</p>
+                    <p className="text-xs font-inter text-ink-1/60 mt-0.5">{plan.annual}</p>
                   )}
                 </div>
 
                 <ul className="space-y-2 flex-1">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs font-inter text-cream/70">
+                    <li key={f} className="flex items-start gap-2 text-xs font-inter text-ink-1/70">
                       <Check className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                       {f}
                     </li>
@@ -152,7 +152,7 @@ export function BillingPanel({ profile }: Props) {
                 </ul>
 
                 {plan.id === 'free' ? (
-                  <div className={`py-2.5 rounded-lg text-center text-sm font-inter font-medium ${isCurrent ? 'bg-[#2A2A2A] text-muted-foreground' : 'bg-[#2A2A2A] text-cream/50'}`}>
+                  <div className={`py-2.5 rounded-lg text-center text-sm font-inter font-medium ${isCurrent ? 'bg-cream-3 text-ink-1/60' : 'bg-cream-3 text-ink-1/50'}`}>
                     {isCurrent ? 'Current Plan' : 'Free Forever'}
                   </div>
                 ) : (
@@ -161,10 +161,10 @@ export function BillingPanel({ profile }: Props) {
                     disabled={isCurrent || loading === priceId}
                     className={`py-2.5 rounded-lg text-sm font-inter font-semibold transition-colors flex items-center justify-center gap-2 ${
                       isCurrent
-                        ? 'bg-[#2A2A2A] text-muted-foreground cursor-default'
+                        ? 'bg-cream-3 text-ink-1/60 cursor-default'
                         : plan.id === 'pro'
-                        ? 'bg-accent hover:bg-accent/90 text-cream'
-                        : 'bg-[#2A2A2A] hover:bg-[#333] text-cream border border-[#333]'
+                        ? 'bg-gold hover:bg-gold/90 text-ink-1'
+                        : 'bg-cream-3 hover:bg-cream-3 text-ink-1 border border-cream-3'
                     }`}
                   >
                     {loading === priceId && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -176,7 +176,7 @@ export function BillingPanel({ profile }: Props) {
           })}
         </div>
 
-        <p className="text-xs font-inter text-muted-foreground text-center mt-6">
+        <p className="text-xs font-inter text-ink-1/60 text-center mt-6">
           Secured by Stripe. Cancel anytime.
         </p>
       </div>

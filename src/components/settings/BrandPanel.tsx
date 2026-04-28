@@ -64,20 +64,20 @@ export function BrandPanel({ profile: initial }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-cream-1">
       <div className="max-w-xl mx-auto px-6 py-10">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cream font-inter transition-colors mb-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 hover:text-ink-1 font-inter transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" /> Dashboard
         </Link>
 
-        <h1 className="font-playfair text-3xl text-cream mb-1">Brand Identity</h1>
-        <p className="text-muted-foreground font-inter text-sm mb-8">
+        <h1 className="font-playfair text-3xl text-ink-1 mb-1">Brand Identity</h1>
+        <p className="text-ink-1/60 font-inter text-sm mb-8">
           Your brand settings apply to all books.
         </p>
 
         {/* Logo */}
-        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-5 space-y-4">
-          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Logo</p>
+        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
+          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Logo</p>
           <div className="flex items-center gap-4">
             {profile?.logo_url ? (
               <div className="relative">
@@ -87,20 +87,20 @@ export function BrandPanel({ profile: initial }: Props) {
                     await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo_url: null }) })
                     setProfile((p) => p ? { ...p, logo_url: null } : p)
                   }}
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#333] rounded-full flex items-center justify-center text-muted-foreground hover:text-cream"
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
               </div>
             ) : (
-              <div className="h-14 w-24 border border-dashed border-[#333] rounded flex items-center justify-center text-muted-foreground text-xs font-inter">
+              <div className="h-14 w-24 border border-dashed border-cream-3 rounded flex items-center justify-center text-ink-1/60 text-xs font-inter">
                 No logo
               </div>
             )}
             <button
               onClick={() => fileRef.current?.click()}
               disabled={logoLoading}
-              className="flex items-center gap-2 px-3 py-2 border border-[#333] hover:border-[#444] text-muted-foreground hover:text-cream font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
             >
               {logoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {profile?.logo_url ? 'Replace' : 'Upload'} Logo
@@ -113,39 +113,39 @@ export function BrandPanel({ profile: initial }: Props) {
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }}
             />
           </div>
-          <p className="text-xs font-inter text-muted-foreground">PNG, SVG, or JPEG. Recommended: transparent background.</p>
+          <p className="text-xs font-inter text-ink-1/60">PNG, SVG, or JPEG. Recommended: transparent background.</p>
         </div>
 
         {/* Author info */}
-        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-5 space-y-4">
-          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Author</p>
+        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
+          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Author</p>
           <div className="space-y-1">
-            <label className="text-xs font-inter text-cream/70">Display name</label>
+            <label className="text-xs font-inter text-ink-1/70">Display name</label>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Your name"
-              className="w-full px-3 py-2.5 rounded-lg bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-inter text-cream/70">Author bio</label>
+            <label className="text-xs font-inter text-ink-1/70">Author bio</label>
             <textarea
               value={authorBio}
               onChange={(e) => setAuthorBio(e.target.value)}
               rows={3}
               placeholder="A sentence or two about you and your work."
-              className="w-full px-3 py-2.5 rounded-lg bg-[#111] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+              className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
             />
           </div>
         </div>
 
         {/* Brand colors */}
-        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-5 space-y-5">
-          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Brand Colors</p>
+        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-5">
+          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Brand Colors</p>
 
           <div className="space-y-2">
-            <label className="text-xs font-inter text-cream/70">Primary</label>
+            <label className="text-xs font-inter text-ink-1/70">Primary</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -157,14 +157,14 @@ export function BrandPanel({ profile: initial }: Props) {
                 value={brandColor}
                 onChange={(e) => setBrandColor(e.target.value)}
                 placeholder="#C9A84C"
-                className="w-32 px-3 py-2 rounded-lg bg-[#111] border border-[#333] text-cream font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-32 px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
-              <span className="text-xs font-inter text-muted-foreground">Used for accents, chapter numbers, and drop caps.</span>
+              <span className="text-xs font-inter text-ink-1/60">Used for accents, chapter numbers, and drop caps.</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-inter text-cream/70">Accent</label>
+            <label className="text-xs font-inter text-ink-1/70">Accent</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -176,28 +176,28 @@ export function BrandPanel({ profile: initial }: Props) {
                 value={accentColor}
                 onChange={(e) => setAccentColor(e.target.value)}
                 placeholder="#C9A84C"
-                className="w-32 px-3 py-2 rounded-lg bg-[#111] border border-[#333] text-cream font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-32 px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
-              <span className="text-xs font-inter text-muted-foreground">Pairs with primary when you choose &ldquo;Use my brand colors&rdquo; in a book.</span>
+              <span className="text-xs font-inter text-ink-1/60">Pairs with primary when you choose &ldquo;Use my brand colors&rdquo; in a book.</span>
             </div>
           </div>
         </div>
 
         {/* Social links */}
-        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-8 space-y-4">
-          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Social Links</p>
+        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-8 space-y-4">
+          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Social Links</p>
           {[
             { key: 'website',  label: 'Website',  value: website,  setter: setWebsite,  placeholder: 'https://yoursite.com' },
             { key: 'twitter',  label: 'X / Twitter', value: twitter, setter: setTwitter, placeholder: 'https://x.com/you' },
             { key: 'linkedin', label: 'LinkedIn', value: linkedin,  setter: setLinkedin, placeholder: 'https://linkedin.com/in/you' },
           ].map((s) => (
             <div key={s.key} className="space-y-1">
-              <label className="text-xs font-inter text-cream/70">{s.label}</label>
+              <label className="text-xs font-inter text-ink-1/70">{s.label}</label>
               <input
                 value={s.value}
                 onChange={(e) => s.setter(e.target.value)}
                 placeholder={s.placeholder}
-                className="w-full px-3 py-2 rounded-lg bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-full px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
             </div>
           ))}
@@ -206,7 +206,7 @@ export function BrandPanel({ profile: initial }: Props) {
         <button
           onClick={save}
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-accent hover:bg-accent/90 text-cream font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-gold hover:bg-gold/90 text-ink-1 font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
           {saved ? 'Saved' : saving ? 'Saving…' : 'Save Brand Settings'}

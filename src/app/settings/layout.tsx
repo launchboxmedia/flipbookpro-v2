@@ -16,7 +16,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const isPremium = (profile?.plan ?? 'free') !== 'free'
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
+    <div className="flex h-screen bg-cream-1 overflow-hidden">
       <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} />
       <main className="flex-1 overflow-auto">
         {children}

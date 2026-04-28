@@ -69,43 +69,43 @@ export function ProfilePanel({ user, profile }: Props) {
   return (
     <div className="px-8 py-10 max-w-xl mx-auto">
       <div className="mb-8">
-        <h2 className="font-playfair text-3xl text-cream">Profile</h2>
-        <p className="text-muted-foreground text-sm font-source-serif mt-1">
+        <h2 className="font-playfair text-3xl text-ink-1">Profile</h2>
+        <p className="text-ink-1/60 text-sm font-source-serif mt-1">
           Manage your account details and password.
         </p>
       </div>
 
       {/* Account info */}
-      <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-5 space-y-4">
-        <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Account</p>
+      <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
+        <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Account</p>
 
         <div className="space-y-1">
-          <label className="text-xs font-inter text-cream/70">Email</label>
+          <label className="text-xs font-inter text-ink-1/70">Email</label>
           <input
             value={user.email}
             disabled
-            className="w-full px-3 py-2.5 rounded-lg bg-[#111] border border-[#2A2A2A] text-muted-foreground font-inter text-sm cursor-not-allowed"
+            className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1/60 font-inter text-sm cursor-not-allowed"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-inter text-cream/70">Display name</label>
+          <label className="text-xs font-inter text-ink-1/70">Display name</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Your name"
-            className="w-full px-3 py-2.5 rounded-lg bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
           />
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xs font-inter text-muted-foreground">
-            Plan: <span className="text-cream capitalize">{planLabel[profile?.plan ?? 'free'] ?? 'Free'}</span>
+          <span className="text-xs font-inter text-ink-1/60">
+            Plan: <span className="text-ink-1 capitalize">{planLabel[profile?.plan ?? 'free'] ?? 'Free'}</span>
           </span>
           <button
             onClick={saveName}
             disabled={savingName}
-            className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-gold hover:bg-gold/90 text-ink-1 font-inter text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
           >
             {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : savedName ? <Check className="w-3.5 h-3.5" /> : null}
             {savedName ? 'Saved' : savingName ? 'Saving…' : 'Save Name'}
@@ -114,23 +114,23 @@ export function ProfilePanel({ user, profile }: Props) {
       </div>
 
       {/* Password */}
-      <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-6 mb-5 space-y-4">
-        <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">Change Password</p>
+      <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
+        <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Change Password</p>
 
         <div className="space-y-1">
-          <label className="text-xs font-inter text-cream/70">New password</label>
+          <label className="text-xs font-inter text-ink-1/70">New password</label>
           <div className="relative">
             <input
               type={showNew ? 'text' : 'password'}
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="Min 8 characters"
-              className="w-full px-3 py-2.5 pr-10 rounded-lg bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-3 py-2.5 pr-10 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
             />
             <button
               type="button"
               onClick={() => setShowNew((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-cream"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-1/60 hover:text-ink-1"
             >
               {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -138,19 +138,19 @@ export function ProfilePanel({ user, profile }: Props) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-inter text-cream/70">Confirm new password</label>
+          <label className="text-xs font-inter text-ink-1/70">Confirm new password</label>
           <div className="relative">
             <input
               type={showCurrent ? 'text' : 'password'}
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder="Re-enter password"
-              className="w-full px-3 py-2.5 pr-10 rounded-lg bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-3 py-2.5 pr-10 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
             />
             <button
               type="button"
               onClick={() => setShowCurrent((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-cream"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-1/60 hover:text-ink-1"
             >
               {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -164,7 +164,7 @@ export function ProfilePanel({ user, profile }: Props) {
         <button
           onClick={changePassword}
           disabled={savingPw || !newPw || !confirmPw}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2A2A2A] hover:bg-[#333] border border-[#333] text-cream font-inter text-sm font-medium rounded-lg transition-colors disabled:opacity-40"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-cream-3 hover:bg-cream-3 border border-cream-3 text-ink-1 font-inter text-sm font-medium rounded-lg transition-colors disabled:opacity-40"
         >
           {savingPw ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : savedPw ? <Check className="w-3.5 h-3.5 text-accent" /> : null}
           {savedPw ? 'Password updated' : savingPw ? 'Updating…' : 'Update Password'}
