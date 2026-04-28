@@ -151,7 +151,7 @@ export function AppSidebar({ userEmail, isPremium = false, bookContext }: Props)
   )
 
   return (
-    <aside className="w-[220px] shrink-0 bg-[#0D1117] border-r border-[#1C2333] flex flex-col h-screen overflow-y-auto">
+    <aside className="w-[220px] shrink-0 bg-ink-1 border-r border-ink-3 flex flex-col h-screen overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-[#1C2333]">
         <Link href="/dashboard" className="flex items-center gap-2">

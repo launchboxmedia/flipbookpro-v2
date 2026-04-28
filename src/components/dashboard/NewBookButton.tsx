@@ -31,10 +31,10 @@ export function NewBookButton() {
       <button
         onClick={handleClick}
         disabled={loading}
-        className="flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-60"
+        className="flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter text-sm font-semibold rounded-lg shadow-[0_4px_18px_-6px_rgba(201,168,76,0.5)] transition-colors disabled:opacity-60"
       >
         <Plus className="w-4 h-4" />
-        {loading ? 'Creating...' : 'New Book'}
+        {loading ? 'Creating…' : 'New Book'}
       </button>
 
       {showGate && gateInfo && (

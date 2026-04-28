@@ -27,12 +27,12 @@ export function BookCard({ book, chapterCount }: { book: Book; chapterCount: num
 
   return (
     <div
-      className="group relative bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden transition-all duration-300 hover:border-[#3A3A3A] hover:shadow-[0_8px_40px_rgba(0,0,0,0.4)] hover:-translate-y-0.5"
+      className="group relative bg-ink-2 border border-ink-3 rounded-xl overflow-hidden transition-all duration-300 hover:border-gold/40 hover:shadow-[0_12px_40px_-12px_rgba(201,168,76,0.18),0_8px_24px_rgba(0,0,0,0.4)] hover:-translate-y-0.5"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Cover image area */}
-      <div className="relative aspect-[3/4] bg-gradient-to-b from-[#1A1A1A] to-[#151515] overflow-hidden">
+      <div className="relative aspect-[3/4] bg-gradient-to-b from-ink-1 to-ink-2 overflow-hidden">
         {book.cover_image_url ? (
           <>
             <Image
@@ -67,7 +67,7 @@ export function BookCard({ book, chapterCount }: { book: Book; chapterCount: num
         <div className={`absolute bottom-3 left-3 right-3 z-10 flex gap-2 transition-all duration-300 ${hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
           <Link
             href={`/book/${book.id}/coauthor`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-accent/90 hover:bg-accent text-white text-xs font-inter font-medium rounded-lg backdrop-blur-sm transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-lg transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5" />
             Open
