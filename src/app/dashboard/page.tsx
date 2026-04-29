@@ -4,19 +4,20 @@ import { AppSidebar } from '@/components/layout/AppSidebar'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { NewBookButton } from '@/components/dashboard/NewBookButton'
 import { BookOpen, Sparkles } from 'lucide-react'
-import { PLAN_LIMITS } from '@/lib/stripe'
+import { getEffectivePlan } from '@/lib/auth'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: books }, { data: profile }] = await Promise.all([
+  const [{ data: books }, { data: profile }, planInfo] = await Promise.all([
     supabase.from('books')
       .select('id, user_id, title, subtitle, status, cover_image_url, slug, persona, created_at, updated_at, published_at, palette, visual_style, typography, cover_direction, author_name, vibe, writing_tone, reader_level, human_score, back_cover_tagline, back_cover_description, back_cover_cta_text, back_cover_cta_url, back_cover_image_url')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false }),
-    supabase.from('profiles').select('plan, books_created_this_month').eq('id', user.id).single(),
+    supabase.from('profiles').select('books_created_this_month').eq('id', user.id).single(),
+    getEffectivePlan(supabase, user.id),
   ])
 
   const bookIds = (books ?? []).map((b) => b.id)
@@ -30,15 +31,14 @@ export default async function DashboardPage() {
     countMap[row.book_id] = (countMap[row.book_id] ?? 0) + 1
   }
 
-  const plan = (profile?.plan ?? 'free') as keyof typeof PLAN_LIMITS
-  const isPremium = plan !== 'free'
-  const monthlyLimit = PLAN_LIMITS[plan]?.booksPerMonth ?? 1
+  const isPremium = planInfo.plan !== 'free'
+  const monthlyLimit = planInfo.booksPerMonth
   const monthlyUsed  = profile?.books_created_this_month ?? 0
-  const slotsLeft = Math.max(0, monthlyLimit - monthlyUsed)
+  const slotsLeft = Number.isFinite(monthlyLimit) ? Math.max(0, monthlyLimit - monthlyUsed) : Number.POSITIVE_INFINITY
 
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} />
+      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin} />
 
       <main className="flex-1 overflow-auto">
         <div className="max-w-6xl mx-auto px-6 py-10">
@@ -68,11 +68,21 @@ export default async function DashboardPage() {
                   </span>
                 </div>
                 <p className="font-playfair text-sm text-cream font-semibold mt-0.5">
-                  {monthlyUsed} / {monthlyLimit}
-                  <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
-                  <span className="font-inter text-[11px] text-ink-muted font-normal">
-                    {slotsLeft === 0 ? 'limit reached' : `${slotsLeft} left`}
-                  </span>
+                  {Number.isFinite(monthlyLimit) ? (
+                    <>
+                      {monthlyUsed} / {monthlyLimit}
+                      <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
+                      <span className="font-inter text-[11px] text-ink-muted font-normal">
+                        {slotsLeft === 0 ? 'limit reached' : `${slotsLeft} left`}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {monthlyUsed}
+                      <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
+                      <span className="font-inter text-[11px] text-gold font-normal">unlimited</span>
+                    </>
+                  )}
                 </p>
               </div>
               <NewBookButton />

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { Step1Outline } from './Step1Outline'
 import { Step2Meta } from './Step2Meta'
 import { Step3Persona } from './Step3Persona'
@@ -43,10 +45,13 @@ interface WizardShellProps {
   bookId: string
   initialData?: Partial<WizardData>
   maxChapters?: number
+  initialStep?: number
 }
 
-export function WizardShell({ bookId, initialData, maxChapters = 6 }: WizardShellProps) {
-  const [step, setStep] = useState(0)
+export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep = 0 }: WizardShellProps) {
+  const isEditing = (initialData?.chapters?.length ?? 0) > 0
+  const clampedInitial = Math.max(0, Math.min(STEPS.length - 1, initialStep))
+  const [step, setStep] = useState(isEditing ? clampedInitial : 0)
   const [data, setData] = useState<WizardData>({
     outline: '',
     chapters: [],
@@ -80,37 +85,61 @@ export function WizardShell({ bookId, initialData, maxChapters = 6 }: WizardShel
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.08)_0%,transparent_55%)]" />
 
       <div className="relative max-w-3xl mx-auto px-4 py-12">
+        {isEditing && (
+          <Link
+            href={`/book/${bookId}/coauthor`}
+            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to book
+          </Link>
+        )}
         <div className="mb-10">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.22em] mb-2 text-center">
-            {data.chapters.length > 0 ? 'Edit Book' : 'New Book'}
+            {isEditing ? 'Edit Book' : 'New Book'}
           </p>
           <h1 className="font-playfair text-4xl text-cream font-semibold mb-7 text-center">
             Set the foundations
           </h1>
           <div className="flex items-center justify-between">
-            {STEPS.map((label, i) => (
-              <div key={i} className="flex items-center">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-inter font-medium transition-all ${
-                      i < step
-                        ? 'bg-gold text-ink-1 shadow-[0_0_18px_-4px_rgba(201,168,76,0.5)]'
-                        : i === step
-                        ? 'bg-gold text-ink-1 ring-2 ring-gold/40 ring-offset-2 ring-offset-canvas'
-                        : 'bg-ink-2 text-ink-subtle border border-ink-3'
-                    }`}
-                  >
-                    {i < step ? <Check className="w-4 h-4" /> : i + 1}
-                  </div>
-                  <span className={`text-[10px] font-inter hidden sm:block tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
-                    {label}
-                  </span>
+            {STEPS.map((label, i) => {
+              const pill = (
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-inter font-medium transition-all ${
+                    i < step
+                      ? 'bg-gold text-ink-1 shadow-[0_0_18px_-4px_rgba(201,168,76,0.5)]'
+                      : i === step
+                      ? 'bg-gold text-ink-1 ring-2 ring-gold/40 ring-offset-2 ring-offset-canvas'
+                      : 'bg-ink-2 text-ink-subtle border border-ink-3'
+                  }`}
+                >
+                  {i < step ? <Check className="w-4 h-4" /> : i + 1}
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-ink-3'}`} />
-                )}
-              </div>
-            ))}
+              )
+              return (
+                <div key={i} className="flex items-center">
+                  <div className="flex flex-col items-center gap-1.5">
+                    {isEditing ? (
+                      <button
+                        type="button"
+                        onClick={() => setStep(i)}
+                        className="cursor-pointer"
+                        aria-label={`Go to step ${i + 1}: ${label}`}
+                      >
+                        {pill}
+                      </button>
+                    ) : (
+                      pill
+                    )}
+                    <span className={`text-[10px] font-inter hidden sm:block tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
+                      {label}
+                    </span>
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-ink-3'}`} />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 

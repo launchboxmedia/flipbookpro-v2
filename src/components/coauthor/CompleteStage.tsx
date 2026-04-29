@@ -36,7 +36,7 @@ interface Props {
 export function CompleteStage({ book, pages }: Props) {
   const [generating, setGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [done, setDone] = useState(book.status === 'ready')
+  const [bulkDone, setBulkDone] = useState(book.status === 'ready')
   const [error, setError] = useState('')
 
   const [checking, setChecking] = useState(false)
@@ -44,6 +44,12 @@ export function CompleteStage({ book, pages }: Props) {
   const [checkError, setCheckError] = useState('')
 
   const approvedCount = pages.filter((p) => p.approved).length
+  // Treat the book as ready for export/publish whenever every chapter has an
+  // image — the typical flow now generates images per-chapter from the
+  // ChapterStage, so book.status never gets flipped to 'ready'.
+  const allHaveImages = pages.length > 0 && pages.every((p) => !!p.image_url)
+  const missingImageCount = pages.filter((p) => !p.image_url).length
+  const done = bulkDone || allHaveImages
 
   async function runPrePublishCheck() {
     if (checking) return
@@ -90,7 +96,7 @@ export function CompleteStage({ book, pages }: Props) {
           try {
             const data = JSON.parse(line.slice(6))
             if (data.progress !== undefined) setProgress(data.progress)
-            if (data.done) { setDone(true); setGenerating(false) }
+            if (data.done) { setBulkDone(true); setGenerating(false) }
           } catch {
             // partial JSON line, skip
           }
@@ -247,14 +253,20 @@ export function CompleteStage({ book, pages }: Props) {
           <div>
             <h2 className="font-playfair text-3xl text-cream mb-2">All chapters approved.</h2>
             <p className="text-muted-foreground font-source-serif text-sm max-w-sm mx-auto">
-              Generate one illustration per chapter using the Gemini AI image model. This may take a few minutes.
+              {missingImageCount > 0
+                ? `${missingImageCount} chapter${missingImageCount !== 1 ? 's' : ''} still need illustrations. Generate them in bulk, or jump back into a chapter to generate or upload one manually.`
+                : 'Generate illustrations for every chapter to enable export and publishing.'}
             </p>
           </div>
 
           <div className="bg-[#222] border border-[#333] rounded-xl p-6 text-left space-y-3">
             <div className="flex items-center gap-2 text-sm font-inter text-cream/80">
               <Image className="w-4 h-4 text-gold" />
-              <span>{approvedCount} chapter illustration{approvedCount !== 1 ? 's' : ''} to generate</span>
+              <span>
+                {missingImageCount > 0
+                  ? `${missingImageCount} chapter illustration${missingImageCount !== 1 ? 's' : ''} to generate`
+                  : `${approvedCount} chapter illustration${approvedCount !== 1 ? 's' : ''} to generate`}
+              </span>
             </div>
             <p className="text-xs font-source-serif text-muted-foreground">
               Style: {book.visual_style?.replace(/_/g, ' ')} · Persona: {book.persona}

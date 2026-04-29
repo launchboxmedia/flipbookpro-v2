@@ -16,11 +16,13 @@ interface Props {
   pages: BookPage[]
   userEmail: string
   isPremium?: boolean
+  isAdmin?: boolean
+  initialStage?: CoauthorStage
 }
 
-export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium }: Props) {
+export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium, isAdmin, initialStage = 'outline' }: Props) {
   const [pages, setPages] = useState<BookPage[]>(initialPages)
-  const [stage, setStage] = useState<CoauthorStage>('outline')
+  const [stage, setStage] = useState<CoauthorStage>(initialStage)
   const [activeChapterIndex, setActiveChapterIndex] = useState(0)
   const [imageStatuses, setImageStatuses] = useState<Record<string, ImageStatus>>({})
   const [imageErrors, setImageErrors] = useState<Record<string, string>>({})
@@ -217,6 +219,7 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium 
       <AppSidebar
         userEmail={userEmail}
         isPremium={isPremium}
+        isAdmin={isAdmin}
         bookContext={{
           bookId: book.id,
           bookTitle: book.title,

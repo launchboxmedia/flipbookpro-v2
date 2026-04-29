@@ -2,13 +2,13 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Compass, AlignLeft, Palette,
   Layers, Download, User, Building2, CreditCard, MessageCircle,
   Star, HelpCircle, Shield, ChevronDown, ChevronUp,
   Crown, BarChart3, Loader2, RefreshCw, Upload, X, Wand2,
-  ImageIcon,
+  ImageIcon, FileText, Users, MessageSquare, Gauge, BookMarked, Type,
 } from 'lucide-react'
 import { logout } from '@/app/login/actions'
 import type { BookPage } from '@/types/database'
@@ -34,6 +34,7 @@ export interface BookContext {
 interface Props {
   userEmail: string
   isPremium?: boolean
+  isAdmin?: boolean
   bookContext?: BookContext
 }
 
@@ -57,8 +58,9 @@ function initials(email: string) {
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'U'
 }
 
-export function AppSidebar({ userEmail, isPremium = false, bookContext }: Props) {
+export function AppSidebar({ userEmail, isPremium = false, isAdmin = false, bookContext }: Props) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [open, setOpen] = useState<Record<string, boolean>>(
     Object.fromEntries(SECTIONS.map((s) => [s.key, s.defaultOpen ?? false]))
   )
@@ -77,7 +79,31 @@ export function AppSidebar({ userEmail, isPremium = false, bookContext }: Props)
   const userInitials = initials(userEmail)
 
   const buildStage = bookContext?.stage
-  const bookId = bookContext?.bookId
+  // Derive bookId from URL when bookContext isn't passed (e.g., on the wizard
+  // page, which doesn't own coauthor state) so wizard-step nav still works.
+  const pathBookId = pathname.match(/^\/book\/([^/]+)/)?.[1] ?? null
+  const bookId = bookContext?.bookId ?? pathBookId
+  const onWizardPath = !!bookId && pathname.startsWith(`/book/${bookId}/wizard`)
+  const onCoauthorPath = !!bookId && pathname.startsWith(`/book/${bookId}/coauthor`)
+  const wizardStepParam = searchParams.get('step')
+  const activeWizardStep = onWizardPath
+    ? (wizardStepParam ? Number.parseInt(wizardStepParam, 10) : 0)
+    : null
+
+  function gotoWizardStep(n: number) {
+    if (!bookId) return
+    window.location.href = `/book/${bookId}/wizard?step=${n}`
+  }
+
+  function gotoCoauthorStage(stage: 'outline' | 'chapter' | 'complete') {
+    if (bookContext?.onStageChange && onCoauthorPath) {
+      bookContext.onStageChange(stage)
+      return
+    }
+    if (bookId) {
+      window.location.href = `/book/${bookId}/coauthor?stage=${stage}`
+    }
+  }
 
   function navItem(
     label: string,
@@ -233,33 +259,46 @@ export function AppSidebar({ userEmail, isPremium = false, bookContext }: Props)
               {navItem(
                 'Outline',
                 <AlignLeft className="w-4 h-4" />,
-                () => bookContext?.onStageChange('outline'),
-                buildStage === 'outline',
-                !bookContext
+                () => gotoCoauthorStage('outline'),
+                onCoauthorPath && buildStage === 'outline',
+                !bookId
               )}
-              {bookId
-                ? navItem(
-                    'Theme',
-                    <Palette className="w-4 h-4" />,
-                    () => { window.location.href = `/book/${bookId}/wizard` },
-                    isActive(`/book/${bookId}/wizard`),
-                    false
-                  )
-                : navItem('Theme', <Palette className="w-4 h-4" />, () => {}, false, true)}
+
+              {/* Setup steps */}
+              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-[#3A4150] uppercase tracking-[0.14em]">
+                Setup
+              </p>
+              {navItem('Details',  <FileText className="w-4 h-4" />,      () => gotoWizardStep(1), onWizardPath && activeWizardStep === 1, !bookId)}
+              {navItem('Audience', <Users className="w-4 h-4" />,         () => gotoWizardStep(2), onWizardPath && activeWizardStep === 2, !bookId)}
+              {navItem('Tone',     <MessageSquare className="w-4 h-4" />, () => gotoWizardStep(3), onWizardPath && activeWizardStep === 3, !bookId)}
+              {navItem('Reader',   <Gauge className="w-4 h-4" />,         () => gotoWizardStep(4), onWizardPath && activeWizardStep === 4, !bookId)}
+
+              {/* Theme steps */}
+              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-[#3A4150] uppercase tracking-[0.14em]">
+                Theme
+              </p>
+              {navItem('Illustrations', <Palette className="w-4 h-4" />,    () => gotoWizardStep(5), onWizardPath && activeWizardStep === 5, !bookId)}
+              {navItem('Cover',         <BookMarked className="w-4 h-4" />, () => gotoWizardStep(6), onWizardPath && activeWizardStep === 6, !bookId)}
+              {navItem('Typography',    <Type className="w-4 h-4" />,       () => gotoWizardStep(7), onWizardPath && activeWizardStep === 7, !bookId)}
+
+              {/* Content stages */}
+              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-[#3A4150] uppercase tracking-[0.14em]">
+                Content
+              </p>
               {navItem(
                 'Chapters',
                 <Layers className="w-4 h-4" />,
-                () => bookContext?.onStageChange('chapter'),
-                buildStage === 'chapter',
-                !bookContext,
+                () => gotoCoauthorStage('chapter'),
+                onCoauthorPath && buildStage === 'chapter',
+                !bookId,
                 chapterList
               )}
               {navItem(
                 'Review & Export',
                 <Download className="w-4 h-4" />,
-                () => bookContext?.onStageChange('complete'),
-                buildStage === 'complete' || buildStage === 'back-matter',
-                !bookContext || !bookContext.allApproved
+                () => gotoCoauthorStage('complete'),
+                onCoauthorPath && (buildStage === 'complete' || buildStage === 'back-matter'),
+                !bookId || (!!bookContext && !bookContext.allApproved)
               )}
             </div>
           )}
@@ -307,24 +346,27 @@ export function AppSidebar({ userEmail, isPremium = false, bookContext }: Props)
           )}
         </div>
 
-        {/* Admin */}
-        <div>
-          <button
-            onClick={() => toggleSection('admin')}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-inter font-medium text-[#5A6478] uppercase tracking-wider hover:text-[#8893A6] transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5" />
-              Admin
-            </span>
-            {open.admin ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-          {open.admin && (
-            <div className="space-y-0.5 ml-1">
-              {linkItem('Users', <User className="w-4 h-4" />, '/admin/users')}
-            </div>
-          )}
-        </div>
+        {/* Admin — only rendered when caller passes isAdmin */}
+        {isAdmin && (
+          <div>
+            <button
+              onClick={() => toggleSection('admin')}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-inter font-medium text-[#5A6478] uppercase tracking-wider hover:text-[#8893A6] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5" />
+                Admin
+              </span>
+              {open.admin ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {open.admin && (
+              <div className="space-y-0.5 ml-1">
+                {linkItem('Dashboard', <BarChart3 className="w-4 h-4" />, '/admin')}
+                {linkItem('Users', <User className="w-4 h-4" />, '/admin/users')}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Book cover section (only in book context) */}

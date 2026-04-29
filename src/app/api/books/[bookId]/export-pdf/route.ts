@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { checkSubscriptionPlan } from '@/lib/stripe'
+import { getEffectivePlan, planAtLeast } from '@/lib/auth'
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // PDF export is Standard and Pro only
-  const { data: profileForPlan } = await supabase
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single()
-
-  const plan = await checkSubscriptionPlan(profileForPlan?.stripe_customer_id ?? null)
-  if (plan === 'free') {
+  // PDF export is Standard, Pro, or Admin only.
+  const { plan } = await getEffectivePlan(supabase, user.id)
+  if (!planAtLeast(plan, 'standard')) {
     return NextResponse.json(
       { error: 'PDF export requires a Standard or Pro plan. Upgrade at /pricing.' },
       { status: 403 }

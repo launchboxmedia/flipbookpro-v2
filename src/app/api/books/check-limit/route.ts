@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { PLAN_LIMITS, checkSubscriptionPlan } from '@/lib/stripe'
+import { getEffectivePlan } from '@/lib/auth'
 
 export async function GET() {
   const supabase = await createClient()
@@ -9,18 +9,16 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('plan, stripe_customer_id, books_created_this_month, books_reset_at')
+    .select('plan, books_created_this_month, books_reset_at')
     .eq('id', user.id)
     .single()
 
-  // Plan authority: Stripe subscription check first, fall back to profiles.plan
-  const plan = await checkSubscriptionPlan(profile?.stripe_customer_id ?? null)
-    || (profile?.plan ?? 'free') as keyof typeof PLAN_LIMITS
+  // Authoritative plan: admin role → Stripe → profile.plan fallback.
+  const { plan, booksPerMonth, maxChapters, isAdmin } = await getEffectivePlan(supabase, user.id)
 
-  const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free
-
-  // Sync plan cache if it drifted
-  if (profile && profile.plan !== plan) {
+  // Sync the profile.plan cache when Stripe says something different. Admins
+  // are intentionally NOT cached as a plan — admin is a separate role flag.
+  if (!isAdmin && profile && profile.plan !== plan) {
     await supabase
       .from('profiles')
       .update({ plan, updated_at: new Date().toISOString() })
@@ -41,10 +39,14 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    allowed: used < limits.booksPerMonth,
+    allowed: used < booksPerMonth,
     plan,
     used,
-    limit: limits.booksPerMonth,
-    maxChapters: limits.maxChapters,
+    // JSON.stringify converts Number.POSITIVE_INFINITY to null; surface that
+    // as a sentinel value for the client (NewBookButton treats null as
+    // "no limit" and skips the gate).
+    limit: Number.isFinite(booksPerMonth) ? booksPerMonth : null,
+    maxChapters: Number.isFinite(maxChapters) ? maxChapters : null,
+    isAdmin,
   })
 }
