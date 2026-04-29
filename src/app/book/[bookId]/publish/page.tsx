@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PublishPanel } from '@/components/publish/PublishPanel'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { getEffectivePlan } from '@/lib/auth'
 
 export default async function PublishPage({ params }: { params: { bookId: string } }) {
@@ -18,11 +18,13 @@ export default async function PublishPage({ params }: { params: { bookId: string
   if (!book) redirect('/dashboard')
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={planInfo.plan !== 'free'} isAdmin={planInfo.isAdmin} />
-      <main className="flex-1 overflow-auto">
-        <PublishPanel book={book} publishedBook={published ?? null} />
-      </main>
-    </div>
+    <AppShell
+      userEmail={user.email ?? ''}
+      isPremium={planInfo.plan !== 'free'}
+      isAdmin={planInfo.isAdmin}
+      pageTitle={`Publish · ${book.title}`}
+    >
+      <PublishPanel book={book} publishedBook={published ?? null} />
+    </AppShell>
   )
 }

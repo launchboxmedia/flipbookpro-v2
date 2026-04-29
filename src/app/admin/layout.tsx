@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { getEffectivePlan } from '@/lib/auth'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -12,9 +12,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!isAdmin) redirect('/dashboard')
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={plan !== 'free'} isAdmin={isAdmin} />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <AppShell userEmail={user.email ?? ''} isPremium={plan !== 'free'} isAdmin={isAdmin}>
+      {children}
+    </AppShell>
   )
 }

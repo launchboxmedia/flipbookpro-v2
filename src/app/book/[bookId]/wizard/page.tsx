@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { WizardShell } from '@/components/wizard/WizardShell'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { getEffectivePlan } from '@/lib/auth'
 
 export default async function WizardPage({
@@ -39,32 +39,29 @@ export default async function WizardPage({
   const initialStep = Number.isFinite(parsedStep) ? parsedStep : 0
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin} />
-      <main className="flex-1 overflow-auto">
-        <WizardShell
-          bookId={params.bookId}
-          maxChapters={maxChapters}
-          initialStep={initialStep}
-          initialData={{
-            title: book.title ?? '',
-            subtitle: book.subtitle ?? '',
-            authorName: book.author_name ?? '',
-            persona: book.persona ?? '',
-            vibe: book.vibe ?? '',
-            writingTone: book.writing_tone ?? '',
-            readerLevel: book.reader_level ?? 5,
-            humanScore: book.human_score ?? false,
-            visualStyle: book.visual_style ?? '',
-            coverDirection: book.cover_direction ?? '',
-            typography: book.typography ?? '',
-            chapters: existingChapters,
-            outline: existingChapters.length > 0
-              ? existingChapters.map((c, i) => `Chapter ${i + 1}: ${c.title}${c.brief ? `\n${c.brief}` : ''}`).join('\n\n')
-              : '',
-          }}
-        />
-      </main>
-    </div>
+    <AppShell userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin}>
+      <WizardShell
+        bookId={params.bookId}
+        maxChapters={maxChapters}
+        initialStep={initialStep}
+        initialData={{
+          title: book.title ?? '',
+          subtitle: book.subtitle ?? '',
+          authorName: book.author_name ?? '',
+          persona: book.persona ?? '',
+          vibe: book.vibe ?? '',
+          writingTone: book.writing_tone ?? '',
+          readerLevel: book.reader_level ?? 5,
+          humanScore: book.human_score ?? false,
+          visualStyle: book.visual_style ?? '',
+          coverDirection: book.cover_direction ?? '',
+          typography: book.typography ?? '',
+          chapters: existingChapters,
+          outline: existingChapters.length > 0
+            ? existingChapters.map((c, i) => `Chapter ${i + 1}: ${c.title}${c.brief ? `\n${c.brief}` : ''}`).join('\n\n')
+            : '',
+        }}
+      />
+    </AppShell>
   )
 }

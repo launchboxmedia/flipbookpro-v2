@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
 import { BackMatterStage } from './BackMatterStage'
@@ -215,30 +215,29 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
   const currentImageError = currentPage ? (imageErrors[currentPage.id] ?? null) : null
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar
-        userEmail={userEmail}
-        isPremium={isPremium}
-        isAdmin={isAdmin}
-        bookContext={{
-          bookId: book.id,
-          bookTitle: book.title,
-          stage,
-          activeChapterIndex,
-          pages: chapterPages,
-          allApproved,
-          imageStatuses,
-          coverImageUrl,
-          coverImageStatus,
-          hasDiscover: false,
-          onStageChange: setStage,
-          onChapterSelect: navigateChapter,
-          onGenerateCover: generateCoverImage,
-          onCoverUpload: handleCoverUpload,
-        }}
-      />
-
-      <main className="flex-1 overflow-auto">
+    <AppShell
+      userEmail={userEmail}
+      isPremium={isPremium}
+      isAdmin={isAdmin}
+      pageTitle={book.title}
+      bookContext={{
+        bookId: book.id,
+        bookTitle: book.title,
+        stage,
+        activeChapterIndex,
+        pages: chapterPages,
+        allApproved,
+        imageStatuses,
+        coverImageUrl,
+        coverImageStatus,
+        hasDiscover: false,
+        onStageChange: setStage,
+        onChapterSelect: navigateChapter,
+        onGenerateCover: generateCoverImage,
+        onCoverUpload: handleCoverUpload,
+      }}
+    >
+      <div className="h-full">
         {stage === 'outline' && (
           <OutlineStage
             book={book}
@@ -297,7 +296,7 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
         {stage === 'complete' && (
           <CompleteStage book={book} pages={chapterPages} />
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }

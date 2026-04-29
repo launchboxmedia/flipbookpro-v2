@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { deriveTheme } from '@/lib/bookTheme'
 import { getEffectivePlan } from '@/lib/auth'
 
@@ -25,17 +25,19 @@ export default async function PreviewPage({ params }: { params: { bookId: string
   const isPremium  = planInfo.plan !== 'free'
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin} />
-      <main className="flex-1 overflow-auto">
-        <FlipbookViewer
-          book={book}
-          chapters={chapters}
-          backMatter={backMatter}
-          theme={theme}
-          profile={profile ?? null}
-        />
-      </main>
-    </div>
+    <AppShell
+      userEmail={user.email ?? ''}
+      isPremium={isPremium}
+      isAdmin={planInfo.isAdmin}
+      pageTitle={`Preview · ${book.title}`}
+    >
+      <FlipbookViewer
+        book={book}
+        chapters={chapters}
+        backMatter={backMatter}
+        theme={theme}
+        profile={profile ?? null}
+      />
+    </AppShell>
   )
 }

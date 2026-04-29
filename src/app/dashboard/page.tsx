@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { AppSidebar } from '@/components/layout/AppSidebar'
+import { AppShell } from '@/components/layout/AppShell'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { NewBookButton } from '@/components/dashboard/NewBookButton'
 import { BookOpen, Sparkles } from 'lucide-react'
@@ -37,11 +37,8 @@ export default async function DashboardPage() {
   const slotsLeft = Number.isFinite(monthlyLimit) ? Math.max(0, monthlyLimit - monthlyUsed) : Number.POSITIVE_INFINITY
 
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      <AppSidebar userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin} />
-
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto px-6 py-10">
+    <AppShell userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin}>
+      <div className="max-w-6xl mx-auto px-6 py-10">
           {/* Hero / header */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 pb-6 border-b border-ink-3">
             <div>
@@ -101,8 +98,7 @@ export default async function DashboardPage() {
           ) : (
             <DashboardGrid books={books} pageCounts={countMap} />
           )}
-        </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
