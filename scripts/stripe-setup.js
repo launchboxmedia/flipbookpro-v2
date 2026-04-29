@@ -8,7 +8,19 @@
 require('dotenv').config({ path: '.env.local' })
 const Stripe = require('stripe')
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+// `node scripts/stripe-setup.js --test` reads STRIPE_SECRET_KEY_TEST instead
+// of the default live key. This keeps a single idempotent script for both
+// modes — the same products/prices get created in whichever account the key
+// belongs to.
+const useTest = process.argv.includes('--test')
+const keyName = useTest ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY'
+const apiKey = process.env[keyName]
+if (!apiKey) {
+  console.error(`FATAL: ${keyName} is not set in .env.local`)
+  process.exit(1)
+}
+
+const stripe = new Stripe(apiKey, {
   apiVersion: '2026-03-25.dahlia',
 })
 
@@ -48,9 +60,10 @@ async function findOrCreatePrice({ product, unit_amount, interval, nickname, loo
 }
 
 async function main() {
-  // Confirm key mode + account
+  // Confirm key mode + account. Detect from the key prefix of the actual key
+  // we're using for THIS run, not from the live env var.
   const acct = await stripe.accounts.retrieve()
-  const livemode = acct.charges_enabled && process.env.STRIPE_SECRET_KEY.startsWith('sk_live_')
+  const livemode = apiKey.startsWith('sk_live_')
   console.log(`\nStripe account ${acct.id} (${acct.country}) — ${livemode ? 'LIVE' : 'TEST'} mode\n`)
 
   console.log('Products:')
@@ -81,16 +94,17 @@ async function main() {
     nickname: 'Pro Yearly', lookup_key: 'flipbookpro_pro_yearly',
   })
 
+  const suffix = useTest ? '_TEST' : ''
   console.log('\n# Add these to .env.local')
-  console.log(`STRIPE_PRICE_STANDARD_MONTHLY=${stdMo.id}`)
-  console.log(`STRIPE_PRICE_STANDARD_YEARLY=${stdYr.id}`)
-  console.log(`STRIPE_PRICE_PRO_MONTHLY=${proMo.id}`)
-  console.log(`STRIPE_PRICE_PRO_YEARLY=${proYr.id}`)
+  console.log(`STRIPE_PRICE_STANDARD_MONTHLY${suffix}=${stdMo.id}`)
+  console.log(`STRIPE_PRICE_STANDARD_YEARLY${suffix}=${stdYr.id}`)
+  console.log(`STRIPE_PRICE_PRO_MONTHLY${suffix}=${proMo.id}`)
+  console.log(`STRIPE_PRICE_PRO_YEARLY${suffix}=${proYr.id}`)
 
   // Emit machine-parseable JSON last for the harness to capture
   console.log('---JSON---')
   console.log(JSON.stringify({
-    livemode,
+    mode: livemode ? 'live' : 'test',
     accountId: acct.id,
     productStandard: standard.id,
     productPro: pro.id,

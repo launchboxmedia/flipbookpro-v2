@@ -1,18 +1,46 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// In development, prefer the TEST-mode key + price IDs so local checkouts
+// don't ring the live till. In production we use the live values. To override
+// (e.g. if you specifically want to debug live in dev), set
+// FLIPBOOKPRO_STRIPE_MODE=live in .env.local.
+const stripeMode: 'live' | 'test' =
+  process.env.FLIPBOOKPRO_STRIPE_MODE === 'live'
+    ? 'live'
+    : process.env.FLIPBOOKPRO_STRIPE_MODE === 'test'
+    ? 'test'
+    : process.env.NODE_ENV === 'production'
+    ? 'live'
+    : 'test'
+
+const stripeSecretKey =
+  stripeMode === 'test'
+    ? (process.env.STRIPE_SECRET_KEY_TEST ?? process.env.STRIPE_SECRET_KEY ?? '')
+    : (process.env.STRIPE_SECRET_KEY ?? '')
+
+if (!stripeSecretKey && process.env.NODE_ENV === 'production') {
+  console.error('[stripe] No Stripe secret key configured.')
+}
+
+export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2026-03-25.dahlia',
 })
+
+export const isStripeTestMode = stripeMode === 'test'
 
 // Price IDs are sourced from env vars — set them in Vercel from your Stripe
 // dashboard (Products → pricing). The fallback strings are placeholders that
 // signal "not configured"; any call that resolves to one of these will be
 // rejected at runtime with a loud error.
+//
+// In test mode, we read from `<NAME>_TEST` env vars; in live mode from `<NAME>`.
+// This way one repo runs cleanly in both environments without any swap step.
 function priceFromEnv(envName: string, fallback: string): string {
-  const value = process.env[envName] ?? fallback
+  const sourceName = isStripeTestMode ? `${envName}_TEST` : envName
+  const value = process.env[sourceName] ?? process.env[envName] ?? fallback
   if (value.includes('REPLACE_WITH_REAL')) {
     if (process.env.NODE_ENV === 'production') {
-      console.error(`[stripe] ${envName} is not configured — set it in your hosting environment.`)
+      console.error(`[stripe] ${sourceName} is not configured — set it in your hosting environment.`)
     }
   }
   return value
