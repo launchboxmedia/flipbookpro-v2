@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { AppShell } from '@/components/layout/AppShell'
 import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
@@ -237,65 +238,80 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
         onCoverUpload: handleCoverUpload,
       }}
     >
-      <div className="h-full">
-        {stage === 'outline' && (
-          <OutlineStage
-            book={book}
-            pages={chapterPages}
-            onPagesChange={(updated) => {
-              // Merge updated chapter pages back into the full pages state,
-              // preserving back-matter pages and any image_url values.
-              const updatedById = Object.fromEntries(updated.map((p) => [p.id, p]))
-              setPages((prev) => prev.map((p) => {
-                if (!updatedById[p.id]) return p
-                const merged = { ...p, ...updatedById[p.id] }
-                if (!updatedById[p.id].image_url && p.image_url) merged.image_url = p.image_url
-                return merged
-              }))
-            }}
-            onNavigateChapter={navigateChapter}
-          />
-        )}
-        {stage === 'chapter' && currentPage && (
-          <ChapterStage
-            book={book}
-            page={currentPage}
-            pageIndex={activeChapterIndex}
-            totalPages={chapterPages.length}
-            imageStatus={currentImageStatus}
-            imageError={currentImageError}
-            visualStyle={visualStyle}
-            onChangeStyle={changeVisualStyle}
-            palette={palette}
-            onChangePalette={changePalette}
-            onPageUpdate={(changes) => updatePage(changes)}
-            onGenerateImage={(customPrompt) => generateChapterImage(currentPage.id, customPrompt)}
-            onUploadImage={(file) => uploadChapterImage(currentPage.id, file)}
-            onNext={() => {
-              if (activeChapterIndex < chapterPages.length - 1) {
-                navigateChapter(activeChapterIndex + 1)
-              } else {
-                setStage('back-matter')
-              }
-            }}
-            onPrev={() => {
-              if (activeChapterIndex > 0) {
-                navigateChapter(activeChapterIndex - 1)
-              } else {
-                setStage('outline')
-              }
-            }}
-          />
-        )}
-        {stage === 'back-matter' && (
-          <BackMatterStage
-            book={book}
-            onComplete={() => setStage(allApproved ? 'complete' : 'outline')}
-          />
-        )}
-        {stage === 'complete' && (
-          <CompleteStage book={book} pages={chapterPages} />
-        )}
+      {/* Animate stage transitions — small slide+fade so switching feels
+          deliberate, not abrupt. Key on stage+chapter so changing chapter
+          inside the chapter stage also re-mounts (refreshing the writing
+          surface). */}
+      <div className="h-full relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={stage === 'chapter' ? `chapter-${activeChapterIndex}` : stage}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="h-full"
+          >
+            {stage === 'outline' && (
+              <OutlineStage
+                book={book}
+                pages={chapterPages}
+                onPagesChange={(updated) => {
+                  // Merge updated chapter pages back into the full pages state,
+                  // preserving back-matter pages and any image_url values.
+                  const updatedById = Object.fromEntries(updated.map((p) => [p.id, p]))
+                  setPages((prev) => prev.map((p) => {
+                    if (!updatedById[p.id]) return p
+                    const merged = { ...p, ...updatedById[p.id] }
+                    if (!updatedById[p.id].image_url && p.image_url) merged.image_url = p.image_url
+                    return merged
+                  }))
+                }}
+                onNavigateChapter={navigateChapter}
+              />
+            )}
+            {stage === 'chapter' && currentPage && (
+              <ChapterStage
+                book={book}
+                page={currentPage}
+                pageIndex={activeChapterIndex}
+                totalPages={chapterPages.length}
+                imageStatus={currentImageStatus}
+                imageError={currentImageError}
+                visualStyle={visualStyle}
+                onChangeStyle={changeVisualStyle}
+                palette={palette}
+                onChangePalette={changePalette}
+                onPageUpdate={(changes) => updatePage(changes)}
+                onGenerateImage={(customPrompt) => generateChapterImage(currentPage.id, customPrompt)}
+                onUploadImage={(file) => uploadChapterImage(currentPage.id, file)}
+                onNext={() => {
+                  if (activeChapterIndex < chapterPages.length - 1) {
+                    navigateChapter(activeChapterIndex + 1)
+                  } else {
+                    setStage('back-matter')
+                  }
+                }}
+                onPrev={() => {
+                  if (activeChapterIndex > 0) {
+                    navigateChapter(activeChapterIndex - 1)
+                  } else {
+                    setStage('outline')
+                  }
+                }}
+              />
+            )}
+            {stage === 'back-matter' && (
+              <BackMatterStage
+                book={book}
+                onComplete={() => setStage(allApproved ? 'complete' : 'outline')}
+              />
+            )}
+            {stage === 'complete' && (
+              <CompleteStage book={book} pages={chapterPages} />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </AppShell>
   )
