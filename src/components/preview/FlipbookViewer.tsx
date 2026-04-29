@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, ArrowLeft, FileText, Printer } fro
 import Link from 'next/link'
 import type { Book, BookPage, Profile } from '@/types/database'
 import type { BookTheme } from '@/lib/bookTheme'
+import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -13,9 +14,8 @@ const PH = 550   // page height (fixed per spec)
 const SW = 8     // spine width
 const BW = PW * 2 + SW  // total book width = 808
 
-// ── Pagination constants (used by sentence-aware pagination) ────────────────
-export const WORDS_PER_PAGE = 230
-export const FIRST_PAGE_BUDGET = 145  // fewer words on first page (drop cap, header)
+// Re-export so legacy imports keep working.
+export { WORDS_PER_PAGE, FIRST_PAGE_BUDGET }
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,11 +31,29 @@ export interface FlipbookViewerProps {
 type PageContent =
   | { type: 'blank'; dark?: boolean }
   | { type: 'cover' }
-  | { type: 'toc' }
+  | { type: 'toc'; tocEntries: TocEntry[] }
   | { type: 'chapter-image'; page: BookPage; num: number }
-  | { type: 'chapter-text';  page: BookPage; num: number }
+  | {
+      type: 'chapter-text'
+      page: BookPage
+      num: number
+      /** Pre-paginated text chunk for this page. Each chunk = one spread's
+       *  right page. The first chunk gets the full chapter header + drop cap;
+       *  continuation chunks get a smaller header. */
+      chunk: string
+      chunkIndex: number
+      totalChunks: number
+      /** Page number printed in the bottom-right corner. */
+      pageNum: number
+    }
   | { type: 'back-matter';   page: BookPage }
   | { type: 'back-cover' }
+
+interface TocEntry {
+  num: number
+  title: string
+  pageNum: number
+}
 
 interface Spread {
   id: string
@@ -53,6 +71,30 @@ interface FadeState { fromIdx: number; toIdx: number }
 // ── Spread builder ──────────────────────────────────────────────────────────
 
 function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
+  // Pre-paginate every chapter so we know how many spreads each one needs
+  // (and so the TOC can compute correct page numbers).
+  const chapterChunks = chapters.map((ch) => paginateText(ch.content ?? ''))
+
+  // Compute the right-page printed page number for every chapter's first
+  // text page. Page numbers count right pages only (where text lives):
+  //   spread 0 = cover            → no number
+  //   spread 1 = TOC              → page 3 (right page of spread 1)
+  //   spread 2 = ch1 page 1       → page 5
+  //   spread 3 = ch1 page 2 (cont)→ page 7   (if chapter 1 has 2 chunks)
+  //   spread 4 = ch2 page 1       → page 9
+  //   …
+  // pageNum for the right page of spread N = N * 2 + 1.
+  let spreadIdx = 2 // chapters start at spread index 2 (after cover + TOC)
+  const tocEntries: TocEntry[] = chapters.map((ch, i) => {
+    const entry: TocEntry = {
+      num: i + 1,
+      title: ch.chapter_title,
+      pageNum: spreadIdx * 2 + 1,
+    }
+    spreadIdx += chapterChunks[i].length // advance by one spread per chunk
+    return entry
+  })
+
   const out: Spread[] = []
 
   // Cover — single right page, dark canvas on left
@@ -67,19 +109,38 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   out.push({
     id: 'toc',
     left:  { type: 'blank' },
-    right: { type: 'toc' },
+    right: { type: 'toc', tocEntries },
     transition: 'flip',
   })
 
-  // Chapters — image left, text right
+  // Chapters — first chunk is image-left + text-right; subsequent chunks are
+  // blank-left + continuation-text-right. Page numbers are computed from the
+  // global spread index so they stay sequential across overflow.
+  let runningSpreadIdx = 2
   chapters.forEach((ch, i) => {
-    out.push({
-      id:           `ch-${ch.id}`,
-      left:         { type: 'chapter-image', page: ch, num: i + 1 },
-      right:        { type: 'chapter-text',  page: ch, num: i + 1 },
-      transition:   'flip',
-      chapterNum:   i + 1,
-      chapterTitle: ch.chapter_title,
+    const chunks = chapterChunks[i]
+    chunks.forEach((chunk, k) => {
+      const pageNum = runningSpreadIdx * 2 + 1
+      const left: PageContent = k === 0
+        ? { type: 'chapter-image', page: ch, num: i + 1 }
+        : { type: 'blank' }
+      out.push({
+        id:           `ch-${ch.id}-p${k}`,
+        left,
+        right: {
+          type:        'chapter-text',
+          page:        ch,
+          num:         i + 1,
+          chunk,
+          chunkIndex:  k,
+          totalChunks: chunks.length,
+          pageNum,
+        },
+        transition:   'flip',
+        chapterNum:   i + 1,
+        chapterTitle: ch.chapter_title,
+      })
+      runningSpreadIdx++
     })
   })
 
@@ -246,7 +307,7 @@ function CoverPage({ book, profile }: { book: Book; profile: Profile | null }) {
   )
 }
 
-function TocPage({ chapters }: { chapters: BookPage[] }) {
+function TocPage({ entries }: { entries: TocEntry[] }) {
   return (
     <div style={{ ...pageBase, ...padRight, background: 'var(--page-bg)' }}>
       <h2 style={{ fontFamily: 'var(--heading-font)', fontSize: 'var(--heading-size)', fontWeight: 700, color: 'var(--page-text)', margin: '0 0 6px' }}>
@@ -254,26 +315,21 @@ function TocPage({ chapters }: { chapters: BookPage[] }) {
       </h2>
       <div style={{ width: 22, height: 2, background: 'var(--accent)', marginBottom: 18 }} />
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {chapters.map((ch, i) => {
-          // Page number: cover(1) + toc(1) + chapter text pages are right pages of each spread
-          // Spread 0=cover, 1=toc, 2=ch1, 3=ch2 … right page number = (i+2)*2+1
-          const pageNum = (i + 2) * 2 + 1
-          return (
-            <div key={ch.id} style={{ display: 'flex', alignItems: 'baseline', padding: '5px 0', borderBottom: '1px solid var(--accent-subtle)' }}>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, color: 'var(--chapter-num-color)', minWidth: 14, flexShrink: 0 }}>
-                {i + 1}
-              </span>
-              <span style={{ fontFamily: 'var(--body-font)', fontSize: 9.5, color: 'var(--page-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: 4 }}>
-                {ch.chapter_title}
-              </span>
-              {/* Dotted leader */}
-              <span style={{ flex: 1, borderBottom: '1px dotted var(--accent-subtle)', marginBottom: '0.25em', flexShrink: 1, minWidth: 8 }} />
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, color: 'var(--chapter-num-color)', marginLeft: 4, flexShrink: 0 }}>
-                {pageNum}
-              </span>
-            </div>
-          )
-        })}
+        {entries.map((entry) => (
+          <div key={entry.num} style={{ display: 'flex', alignItems: 'baseline', padding: '5px 0', borderBottom: '1px solid var(--accent-subtle)' }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, color: 'var(--chapter-num-color)', minWidth: 14, flexShrink: 0 }}>
+              {entry.num}
+            </span>
+            <span style={{ fontFamily: 'var(--body-font)', fontSize: 9.5, color: 'var(--page-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: 4 }}>
+              {entry.title}
+            </span>
+            {/* Dotted leader */}
+            <span style={{ flex: 1, borderBottom: '1px dotted var(--accent-subtle)', marginBottom: '0.25em', flexShrink: 1, minWidth: 8 }} />
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, color: 'var(--chapter-num-color)', marginLeft: 4, flexShrink: 0 }}>
+              {entry.pageNum}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -303,33 +359,63 @@ function ChapterImagePage({ page, num }: { page: BookPage; num: number }) {
   )
 }
 
-function ChapterTextPage({ page, num }: { page: BookPage; num: number }) {
-  const content = page.content ?? ''
-  const paras = content.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+function ChapterTextPage({
+  page, num, chunk, chunkIndex, totalChunks, pageNum,
+}: {
+  page: BookPage
+  num: number
+  chunk: string
+  chunkIndex: number
+  totalChunks: number
+  pageNum: number
+}) {
+  const isFirstChunk = chunkIndex === 0
+  const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
   const [first, ...rest] = paras
+  const hasContent = chunk.length > 0
 
   return (
     <div style={{ ...pageBase, ...padRight, background: 'var(--page-bg)' }}>
-      {/* Header */}
-      <div style={{ flexShrink: 0, marginBottom: 16 }}>
-        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--chapter-num-color)', display: 'block', marginBottom: 3 }}>
-          Chapter {num}
-        </span>
-        <h2 style={{ fontFamily: 'var(--heading-font)', fontSize: 'var(--heading-size)', fontWeight: 700, color: 'var(--page-text)', lineHeight: 1.2, margin: '0 0 9px' }}>
-          {page.chapter_title}
-        </h2>
-        <div style={{ width: 22, height: 2, background: 'var(--accent)' }} />
-      </div>
+      {/* Header — full chapter title + accent rule on first page; smaller
+          continuation header ("Chapter N · cont.") on overflow pages so the
+          reader keeps context without the title eating a third of the page. */}
+      {isFirstChunk ? (
+        <div style={{ flexShrink: 0, marginBottom: 16 }}>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--chapter-num-color)', display: 'block', marginBottom: 3 }}>
+            Chapter {num}
+          </span>
+          <h2 style={{ fontFamily: 'var(--heading-font)', fontSize: 'var(--heading-size)', fontWeight: 700, color: 'var(--page-text)', lineHeight: 1.2, margin: '0 0 9px' }}>
+            {page.chapter_title}
+          </h2>
+          <div style={{ width: 22, height: 2, background: 'var(--accent)' }} />
+        </div>
+      ) : (
+        <div style={{ flexShrink: 0, marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--chapter-num-color)' }}>
+            Chapter {num}
+          </span>
+          <span style={{ fontFamily: 'var(--body-font)', fontStyle: 'italic', fontSize: 9, color: 'var(--page-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+            {page.chapter_title}
+          </span>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7, color: 'var(--page-text-muted)', flexShrink: 0 }}>
+            {chunkIndex + 1} / {totalChunks}
+          </span>
+        </div>
+      )}
 
-      {/* Body */}
+      {/* Body. The bottom fade is intentional: even with sentence-aware
+          pagination, the rendered line height vs page height can leave a
+          partial line. The mask softens that to transparent rather than
+          slicing letters. With proper pagination this only ever affects a
+          handful of pixels. */}
       <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask }}>
-        {!content ? (
+        {!hasContent ? (
           <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>Chapter not yet written.</p>
-        ) : (
+        ) : isFirstChunk ? (
           <>
             {first && (
               <p style={{ margin: '0 0 0.8em' }}>
-                {/* Drop cap */}
+                {/* Drop cap — first paragraph of the chapter only */}
                 <span style={{ float: 'left', fontFamily: 'var(--heading-font)', fontSize: 'var(--drop-cap-size)', fontWeight: 700, lineHeight: 0.78, marginRight: '0.05em', marginTop: '0.1em', color: 'var(--drop-cap-color)' }}>
                   {first[0]}
                 </span>
@@ -338,12 +424,15 @@ function ChapterTextPage({ page, num }: { page: BookPage; num: number }) {
             )}
             {rest.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)}
           </>
+        ) : (
+          // Continuation page — no drop cap, paragraphs flow normally.
+          paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)
         )}
       </div>
 
       {/* Page number */}
       <div style={{ flexShrink: 0, textAlign: 'right', fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6 }}>
-        {num * 2 + 1}
+        {pageNum}
       </div>
     </div>
   )
@@ -482,20 +571,28 @@ function BackCoverPage({ book, profile }: { book: Book; profile: Profile | null 
 // ── Page dispatcher ─────────────────────────────────────────────────────────
 
 function Page({
-  content, side, book, chapters, profile,
+  content, side, book, profile,
 }: {
   content: PageContent
   side: 'left' | 'right'
   book: Book
-  chapters: BookPage[]
   profile: Profile | null
 }) {
   switch (content.type) {
     case 'blank':         return <BlankPage dark={content.dark} />
     case 'cover':         return <CoverPage book={book} profile={profile} />
-    case 'toc':           return <TocPage chapters={chapters} />
+    case 'toc':           return <TocPage entries={content.tocEntries} />
     case 'chapter-image': return <ChapterImagePage page={content.page} num={content.num} />
-    case 'chapter-text':  return <ChapterTextPage  page={content.page} num={content.num} />
+    case 'chapter-text':  return (
+      <ChapterTextPage
+        page={content.page}
+        num={content.num}
+        chunk={content.chunk}
+        chunkIndex={content.chunkIndex}
+        totalChunks={content.totalChunks}
+        pageNum={content.pageNum}
+      />
+    )
     case 'back-matter':   return <BackMatterPage   page={content.page} side={side} />
     case 'back-cover':    return <BackCoverPage book={book} profile={profile} />
   }
@@ -727,7 +824,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   )
 
   // Page helpers
-  const pageProps = { book, chapters, profile }
+  const pageProps = { book, profile }
   const cur = spreads[spreadIdx]
 
   const faceStyle: React.CSSProperties = {

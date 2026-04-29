@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectivePlan, planAtLeast } from '@/lib/auth'
+import { paginateText } from '@/lib/paginateText'
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -68,15 +69,35 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     </section>
   ` : ''
 
-  const chaptersHtml = chapters.map((ch, i) => `
-    <section class="page chapter">
-      <span class="chapter-label">Chapter ${i + 1}</span>
-      <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
-      <div class="rule"></div>
-      ${ch.image_url ? `<img src="${esc(ch.image_url)}" class="chapter-img" alt="" />` : ''}
-      <div class="body">${paragraphs(ch.content ?? '')}</div>
-    </section>
-  `).join('')
+  // Sentence-aware pagination — same chunks as the flipbook viewer and HTML
+  // export. Each chunk becomes its own printed page; first chunk gets the
+  // full chapter header + image, continuation chunks get a compact header.
+  const chaptersHtml = chapters.map((ch, i) => {
+    const chunks = paginateText(ch.content ?? '')
+    return chunks.map((chunk, k) => {
+      if (k === 0) {
+        return `
+          <section class="page chapter">
+            <span class="chapter-label">Chapter ${i + 1}</span>
+            <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
+            <div class="rule"></div>
+            ${ch.image_url ? `<img src="${esc(ch.image_url)}" class="chapter-img" alt="" />` : ''}
+            <div class="body">${paragraphs(chunk)}</div>
+          </section>
+        `
+      }
+      return `
+        <section class="page chapter chapter-cont">
+          <div class="cont-header">
+            <span class="chapter-label">Chapter ${i + 1}</span>
+            <span class="cont-title">${esc(ch.chapter_title)}</span>
+            <span class="cont-page">${k + 1} / ${chunks.length}</span>
+          </div>
+          <div class="body">${paragraphs(chunk)}</div>
+        </section>
+      `
+    }).join('')
+  }).join('')
 
   const backMatterHtml = backMatter.map((bm) => `
     <section class="page chapter">
@@ -182,6 +203,33 @@ body {
 .chapter-img { width: 100%; max-height: 200pt; object-fit: cover; border-radius: 3px; margin-bottom: 1.5rem; }
 .body p { margin-bottom: 1.1em; }
 .body p:last-child { margin-bottom: 0; }
+
+/* Continuation pages — compact header so the body has the most space. */
+.chapter-cont { padding-top: 1.5rem; }
+.cont-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  font-size: 0.85rem;
+}
+.cont-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  flex: 1;
+  color: rgba(26,26,26,0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cont-page {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: rgba(26,26,26,0.5);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Back cover */
 .back-cover {

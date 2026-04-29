@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { paginateText } from '@/lib/paginateText'
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -51,17 +52,44 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     </section>
   ` : ''
 
-  const chaptersHtml = chapters.map((ch, i) => `
-    <section class="chapter page-break">
-      <div class="chapter-header">
-        <span class="chapter-label">Chapter ${i + 1}</span>
-        <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
-        <div class="gold-rule"></div>
-      </div>
-      ${ch.image_url ? `<img src="${esc(ch.image_url)}" alt="" class="chapter-image" />` : ''}
-      <div class="chapter-body">${paragraphs(ch.content ?? '')}</div>
-    </section>
-  `).join('')
+  // Apply the same sentence-aware pagination as the flipbook viewer so the
+  // export visually matches "page-by-page" structure. Each chunk becomes its
+  // own <section>. A `page-break` between chapters; chunks of the SAME chapter
+  // flow continuously on screen but break onto separate pages when printed
+  // (page-break-inside: avoid would be too aggressive — let the print engine
+  // decide). Every word of the chapter is emitted across the chunks; no text
+  // is dropped.
+  const chaptersHtml = chapters.map((ch, i) => {
+    const chunks = paginateText(ch.content ?? '')
+    return chunks.map((chunk, k) => {
+      const isFirst = k === 0
+      const header = isFirst
+        ? `<div class="chapter-header">
+             <span class="chapter-label">Chapter ${i + 1}</span>
+             <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
+             <div class="gold-rule"></div>
+           </div>`
+        : `<div class="chapter-cont-header">
+             <span class="chapter-cont-label">Chapter ${i + 1}</span>
+             <span class="chapter-cont-title">${esc(ch.chapter_title)}</span>
+             <span class="chapter-cont-page">${k + 1} / ${chunks.length}</span>
+           </div>`
+      const image = isFirst && ch.image_url
+        ? `<img src="${esc(ch.image_url)}" alt="" class="chapter-image" />`
+        : ''
+      // First chunk of each chapter starts a new printed page; continuation
+      // chunks of the SAME chapter break too so each chunk = one page in
+      // print, mirroring the flipbook spread layout.
+      const sectionClass = `chapter${isFirst ? ' page-break-chapter' : ' page-break-cont'}`
+      return `
+        <section class="${sectionClass}">
+          ${header}
+          ${image}
+          <div class="chapter-body">${paragraphs(chunk)}</div>
+        </section>
+      `
+    }).join('')
+  }).join('')
 
   const backMatterHtml = backMatter.map((bm) => `
     <section class="chapter page-break">
@@ -149,8 +177,9 @@ body {
 .chapter {
   max-width: 640px;
   margin: 0 auto;
-  padding: 6rem 2rem;
+  padding: 4rem 2rem;
 }
+.chapter.page-break-chapter { padding-top: 6rem; }
 .chapter-header { margin-bottom: 2.5rem; }
 .chapter-label { font-family: 'Inter', sans-serif; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #C9A84C; display: block; margin-bottom: 0.5rem; }
 .chapter-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.9rem; line-height: 1.2; margin-bottom: 1rem; }
@@ -158,10 +187,49 @@ body {
 .chapter-body p { margin-bottom: 1.3em; }
 .chapter-body p:last-child { margin-bottom: 0; }
 
+/* Continuation header — small, italic title, "2 / 3" page indicator. Used
+   on every chapter chunk after the first so the reader keeps context. */
+.chapter-cont-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  font-size: 0.85rem;
+}
+.chapter-cont-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #C9A84C;
+}
+.chapter-cont-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  flex: 1;
+  color: rgba(26,26,26,0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chapter-cont-page {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  color: rgba(26,26,26,0.5);
+  font-variant-numeric: tabular-nums;
+}
+
 @media print {
   body { background: white; font-size: 12pt; }
   .cover { min-height: 100vh; }
-  .page-break { page-break-before: always; }
+  /* Both chapter starts and continuation chunks force a print page break,
+     so each chunk in the export occupies its own printed page — matching
+     the flipbook's one-spread-per-chunk model. */
+  .page-break,
+  .page-break-chapter,
+  .page-break-cont { page-break-before: always; }
 }
 
 @media (max-width: 600px) {
