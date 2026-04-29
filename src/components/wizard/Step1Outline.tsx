@@ -118,8 +118,10 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
 
           {chapters.map((ch, i) => (
             <div key={i} className="border border-cream-3 rounded-lg p-4 bg-white space-y-2">
-              <div className="flex items-start gap-2">
-                <span className="text-xs text-ink-1/60 font-inter mt-2.5 w-5 shrink-0">{i + 1}</span>
+              <div className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-md bg-gold text-ink-1 font-inter font-bold text-sm flex items-center justify-center shrink-0 mt-1">
+                  {i + 1}
+                </span>
                 <div className="flex-1 space-y-2">
                   <input
                     aria-label={`Chapter ${i + 1} title`}

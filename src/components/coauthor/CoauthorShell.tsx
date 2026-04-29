@@ -276,6 +276,8 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
                 page={currentPage}
                 pageIndex={activeChapterIndex}
                 totalPages={chapterPages.length}
+                chapters={chapterPages}
+                onChapterSelect={navigateChapter}
                 imageStatus={currentImageStatus}
                 imageError={currentImageError}
                 visualStyle={visualStyle}
