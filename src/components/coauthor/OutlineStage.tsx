@@ -101,9 +101,9 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     // Two-column 60/40 layout via grid-cols-5. Left chapter list (col-span-3
     // = 60%), right critique panel (col-span-2 = 40%). The critique panel
     // gets enough width to show flag cards with breathing room.
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 px-6 py-8 bg-cream-1 min-h-screen">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-6 py-8 bg-cream-1 min-h-screen">
       {/* Left — chapter list (60%) */}
-      <div className="lg:col-span-3 min-w-0">
+      <div className="md:col-span-3 min-w-0">
         <div className="mb-6">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
             Manuscript
@@ -141,7 +141,10 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                   {page.chapter_title}
                 </p>
                 {page.chapter_brief && (
-                  <p className="text-ink-1/70 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
+                  // Bumped from /70 to /85 — at /70 on pure white the brief
+                  // read as too muted. /85 keeps the visual hierarchy below
+                  // the title while staying clearly legible.
+                  <p className="text-ink-1/85 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
                     {page.chapter_brief}
                   </p>
                 )}
@@ -167,7 +170,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
       </div>
 
       {/* Right — critique panel (40%, ink-2 with gold header) */}
-      <div className="lg:col-span-2 min-w-0">
+      <div className="md:col-span-2 min-w-0">
         <div className="sticky top-20 bg-ink-2 border border-ink-3 rounded-2xl overflow-hidden flex flex-col">
           {/* Header — gold accent so it reads as a distinct workspace,
               not a passing widget */}
