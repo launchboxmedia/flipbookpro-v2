@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import { Step1Outline } from './Step1Outline'
 import { Step2Meta } from './Step2Meta'
@@ -144,16 +145,29 @@ export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep 
         </div>
 
         {/* Cream "page" on a dark canvas — feels like a deliberate
-            manuscript step rather than a dark form. */}
-        <div className="bg-cream-1 border border-cream-3 rounded-2xl p-9 shadow-[0_28px_60px_-24px_rgba(0,0,0,0.55)] ring-1 ring-gold/15">
-          {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
-          {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
-          {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}
-          {step === 3 && <Step4Tone data={data} onNext={next} onBack={back} />}
-          {step === 4 && <Step5ReaderLevel data={data} onNext={next} onBack={back} />}
-          {step === 5 && <Step6Style data={data} onNext={next} onBack={back} />}
-          {step === 6 && <Step7Cover data={data} onNext={next} onBack={back} />}
-          {step === 7 && <Step8Typography data={data} bookId={bookId} onBack={back} />}
+            manuscript step rather than a dark form. AnimatePresence cross-fades
+            the form between steps; the step indicator carries enough
+            wayfinding that we don't need a heavy slide. */}
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-cream-1 border border-cream-3 rounded-2xl p-9 shadow-[0_28px_60px_-24px_rgba(0,0,0,0.55)] ring-1 ring-gold/15"
+            >
+              {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
+              {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
+              {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}
+              {step === 3 && <Step4Tone data={data} onNext={next} onBack={back} />}
+              {step === 4 && <Step5ReaderLevel data={data} onNext={next} onBack={back} />}
+              {step === 5 && <Step6Style data={data} onNext={next} onBack={back} />}
+              {step === 6 && <Step7Cover data={data} onNext={next} onBack={back} />}
+              {step === 7 && <Step8Typography data={data} bookId={bookId} onBack={back} />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
