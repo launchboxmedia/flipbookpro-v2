@@ -63,7 +63,7 @@ export function Step3Persona({ data, onNext, onBack }: Props) {
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`mt-0.5 p-2 rounded-lg ${selected === p.id ? 'bg-gold/20' : 'bg-white-2'}`}>
+                <div className={`mt-0.5 p-2 rounded-lg ${selected === p.id ? 'bg-gold/20' : 'bg-cream-2'}`}>
                   <Icon className={`w-4 h-4 ${selected === p.id ? 'text-gold-dim' : 'text-ink-1/60'}`} />
                 </div>
                 <div>

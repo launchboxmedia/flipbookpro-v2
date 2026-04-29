@@ -125,14 +125,14 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
                     aria-label={`Chapter ${i + 1} title`}
                     value={ch.title}
                     onChange={(e) => updateChapter(i, 'title', e.target.value)}
-                    className="w-full px-2 py-1.5 rounded bg-white-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-1 focus:ring-gold/40"
+                    className="w-full px-2 py-1.5 rounded bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-1 focus:ring-gold/40"
                   />
                   <textarea
                     aria-label={`Chapter ${i + 1} brief`}
                     value={ch.brief}
                     onChange={(e) => updateChapter(i, 'brief', e.target.value)}
                     rows={2}
-                    className="w-full px-2 py-1.5 rounded bg-white-2 border border-cream-3 text-ink-1/70 font-source-serif text-xs focus:outline-none focus:ring-1 focus:ring-gold/40 resize-none"
+                    className="w-full px-2 py-1.5 rounded bg-cream-2 border border-cream-3 text-ink-1/70 font-source-serif text-xs focus:outline-none focus:ring-1 focus:ring-gold/40 resize-none"
                     placeholder="Chapter brief..."
                   />
                 </div>
