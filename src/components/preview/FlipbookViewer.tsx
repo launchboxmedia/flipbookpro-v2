@@ -75,23 +75,28 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   // (and so the TOC can compute correct page numbers).
   const chapterChunks = chapters.map((ch) => paginateText(ch.content ?? ''))
 
-  // Compute the right-page printed page number for every chapter's first
-  // text page. Page numbers count right pages only (where text lives):
-  //   spread 0 = cover            → no number
-  //   spread 1 = TOC              → page 3 (right page of spread 1)
-  //   spread 2 = ch1 page 1       → page 5
-  //   spread 3 = ch1 page 2 (cont)→ page 7   (if chapter 1 has 2 chunks)
-  //   spread 4 = ch2 page 1       → page 9
-  //   …
-  // pageNum for the right page of spread N = N * 2 + 1.
-  let spreadIdx = 2 // chapters start at spread index 2 (after cover + TOC)
+  // Each chapter takes 1 spread for the image+chunk0 opener, then pairs the
+  // remaining chunks across left+right of subsequent spreads. So a chapter of
+  // N chunks needs ceil((N + 1) / 2) spreads. (N=1 → 1, N=2 → 2, N=3 → 2,
+  // N=4 → 3, N=5 → 3.) The TOC needs that count to compute correct start
+  // pages.
+  function spreadsForChapter(n: number) { return Math.ceil((n + 1) / 2) }
+
+  // Page numbering convention — every spread has 2 pages, left=even, right=odd:
+  //   spread 0 = cover           pages 0, 1   (cover on right page = 1)
+  //   spread 1 = TOC             pages 2, 3   (TOC on right page = 3)
+  //   spread 2 = ch1 image+text  pages 4, 5   (image=4 no number, text=5)
+  //   spread 3 = ch1 cont L+R    pages 6, 7
+  //   ...
+  // pageNum = spreadIdx * 2 + (side === 'left' ? 0 : 1)
+  let cursor = 2 // chapters start at spread index 2 (after cover + TOC)
   const tocEntries: TocEntry[] = chapters.map((ch, i) => {
     const entry: TocEntry = {
       num: i + 1,
       title: ch.chapter_title,
-      pageNum: spreadIdx * 2 + 1,
+      pageNum: cursor * 2 + 1, // chapter text starts on the right page of its first spread
     }
-    spreadIdx += chapterChunks[i].length // advance by one spread per chunk
+    cursor += spreadsForChapter(chapterChunks[i].length)
     return entry
   })
 
@@ -113,35 +118,69 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
     transition: 'flip',
   })
 
-  // Chapters — first chunk is image-left + text-right; subsequent chunks are
-  // blank-left + continuation-text-right. Page numbers are computed from the
-  // global spread index so they stay sequential across overflow.
+  // Chapters — first spread is image-left + chunk0-right (the opener). Then
+  // pair remaining chunks two at a time (chunk1 left, chunk2 right; chunk3
+  // left, chunk4 right; …). If a chapter has an even number of chunks, the
+  // very last spread has a blank right page — unavoidable without bleeding
+  // into the next chapter, but rare and limited to one half-page per chapter
+  // rather than one half-page per continuation.
   let runningSpreadIdx = 2
   chapters.forEach((ch, i) => {
     const chunks = chapterChunks[i]
-    chunks.forEach((chunk, k) => {
-      const pageNum = runningSpreadIdx * 2 + 1
-      const left: PageContent = k === 0
-        ? { type: 'chapter-image', page: ch, num: i + 1 }
-        : { type: 'blank' }
+
+    // Opener
+    const openerIdx = runningSpreadIdx
+    out.push({
+      id:           `ch-${ch.id}-s${openerIdx}`,
+      left:         { type: 'chapter-image', page: ch, num: i + 1 },
+      right: {
+        type:        'chapter-text',
+        page:        ch,
+        num:         i + 1,
+        chunk:       chunks[0],
+        chunkIndex:  0,
+        totalChunks: chunks.length,
+        pageNum:     openerIdx * 2 + 1,
+      },
+      transition:   'flip',
+      chapterNum:   i + 1,
+      chapterTitle: ch.chapter_title,
+    })
+    runningSpreadIdx++
+
+    // Continuation spreads: pair chunks 1+2, 3+4, …
+    for (let k = 1; k < chunks.length; k += 2) {
+      const sIdx = runningSpreadIdx
+      const leftChunk = chunks[k]
+      const rightChunk: string | undefined = chunks[k + 1]
       out.push({
-        id:           `ch-${ch.id}-p${k}`,
-        left,
-        right: {
+        id:           `ch-${ch.id}-s${sIdx}`,
+        left: {
           type:        'chapter-text',
           page:        ch,
           num:         i + 1,
-          chunk,
+          chunk:       leftChunk,
           chunkIndex:  k,
           totalChunks: chunks.length,
-          pageNum,
+          pageNum:     sIdx * 2,
         },
+        right: rightChunk !== undefined
+          ? {
+              type:        'chapter-text',
+              page:        ch,
+              num:         i + 1,
+              chunk:       rightChunk,
+              chunkIndex:  k + 1,
+              totalChunks: chunks.length,
+              pageNum:     sIdx * 2 + 1,
+            }
+          : { type: 'blank' },
         transition:   'flip',
         chapterNum:   i + 1,
         chapterTitle: ch.chapter_title,
       })
       runningSpreadIdx++
-    })
+    }
   })
 
   // Back matter — pair pages into spreads
@@ -361,7 +400,7 @@ function ChapterImagePage({ page, num }: { page: BookPage; num: number }) {
 }
 
 function ChapterTextPage({
-  page, num, chunk, chunkIndex, totalChunks, pageNum,
+  page, num, chunk, chunkIndex, totalChunks, pageNum, side,
 }: {
   page: BookPage
   num: number
@@ -369,14 +408,20 @@ function ChapterTextPage({
   chunkIndex: number
   totalChunks: number
   pageNum: number
+  side: 'left' | 'right'
 }) {
-  const isFirstChunk = chunkIndex === 0
+  const isFirstChunk = chunkIndex === 0 // always rendered on the right page
   const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
   const [first, ...rest] = paras
   const hasContent = chunk.length > 0
+  // Outer gutter follows side: padLeft has the wider margin on the left
+  // (away from the spine), padRight on the right. Page numbers also pin to
+  // the outer corner so the spread feels balanced.
+  const pad = side === 'left' ? padLeft : padRight
+  const numAlign: React.CSSProperties['textAlign'] = side === 'left' ? 'left' : 'right'
 
   return (
-    <div style={{ ...pageBase, ...padRight, background: 'var(--page-bg)' }}>
+    <div style={{ ...pageBase, ...pad, background: 'var(--page-bg)' }}>
       {/* Header — full chapter title + accent rule on first page; smaller
           continuation header ("Chapter N · cont.") on overflow pages so the
           reader keeps context without the title eating a third of the page. */}
@@ -431,8 +476,8 @@ function ChapterTextPage({
         )}
       </div>
 
-      {/* Page number */}
-      <div style={{ flexShrink: 0, textAlign: 'right', fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6 }}>
+      {/* Page number — pinned to the outer corner of the spread */}
+      <div style={{ flexShrink: 0, textAlign: numAlign, fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6 }}>
         {pageNum}
       </div>
     </div>
@@ -592,6 +637,7 @@ function Page({
         chunkIndex={content.chunkIndex}
         totalChunks={content.totalChunks}
         pageNum={content.pageNum}
+        side={side}
       />
     )
     case 'back-matter':   return <BackMatterPage   page={content.page} side={side} />

@@ -24,16 +24,18 @@
  * narrower font; on serif at 13px the continuation pages overflowed by ~5 lines
  * and the bottom fade mask was clipping the last sentence. New values:
  *
- *   • FIRST_PAGE_BUDGET = 115 (drop cap eats a couple of lines of width too)
- *   • WORDS_PER_PAGE   = 150
+ *   • FIRST_PAGE_BUDGET = 125 (drop cap eats a couple of lines of width too)
+ *   • WORDS_PER_PAGE   = 180
  *
- * Both leave a small safety buffer so longer-than-average sentences don't
- * tip a chunk over the line. Pages may end with a few empty lines on
- * narrower fonts — preferable to cutting mid-sentence.
+ * The ~180 figure comes from re-checking words/line: 13px serif at 338px wide
+ * fits ~9.5 words/line × 19 lines ≈ 180 words/page. Smaller fonts fit more,
+ * so this is the safe-for-worst-case ceiling. The viewer pairs continuation
+ * chunks across left+right pages so a chapter of N chunks renders in
+ * ceil((N+1)/2) spreads, which keeps text density high.
  */
 
-export const WORDS_PER_PAGE = 150
-export const FIRST_PAGE_BUDGET = 115
+export const WORDS_PER_PAGE = 180
+export const FIRST_PAGE_BUDGET = 125
 
 interface PaginateOptions {
   /** Words on the first page of a chapter (drop cap + chapter header eat
