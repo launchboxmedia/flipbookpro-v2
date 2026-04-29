@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Search, BookOpen, Library, Wrench } from 'lucide-react'
 import type { Book } from '@/types/database'
 import { BookCard } from './BookCard'
@@ -127,8 +128,17 @@ function BookSection({ title, subtitle, icon, books, pageCounts }: SectionProps)
         </span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {books.map((book) => (
-          <BookCard key={book.id} book={book} chapterCount={pageCounts[book.id] ?? 0} />
+        {books.map((book, i) => (
+          <motion.div
+            key={book.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            // Cap the cumulative delay so a 30-book grid doesn't take 1.5s
+            // to settle. Anything past index 12 just fades in together.
+            transition={{ duration: 0.26, delay: Math.min(i, 12) * 0.04, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <BookCard book={book} chapterCount={pageCounts[book.id] ?? 0} />
+          </motion.div>
         ))}
       </div>
     </section>

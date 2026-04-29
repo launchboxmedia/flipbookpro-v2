@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { NewBookButton } from '@/components/dashboard/NewBookButton'
+import { StatsRow } from '@/components/dashboard/StatsRow'
+import { ContinueWorking } from '@/components/dashboard/ContinueWorking'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { getEffectivePlan } from '@/lib/auth'
 
@@ -35,6 +37,16 @@ export default async function DashboardPage() {
   const monthlyLimit = planInfo.booksPerMonth
   const monthlyUsed  = profile?.books_created_this_month ?? 0
   const slotsLeft = Number.isFinite(monthlyLimit) ? Math.max(0, monthlyLimit - monthlyUsed) : Number.POSITIVE_INFINITY
+
+  // Stats — derived from the books list, no extra query needed.
+  const totalBooks = books?.length ?? 0
+  const publishedCount = (books ?? []).filter((b) => b.status === 'published' || !!b.slug).length
+  const inProgressCount = (books ?? []).filter((b) => b.status === 'draft' || b.status === 'generating').length
+
+  // Continue Working — most recently updated book that isn't shelf-ready yet,
+  // i.e. the book the user was actively building. Falls back to undefined if
+  // none, in which case we hide the card.
+  const continueBook = (books ?? []).find((b) => b.status === 'draft' || b.status === 'generating')
 
   return (
     <AppShell userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin}>
@@ -87,7 +99,7 @@ export default async function DashboardPage() {
           </div>
 
           {!books || books.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-ink-3 rounded-2xl bg-ink-2/30">
+            <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-ink-3 rounded-2xl bg-ink-2/30 animate-fade-in">
               <BookOpen className="w-12 h-12 text-ink-muted mb-4" />
               <h3 className="font-playfair text-xl text-cream/80 mb-2">Your shelf is empty</h3>
               <p className="text-ink-subtle text-sm font-source-serif mb-6 max-w-sm">
@@ -96,7 +108,20 @@ export default async function DashboardPage() {
               <NewBookButton />
             </div>
           ) : (
-            <DashboardGrid books={books} pageCounts={countMap} />
+            <div className="space-y-10">
+              <StatsRow
+                total={totalBooks}
+                inProgress={inProgressCount}
+                published={publishedCount}
+              />
+              {continueBook && (
+                <ContinueWorking
+                  book={continueBook}
+                  chapterCount={countMap[continueBook.id] ?? 0}
+                />
+              )}
+              <DashboardGrid books={books} pageCounts={countMap} />
+            </div>
           )}
       </div>
     </AppShell>
