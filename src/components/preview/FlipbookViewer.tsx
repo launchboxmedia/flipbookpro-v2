@@ -176,14 +176,15 @@ const padLeft:  React.CSSProperties = { padding: '34px 24px 26px 38px' }  // out
 const padRight: React.CSSProperties = { padding: '34px 38px 26px 24px' }  // outer gutter right
 
 // Body containers on chapter and back-matter pages use flex:1 + overflow:hidden
-// to fill the page below the header. The available height is rarely an exact
-// multiple of line-height, so any partial line that overflows would be clipped
-// mid-letter. The mask fades the bottom ~0.6em so a partial line softens to
-// transparent instead of looking sliced; full lines above are visually
-// unaffected.
+// to fill the page below the header. With sentence-aware pagination, the
+// rendered body should fit cleanly — but rendering can still leave a thin
+// partial line at the bottom because the body height isn't an exact multiple
+// of line-height. The fade is now ~0.2em — just enough to soften any ~3-4px
+// partial line that ends up at the very bottom, without swallowing real text.
+// (Was 0.6em — too aggressive once chunks are sized correctly.)
 const bodyFadeMask: React.CSSProperties = {
-  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.6em), transparent 100%)',
-  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.6em), transparent 100%)',
+  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.2em), transparent 100%)',
+  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.2em), transparent 100%)',
 }
 
 // ── Page components — zero hardcoded colour values ──────────────────────────

@@ -6,13 +6,34 @@
  * This module produces page-sized chunks so the viewer (and HTML/PDF exports)
  * can emit one spread per chunk and never lose words.
  *
- * Budgets are word counts, not characters — they're a coarse proxy for
- * "how much fits in the body area at body-size 11pt with line-height 1.65".
- * Tested empirically against the existing flipbook page geometry.
+ * Budgets are word counts — a coarse proxy for "how much fits in the body
+ * area". Calibrated against actual page geometry rather than guessed:
+ *
+ *   • Page area: 400 × 550 px
+ *   • padRight padding: 34/38/26/24 (T/R/B/L) → body width 338, height 490
+ *   • Header (first chunk): label + heading + rule + margin ≈ 57 px
+ *   • Header (continuation): single-row baseline ≈ 26 px
+ *   • Page-number footer: ≈ 14 px
+ *   • → first chunk body height ≈ 419, continuation ≈ 450
+ *   • Worst-case theme (executive_serif: 13px / line-height 1.78):
+ *       line height 23 px → first 18 lines, continuation 19 lines
+ *       avg ~8 words/line on serif at 338 px wide
+ *       → first ≈ 144 words, continuation ≈ 152 words
+ *
+ * The previous values (145 / 230) were calibrated for words-per-line on a
+ * narrower font; on serif at 13px the continuation pages overflowed by ~5 lines
+ * and the bottom fade mask was clipping the last sentence. New values:
+ *
+ *   • FIRST_PAGE_BUDGET = 115 (drop cap eats a couple of lines of width too)
+ *   • WORDS_PER_PAGE   = 150
+ *
+ * Both leave a small safety buffer so longer-than-average sentences don't
+ * tip a chunk over the line. Pages may end with a few empty lines on
+ * narrower fonts — preferable to cutting mid-sentence.
  */
 
-export const WORDS_PER_PAGE = 230
-export const FIRST_PAGE_BUDGET = 145
+export const WORDS_PER_PAGE = 150
+export const FIRST_PAGE_BUDGET = 115
 
 interface PaginateOptions {
   /** Words on the first page of a chapter (drop cap + chapter header eat
