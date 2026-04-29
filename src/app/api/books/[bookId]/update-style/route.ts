@@ -9,7 +9,11 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { visualStyle, palette } = body as { visualStyle?: unknown; palette?: unknown }
+  const { visualStyle, palette, coverHasText } = body as {
+    visualStyle?: unknown
+    palette?: unknown
+    coverHasText?: unknown
+  }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
@@ -25,6 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       return NextResponse.json({ error: 'Invalid palette' }, { status: 400 })
     }
     update.palette = palette
+  }
+
+  if (coverHasText !== undefined) {
+    if (typeof coverHasText !== 'boolean') {
+      return NextResponse.json({ error: 'coverHasText must be a boolean' }, { status: 400 })
+    }
+    update.cover_has_text = coverHasText
   }
 
   if (Object.keys(update).length === 1) {

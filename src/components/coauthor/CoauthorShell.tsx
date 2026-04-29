@@ -30,6 +30,7 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(book.cover_image_url)
   const [coverImageStatus, setCoverImageStatus] = useState<ImageStatus>('idle')
   const [coverImageError, setCoverImageError] = useState<string | null>(null)
+  const [coverHasText, setCoverHasText] = useState<boolean>(book.cover_has_text ?? false)
   const [visualStyle, setVisualStyle] = useState<string | null>(book.visual_style)
   const [palette, setPalette] = useState<string | null>(book.palette)
 
@@ -209,6 +210,23 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
     }
   }, [book.id])
 
+  const handleToggleCoverHasText = useCallback(async (next: boolean) => {
+    // Optimistic — flip immediately, revert on failure so the preview reflects
+    // the new setting without waiting for the server roundtrip.
+    const previous = coverHasText
+    setCoverHasText(next)
+    try {
+      const res = await fetch(`/api/books/${book.id}/update-style`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverHasText: next }),
+      })
+      if (!res.ok) throw new Error(`Save failed (${res.status})`)
+    } catch {
+      setCoverHasText(previous)
+    }
+  }, [book.id, coverHasText])
+
   const currentPage = chapterPages[activeChapterIndex]
   const currentImageStatus = currentPage
     ? (imageStatuses[currentPage.id] ?? (currentPage.image_url ? 'done' : 'idle'))
@@ -231,11 +249,13 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
         imageStatuses,
         coverImageUrl,
         coverImageStatus,
+        coverHasText,
         hasDiscover: false,
         onStageChange: setStage,
         onChapterSelect: navigateChapter,
         onGenerateCover: generateCoverImage,
         onCoverUpload: handleCoverUpload,
+        onToggleCoverHasText: handleToggleCoverHasText,
       }}
     >
       {/* Animate stage transitions — small slide+fade so switching feels

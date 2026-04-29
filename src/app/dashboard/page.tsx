@@ -15,7 +15,7 @@ export default async function DashboardPage() {
 
   const [{ data: books }, { data: profile }, planInfo] = await Promise.all([
     supabase.from('books')
-      .select('id, user_id, title, subtitle, status, cover_image_url, slug, persona, created_at, updated_at, published_at, palette, visual_style, typography, cover_direction, author_name, vibe, writing_tone, reader_level, human_score, back_cover_tagline, back_cover_description, back_cover_cta_text, back_cover_cta_url, back_cover_image_url')
+      .select('id, user_id, title, subtitle, status, cover_image_url, cover_has_text, slug, persona, created_at, updated_at, published_at, palette, visual_style, typography, cover_direction, author_name, vibe, writing_tone, reader_level, human_score, back_cover_tagline, back_cover_description, back_cover_cta_text, back_cover_cta_url, back_cover_image_url')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false }),
     supabase.from('profiles').select('books_created_this_month').eq('id', user.id).single(),

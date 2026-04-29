@@ -242,8 +242,23 @@ function CoverPage({ book, profile }: { book: Book; profile: Profile | null }) {
   const title    = book.title || 'Untitled'
   const subtitle = book.subtitle || null
 
-  // With cover image: full-bleed image, title overlaid, bottom band for subtitle + author
+  // With cover image: full-bleed image, title overlaid, bottom band for subtitle + author.
+  // EXCEPT when book.cover_has_text is true — the user has indicated their
+  // uploaded image already contains the title/subtitle/author, so we skip
+  // the gradients and overlay entirely and let the artwork breathe.
   if (book.cover_image_url) {
+    if (book.cover_has_text) {
+      return (
+        <div style={{ ...pageBase, position: 'relative', overflow: 'hidden', background: 'var(--cover-bg)' }}>
+          <img
+            src={book.cover_image_url}
+            alt=""
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        </div>
+      )
+    }
+
     return (
       <div style={{ ...pageBase, position: 'relative', overflow: 'hidden', background: 'var(--cover-bg)' }}>
         {/* Full-bleed cover image — z:1 */}

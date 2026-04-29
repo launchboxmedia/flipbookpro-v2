@@ -26,11 +26,15 @@ export interface BookContext {
   imageStatuses: Record<string, ImageStatus>
   coverImageUrl: string | null
   coverImageStatus: ImageStatus
+  /** When true, the cover image already contains the title/author and the
+   *  renderer suppresses the overlay text. Toggleable from the cover panel. */
+  coverHasText: boolean
   hasDiscover?: boolean
   onStageChange: (stage: CoauthorStage) => void
   onChapterSelect: (index: number) => void
   onGenerateCover: (prompt?: string) => void
   onCoverUpload: (file: File) => void
+  onToggleCoverHasText: (next: boolean) => void
 }
 
 interface Props {
@@ -487,6 +491,23 @@ export function AppSidebar({
           )}
 
           <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) bookContext.onCoverUpload(f); e.target.value = '' }} className="hidden" />
+
+          {/* "Image already has text" toggle — only relevant when there's a
+              cover image. Suppresses the overlay text + scrim everywhere
+              the cover renders. */}
+          {bookContext.coverImageUrl && (
+            <label className="mt-2 flex items-start gap-2 px-1 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={bookContext.coverHasText}
+                onChange={(e) => bookContext.onToggleCoverHasText(e.target.checked)}
+                className="mt-0.5 w-3.5 h-3.5 rounded border-ink-3 bg-ink-2 text-gold focus:ring-gold/40 focus:ring-offset-0 cursor-pointer accent-gold"
+              />
+              <span className="text-[10px] font-inter leading-snug text-ink-subtle group-hover:text-cream transition-colors">
+                Image already has the title — hide overlay text
+              </span>
+            </label>
+          )}
 
           {/* Chapter progress */}
           {bookContext.pages.length > 0 && (

@@ -177,6 +177,13 @@ body {
   position: absolute; inset: 0;
   opacity: 0.35;
 }
+/* When the uploaded image already contains text, show the artwork at full
+   opacity and hide the overlay (the .cover-content div is omitted in HTML). */
+.cover-image-only .cover-img {
+  max-height: 100vh;
+  height: 100%;
+  opacity: 1;
+}
 .cover-content { position: relative; z-index: 1; }
 .cover-title {
   font-family: 'Playfair Display', Georgia, serif;
@@ -339,13 +346,15 @@ body {
   <button class="print-banner-close" onclick="document.getElementById('printBanner').remove()" aria-label="Dismiss">&times;</button>
 </div>
 
-<section class="cover">
+<section class="cover${book.cover_has_text && book.cover_image_url ? ' cover-image-only' : ''}">
   ${book.cover_image_url ? `<img src="${esc(book.cover_image_url)}" class="cover-img" alt="" />` : ''}
-  <div class="cover-content">
-    <h1 class="cover-title">${esc(book.title)}</h1>
-    ${book.subtitle ? `<p class="cover-subtitle">${esc(book.subtitle)}</p>` : ''}
-    ${book.author_name ? `<div class="cover-divider"></div><p class="cover-author">${esc(book.author_name)}</p>` : ''}
-  </div>
+  ${book.cover_has_text && book.cover_image_url ? '' : `
+    <div class="cover-content">
+      <h1 class="cover-title">${esc(book.title)}</h1>
+      ${book.subtitle ? `<p class="cover-subtitle">${esc(book.subtitle)}</p>` : ''}
+      ${book.author_name ? `<div class="cover-divider"></div><p class="cover-author">${esc(book.author_name)}</p>` : ''}
+    </div>
+  `}
 </section>
 
 ${tocHtml}

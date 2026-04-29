@@ -9,6 +9,10 @@ export interface Book {
   subtitle: string | null
   author_name: string | null
   cover_image_url: string | null
+  /** When true, the uploaded/generated cover image already contains the
+   *  title/subtitle/author. Renderers should display the image plain and
+   *  skip the overlay text + dark gradients. */
+  cover_has_text: boolean
   status: BookStatus
   persona: string | null
   visual_style: string | null

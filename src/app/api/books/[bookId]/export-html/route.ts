@@ -141,6 +141,29 @@ body {
 .cover::before { top: 3rem; }
 .cover::after  { bottom: 3rem; }
 
+.cover-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+/* Default behavior — image sits behind a dark scrim so the overlay text
+   stays legible. */
+.cover-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 100%);
+  z-index: 1;
+}
+.cover-content { position: relative; z-index: 2; }
+/* When the uploaded image already has its own title/author baked in,
+   we drop the scrim and the overlay text. */
+.cover.cover-image-only .cover-bg { z-index: 0; }
+.cover.cover-image-only .cover-bg-overlay,
+.cover.cover-image-only .cover-content { display: none; }
+
 .cover-title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(2rem, 5vw, 3rem);
@@ -239,10 +262,16 @@ body {
 </head>
 <body>
 
-<section class="cover">
-  <h1 class="cover-title">${esc(book.title)}</h1>
-  ${book.subtitle ? `<p class="cover-subtitle">${esc(book.subtitle)}</p>` : ''}
-  ${book.author_name ? `<div class="cover-divider"></div><p class="cover-author">${esc(book.author_name)}</p>` : ''}
+<section class="cover${book.cover_has_text && book.cover_image_url ? ' cover-image-only' : ''}">
+  ${book.cover_image_url ? `
+    <img src="${esc(book.cover_image_url)}" alt="" class="cover-bg" />
+    <div class="cover-bg-overlay"></div>
+  ` : ''}
+  <div class="cover-content">
+    <h1 class="cover-title">${esc(book.title)}</h1>
+    ${book.subtitle ? `<p class="cover-subtitle">${esc(book.subtitle)}</p>` : ''}
+    ${book.author_name ? `<div class="cover-divider"></div><p class="cover-author">${esc(book.author_name)}</p>` : ''}
+  </div>
 </section>
 
 ${tocHtml}
