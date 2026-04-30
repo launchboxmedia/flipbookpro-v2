@@ -16,14 +16,47 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const { data: pages } = await supabase
-    .from('book_pages')
-    .select('*')
-    .eq('book_id', params.bookId)
-    .order('chapter_index', { ascending: true })
+  const [{ data: pages }, { data: profile }] = await Promise.all([
+    supabase
+      .from('book_pages')
+      .select('*')
+      .eq('book_id', params.bookId)
+      .order('chapter_index', { ascending: true }),
+    // Profile is needed for the interior title + copyright pages — pulls
+    // the author name and the publisher imprint (full_name on the brand
+    // profile, fallback to LaunchBox.Media).
+    supabase.from('profiles').select('full_name, logo_url').eq('id', user.id).maybeSingle(),
+  ])
 
-  const chapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
+  const allChapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
   const backMatter = (pages ?? []).filter((p) => p.chapter_index < 0 && p.content)
+
+  // Pull a front-matter "Introduction"/"Preface"/"Foreword" chapter out of
+  // the regular sequence so it doesn't render twice.
+  const isIntroChapter = (ch: typeof allChapters[number]) =>
+    /^(introduction|preface|foreword)\b/i.test((ch.chapter_title ?? '').trim())
+  const introChapter = allChapters[0] && isIntroChapter(allChapters[0]) ? allChapters[0] : null
+  const chapters = introChapter ? allChapters.slice(1) : allChapters
+
+  // The right side of the copyright spread is either:
+  //   1) the full Introduction/Preface chapter (paginated), or
+  //   2) the first chunk of chapter 1 as a teaser if no intro chapter, or
+  //   3) empty if the book has no chapters yet.
+  const introContent = introChapter
+    ? (introChapter.content ?? '')
+    : chapters[0]
+      ? paginateText(chapters[0].content ?? '')[0]
+      : ''
+  const introTitle = introChapter?.chapter_title ?? null
+
+  // Imprint resolution mirrors the FlipbookViewer's resolveImprint().
+  const imprint = profile?.full_name?.trim() || 'LaunchBox.Media'
+  const author = book.author_name || profile?.full_name || 'Author'
+  const bookYear = (() => {
+    const created = book.created_at ? new Date(book.created_at) : null
+    if (created && !Number.isNaN(created.getTime())) return created.getFullYear()
+    return new Date().getFullYear()
+  })()
 
   const fontSpec = (() => {
     switch (book.typography) {
@@ -36,6 +69,64 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
         return { google: 'Inter:wght@400;500', css: "'Inter', system-ui, sans-serif" }
     }
   })()
+
+  // Front-matter spread 1 — interior title page. Cream surface, all text
+  // ink-1, centered. Mirrors the FlipbookViewer's InteriorTitlePage layout.
+  const interiorTitleHtml = `
+    <section class="front-title page-break">
+      <div class="front-spacer"></div>
+      <div class="front-title-block">
+        <h1 class="front-title-heading">${esc(book.title || 'Untitled')}</h1>
+        ${book.subtitle ? `<p class="front-title-subtitle">${esc(book.subtitle)}</p>` : ''}
+        <div class="front-title-rule"></div>
+        ${author ? `<p class="front-title-author">${esc(author)}</p>` : ''}
+      </div>
+      <p class="front-title-imprint">${esc(imprint)}</p>
+    </section>
+  `
+
+  // Front-matter spread 2 — copyright. Sections separated by an em-dash rule.
+  const copyrightHtml = `
+    <section class="copyright page-break">
+      <div class="copyright-block">
+        <p class="copyright-imprint">${esc(imprint)}</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">An Imprint of FlipBookPro</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">Copyright © ${bookYear} ${esc(author)}</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">All rights reserved including the right to reproduce this book or portions thereof in any form whatsoever.</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">Generated with AI assistance by FlipBookPro — LaunchBox.Media</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">First FlipBookPro edition ${bookYear}</p>
+      </div>
+    </section>
+  `
+
+  // Front-matter spread 2 right — introduction. If we pulled an Introduction
+  // chapter out of the chapter sequence, render its full text (paginated)
+  // here. Otherwise, render the first chunk of chapter 1 as a teaser per
+  // spec; the chapter still appears in full later.
+  const introChunks = paginateText(introContent)
+  const introductionHtml = introContent.trim()
+    ? introChunks.map((chunk, k) => `
+        <section class="introduction page-break">
+          ${k === 0 ? `
+            <div class="chapter-header">
+              <span class="chapter-label">${esc(introTitle ?? 'Begin')}</span>
+              <div class="gold-rule"></div>
+            </div>
+          ` : `
+            <div class="chapter-cont-header">
+              <span class="chapter-cont-label">${esc(introTitle ?? 'Begin')}</span>
+              <span class="chapter-cont-page">${k + 1} / ${introChunks.length}</span>
+            </div>
+          `}
+          <div class="chapter-body">${paragraphs(chunk)}</div>
+        </section>
+      `).join('')
+    : ''
 
   const tocHtml = chapters.length > 0 ? `
     <section class="toc page-break">
@@ -197,6 +288,107 @@ body {
 .toc-list li { display: flex; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid rgba(0,0,0,0.07); font-size: 0.95rem; }
 .toc-num { color: #C9A84C; min-width: 1.5rem; font-family: 'Inter', sans-serif; font-size: 0.8rem; padding-top: 0.1em; }
 
+/* ── Front matter — interior title page ───────────────────────────────── */
+.front-title {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 6rem 2rem 4rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #FAF7F2;
+  color: #1A1A1A;
+}
+.front-spacer { flex: 1; }
+.front-title-block { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; max-width: 28rem; }
+.front-title-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -0.005em;
+}
+.front-title-subtitle {
+  font-family: ${fontSpec.css};
+  font-size: 1rem;
+  font-style: italic;
+  color: rgba(26,26,26,0.7);
+  margin: 0;
+}
+.front-title-rule { width: 2.5rem; height: 1px; background: #C9A84C; margin: 0.5rem 0; }
+.front-title-author {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+  margin: 0;
+}
+.front-title-imprint {
+  flex: 0 0 auto;
+  margin-top: auto;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  color: rgba(26,26,26,0.5);
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+}
+
+/* ── Front matter — copyright page ────────────────────────────────────── */
+.copyright {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 6rem 2rem 4rem;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FAF7F2;
+  color: #1A1A1A;
+}
+.copyright-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 22rem;
+}
+.copyright-imprint {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.95;
+}
+.copyright-line {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10px;
+  line-height: 1.55;
+  margin: 0;
+  opacity: 0.78;
+}
+.copyright-rule {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10px;
+  margin: 0.7rem 0;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+/* ── Front matter — introduction (chapter-styled but pulled forward) ─── */
+.introduction {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+}
+.introduction.page-break { padding-top: 6rem; }
+.introduction .chapter-header,
+.introduction .chapter-cont-header { margin-bottom: 2rem; }
+
 .chapter {
   max-width: 640px;
   margin: 0 auto;
@@ -274,6 +466,9 @@ body {
   </div>
 </section>
 
+${interiorTitleHtml}
+${copyrightHtml}
+${introductionHtml}
 ${tocHtml}
 ${chaptersHtml}
 ${backMatterHtml}

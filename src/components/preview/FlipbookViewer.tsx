@@ -31,6 +31,19 @@ export interface FlipbookViewerProps {
 type PageContent =
   | { type: 'blank'; dark?: boolean }
   | { type: 'cover' }
+  | { type: 'diamond' }                      // facing-blank with centered ornament
+  | { type: 'interior-title' }               // typographic title page (front matter)
+  | { type: 'copyright' }                    // copyright / imprint block (front matter)
+  | {
+      type: 'introduction'
+      /** Optional chapter the intro text was sourced from. Undefined when
+       *  there is no Introduction/Preface/Foreword chapter and we're showing
+       *  the first chunk of chapter 1 as a lead-in. */
+      sourceChapterTitle?: string
+      chunk: string
+      chunkIndex: number
+      totalChunks: number
+    }
   | { type: 'toc'; tocEntries: TocEntry[] }
   | { type: 'chapter-image'; page: BookPage; num: number }
   | {
@@ -70,27 +83,73 @@ interface FadeState { fromIdx: number; toIdx: number }
 
 // ── Spread builder ──────────────────────────────────────────────────────────
 
-function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
-  // Pre-paginate every chapter so we know how many spreads each one needs
-  // (and so the TOC can compute correct page numbers).
-  const chapterChunks = chapters.map((ch) => paginateText(ch.content ?? ''))
+/** Detect a chapter that is conventionally front-matter prose, so it can be
+ *  pulled out of the regular chapter sequence and used as the introduction
+ *  text on the right page of the copyright spread. */
+function isIntroChapter(ch: BookPage): boolean {
+  return /^(introduction|preface|foreword)\b/i.test(ch.chapter_title.trim())
+}
 
-  // Each chapter takes 1 spread for the image+chunk0 opener, then pairs the
-  // remaining chunks across left+right of subsequent spreads. So a chapter of
-  // N chunks needs ceil((N + 1) / 2) spreads. (N=1 → 1, N=2 → 2, N=3 → 2,
-  // N=4 → 3, N=5 → 3.) The TOC needs that count to compute correct start
-  // pages.
+function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
+  // Pull an introduction chapter (if any) out of the chapter sequence so it
+  // doesn't render twice — once on spread 2 right, once as a regular chapter
+  // spread later.
+  const introChapter = chapters[0] && isIntroChapter(chapters[0]) ? chapters[0] : null
+  const mainChapters = introChapter ? chapters.slice(1) : chapters
+
+  // Pre-paginate every main chapter so we know how many spreads each one
+  // needs (and so the TOC can compute correct page numbers).
+  const chapterChunks = mainChapters.map((ch) => paginateText(ch.content ?? ''))
+
+  // Compute introduction chunks. Three states:
+  //   1) Introduction chapter exists → paginate its full content. Renders
+  //      across the right of spread 2 + as many continuation spreads as
+  //      needed before the TOC.
+  //   2) No intro chapter but at least one main chapter → render the FIRST
+  //      CHUNK of chapter 1 as a teaser on spread 2 right. The chapter still
+  //      renders later in full with its image opener (deliberate per spec).
+  //   3) No chapters at all → empty placeholder.
+  const introChunks: string[] = introChapter
+    ? paginateText(introChapter.content ?? '')
+    : mainChapters[0]
+      ? [paginateText(mainChapters[0].content ?? '')[0]]
+      : ['']
+  const introTitle = introChapter?.chapter_title
+
+  // Each main chapter takes 1 spread for the image+chunk0 opener, then pairs
+  // the remaining chunks across left+right of subsequent spreads.
+  // ceil((N + 1) / 2) spreads. (N=1 → 1, N=2 → 2, N=3 → 2, N=4 → 3, N=5 → 3.)
   function spreadsForChapter(n: number) { return Math.ceil((n + 1) / 2) }
 
+  // Front-matter spreads consume 3 spreads total before the TOC:
+  //   0 = cover
+  //   1 = diamond + interior title
+  //   2 = copyright + introduction (chunk 0)
+  //   …continuation intro spreads, if intro is long…
+  //   N = TOC
+  //   N+1… = chapter spreads
+  //
   // Page numbering convention — every spread has 2 pages, left=even, right=odd:
-  //   spread 0 = cover           pages 0, 1   (cover on right page = 1)
-  //   spread 1 = TOC             pages 2, 3   (TOC on right page = 3)
-  //   spread 2 = ch1 image+text  pages 4, 5   (image=4 no number, text=5)
-  //   spread 3 = ch1 cont L+R    pages 6, 7
-  //   ...
+  //   spread 0 = cover                     pages 0, 1
+  //   spread 1 = title                     pages 2, 3
+  //   spread 2 = copyright + intro         pages 4, 5
+  //   …                                    …
+  //   spread N (TOC)                       pages 2N, 2N+1
+  //   spread N+k = chapter…                pages 2(N+k), 2(N+k)+1
   // pageNum = spreadIdx * 2 + (side === 'left' ? 0 : 1)
-  let cursor = 2 // chapters start at spread index 2 (after cover + TOC)
-  const tocEntries: TocEntry[] = chapters.map((ch, i) => {
+  //
+  // Intro continuation spreads (if any) come after spread 2 (copyright +
+  // chunk 0) and pair chunks 1+2, 3+4, …
+  const introContinuationSpreads = introChunks.length > 1
+    ? Math.ceil((introChunks.length - 1) / 2)
+    : 0
+
+  // TOC sits at: cover(1) + title(1) + copyright(1) + introContinuationSpreads
+  const tocSpreadIdx = 3 + introContinuationSpreads
+
+  // First main-chapter spread starts immediately after the TOC.
+  let cursor = tocSpreadIdx + 1
+  const tocEntries: TocEntry[] = mainChapters.map((ch, i) => {
     const entry: TocEntry = {
       num: i + 1,
       title: ch.chapter_title,
@@ -102,7 +161,7 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
 
   const out: Spread[] = []
 
-  // Cover — single right page, dark canvas on left
+  // Spread 0 — cover. Single right page, dark canvas on left.
   out.push({
     id: 'cover',
     left:  { type: 'blank', dark: true },
@@ -110,7 +169,55 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
     transition: 'fade',
   })
 
-  // TOC — blank left, toc right
+  // Spread 1 — diamond ornament (left) + interior title page (right).
+  out.push({
+    id: 'front-title',
+    left:  { type: 'diamond' },
+    right: { type: 'interior-title' },
+    transition: 'flip',
+  })
+
+  // Spread 2 — copyright (left) + introduction chunk 0 (right).
+  out.push({
+    id: 'front-copyright',
+    left:  { type: 'copyright' },
+    right: {
+      type: 'introduction',
+      sourceChapterTitle: introTitle,
+      chunk: introChunks[0],
+      chunkIndex: 0,
+      totalChunks: introChunks.length,
+    },
+    transition: 'flip',
+  })
+
+  // Spreads 3..N-1 — introduction continuation, pairing chunks 1+2, 3+4, …
+  // Only present when the source was a real Introduction chapter long enough
+  // to spill onto more pages.
+  for (let k = 1; k < introChunks.length; k += 2) {
+    out.push({
+      id: `front-intro-cont-${k}`,
+      left: {
+        type: 'introduction',
+        sourceChapterTitle: introTitle,
+        chunk: introChunks[k],
+        chunkIndex: k,
+        totalChunks: introChunks.length,
+      },
+      right: introChunks[k + 1] !== undefined
+        ? {
+            type: 'introduction',
+            sourceChapterTitle: introTitle,
+            chunk: introChunks[k + 1]!,
+            chunkIndex: k + 1,
+            totalChunks: introChunks.length,
+          }
+        : { type: 'blank' },
+      transition: 'flip',
+    })
+  }
+
+  // Spread N — TOC. Blank left, TOC right.
   out.push({
     id: 'toc',
     left:  { type: 'blank' },
@@ -124,8 +231,8 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   // very last spread has a blank right page — unavoidable without bleeding
   // into the next chapter, but rare and limited to one half-page per chapter
   // rather than one half-page per continuation.
-  let runningSpreadIdx = 2
-  chapters.forEach((ch, i) => {
+  let runningSpreadIdx = tocSpreadIdx + 1
+  mainChapters.forEach((ch, i) => {
     const chunks = chapterChunks[i]
 
     // Opener
@@ -358,6 +465,238 @@ function CoverPage({ book, profile }: { book: Book; profile: Profile | null }) {
       </div>
 
       <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)' }} />
+    </div>
+  )
+}
+
+// Resolve the publisher imprint with the spec's fallback chain — brand
+// profile's display name first, then the LaunchBox.Media default.
+function resolveImprint(profile: Profile | null): string {
+  return profile?.full_name?.trim() || 'LaunchBox.Media'
+}
+
+function bookYear(book: Book): number {
+  const created = book.created_at ? new Date(book.created_at) : null
+  if (created && !Number.isNaN(created.getTime())) return created.getFullYear()
+  return new Date().getFullYear()
+}
+
+function DiamondOrnament() {
+  return (
+    <div style={{
+      ...pageBase,
+      background: 'var(--page-bg)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      {/* A small rotated square in the accent colour — quiet enough to read
+          as a typographic flourish, not a feature. */}
+      <div
+        aria-hidden="true"
+        style={{
+          width: 12,
+          height: 12,
+          transform: 'rotate(45deg)',
+          background: 'var(--accent)',
+          opacity: 0.5,
+        }}
+      />
+    </div>
+  )
+}
+
+function InteriorTitlePage({ book, profile }: { book: Book; profile: Profile | null }) {
+  const title    = book.title || 'Untitled'
+  const subtitle = book.subtitle || null
+  const author   = book.author_name || profile?.full_name || null
+  const imprint  = resolveImprint(profile)
+
+  return (
+    <div style={{
+      ...pageBase,
+      ...padRight,
+      background: 'var(--page-bg)',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      textAlign: 'center',
+      padding: '60px 36px 36px',
+    }}>
+      {/* Top spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Centre block — title + subtitle + rule + author */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, maxWidth: 280 }}>
+        <h1 style={{
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontSize: 30,
+          fontWeight: 700,
+          color: 'var(--page-text)',
+          lineHeight: 1.15,
+          margin: 0,
+          letterSpacing: '-0.005em',
+        }}>
+          {title}
+        </h1>
+        {subtitle && (
+          <p style={{
+            fontFamily: 'var(--body-font)',
+            fontSize: 12,
+            fontStyle: 'italic',
+            color: 'var(--page-text)',
+            opacity: 0.7,
+            lineHeight: 1.4,
+            margin: 0,
+          }}>
+            {subtitle}
+          </p>
+        )}
+        <div style={{ width: 36, height: 1, background: 'var(--accent)', marginTop: 12, marginBottom: 6 }} />
+        {author && (
+          <p style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 9,
+            color: 'var(--page-text)',
+            fontVariant: 'small-caps',
+            letterSpacing: '0.18em',
+            margin: 0,
+          }}>
+            {author}
+          </p>
+        )}
+      </div>
+
+      {/* Bottom spacer + imprint */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', width: '100%' }}>
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 8,
+          color: 'var(--page-text)',
+          opacity: 0.5,
+          fontVariant: 'small-caps',
+          letterSpacing: '0.18em',
+          margin: 0,
+        }}>
+          {imprint}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function CopyrightPage({ book, profile }: { book: Book; profile: Profile | null }) {
+  const author  = book.author_name || profile?.full_name || 'Author'
+  const year    = bookYear(book)
+  const imprint = resolveImprint(profile)
+
+  // Sections rendered in order, separated by an em-dash rule.
+  const sections: string[] = [
+    imprint,
+    'An Imprint of FlipBookPro',
+    `Copyright © ${year} ${author}`,
+    'All rights reserved including the right to reproduce this book or portions thereof in any form whatsoever.',
+    'Generated with AI assistance by FlipBookPro — LaunchBox.Media',
+    `First FlipBookPro edition ${year}`,
+  ]
+
+  return (
+    <div style={{
+      ...pageBase,
+      ...padLeft,
+      background: 'var(--page-bg)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      padding: '80px 36px',
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 270 }}>
+        {sections.map((line, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            {i > 0 && (
+              <span
+                aria-hidden="true"
+                style={{
+                  fontFamily: "'Source Serif 4', Georgia, serif",
+                  fontSize: 10,
+                  color: 'var(--page-text)',
+                  opacity: 0.35,
+                  margin: '10px 0',
+                  lineHeight: 1,
+                }}
+              >
+                —
+              </span>
+            )}
+            <p style={{
+              fontFamily: "'Source Serif 4', Georgia, serif",
+              fontSize: 10,
+              color: 'var(--page-text)',
+              lineHeight: 1.55,
+              margin: 0,
+              opacity: i === 0 ? 0.95 : 0.78,
+              fontWeight: i === 0 ? 600 : 400,
+              letterSpacing: i === 0 ? '0.05em' : 0,
+              textTransform: i === 0 ? 'uppercase' : 'none',
+            }}>
+              {line}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function IntroductionPage({
+  sourceChapterTitle, chunk, chunkIndex, side,
+}: {
+  sourceChapterTitle?: string
+  chunk: string
+  chunkIndex: number
+  side: 'left' | 'right'
+}) {
+  const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+  const hasContent = chunk.length > 0
+  const pad = side === 'left' ? padLeft : padRight
+  // First chunk only gets the heading. Continuation chunks flow plain so the
+  // intro reads as one continuous block of prose across spreads.
+  const showHeading = chunkIndex === 0
+
+  return (
+    <div style={{ ...pageBase, ...pad, background: 'var(--page-bg)' }}>
+      {showHeading && (
+        <div style={{ flexShrink: 0, marginBottom: 14 }}>
+          <span style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 7.5,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: 'var(--chapter-num-color)',
+            display: 'block',
+            marginBottom: 4,
+          }}>
+            {sourceChapterTitle ? sourceChapterTitle : 'Begin'}
+          </span>
+          <div style={{ width: 22, height: 2, background: 'var(--accent)' }} />
+        </div>
+      )}
+
+      <div style={{
+        flex: 1,
+        overflow: 'hidden',
+        fontFamily: 'var(--body-font)',
+        fontSize: 'var(--body-size)',
+        color: 'var(--page-text)',
+        lineHeight: 'var(--line-height)',
+        ...bodyFadeMask,
+      }}>
+        {!hasContent ? (
+          <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>
+            (Introduction not yet written.)
+          </p>
+        ) : (
+          paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)
+        )}
+      </div>
     </div>
   )
 }
@@ -640,10 +979,21 @@ function Page({
   profile: Profile | null
 }) {
   switch (content.type) {
-    case 'blank':         return <BlankPage dark={content.dark} />
-    case 'cover':         return <CoverPage book={book} profile={profile} />
-    case 'toc':           return <TocPage entries={content.tocEntries} />
-    case 'chapter-image': return <ChapterImagePage page={content.page} num={content.num} />
+    case 'blank':            return <BlankPage dark={content.dark} />
+    case 'cover':            return <CoverPage book={book} profile={profile} />
+    case 'diamond':          return <DiamondOrnament />
+    case 'interior-title':   return <InteriorTitlePage book={book} profile={profile} />
+    case 'copyright':        return <CopyrightPage book={book} profile={profile} />
+    case 'introduction':     return (
+      <IntroductionPage
+        sourceChapterTitle={content.sourceChapterTitle}
+        chunk={content.chunk}
+        chunkIndex={content.chunkIndex}
+        side={side}
+      />
+    )
+    case 'toc':              return <TocPage entries={content.tocEntries} />
+    case 'chapter-image':    return <ChapterImagePage page={content.page} num={content.num} />
     case 'chapter-text':  return (
       <ChapterTextPage
         page={content.page}
