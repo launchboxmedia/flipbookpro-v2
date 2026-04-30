@@ -39,8 +39,33 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     .single()
 
   const accent = profile?.brand_color ?? '#C9A84C'
-  const chapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
+  const allChapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
   const backMatter = (pages ?? []).filter((p) => p.chapter_index < 0 && p.content)
+
+  // Pull a front-matter "Introduction"/"Preface"/"Foreword" chapter out of
+  // the regular sequence (mirrors FlipbookViewer + HTML export behavior).
+  const isIntroChapter = (ch: typeof allChapters[number]) =>
+    /^(introduction|preface|foreword)\b/i.test((ch.chapter_title ?? '').trim())
+  const introChapter = allChapters[0] && isIntroChapter(allChapters[0]) ? allChapters[0] : null
+  const chapters = introChapter ? allChapters.slice(1) : allChapters
+
+  // Right side of the copyright spread: full Introduction text if a real
+  // intro chapter exists; otherwise the first chunk of chapter 1 as a
+  // teaser per the FlipbookViewer spec.
+  const introContent = introChapter
+    ? (introChapter.content ?? '')
+    : chapters[0]
+      ? paginateText(chapters[0].content ?? '')[0]
+      : ''
+  const introTitle = introChapter?.chapter_title ?? null
+
+  const imprint  = profile?.full_name?.trim() || 'LaunchBox.Media'
+  const author   = book.author_name || profile?.full_name || 'Author'
+  const bookYear = (() => {
+    const created = book.created_at ? new Date(book.created_at) : null
+    if (created && !Number.isNaN(created.getTime())) return created.getFullYear()
+    return new Date().getFullYear()
+  })()
 
   const fontSpec = (() => {
     switch (book.typography) {
@@ -53,6 +78,67 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
         return { google: 'Inter:wght@400;500', body: "'Inter', system-ui, sans-serif" }
     }
   })()
+
+  // Front matter — interior title page. Cream surface, all text ink-1,
+  // centered. Mirrors the FlipbookViewer's InteriorTitlePage layout.
+  const interiorTitleHtml = `
+    <section class="page front-title">
+      <div class="front-spacer"></div>
+      <div class="front-title-block">
+        <h1 class="front-title-heading">${esc(book.title || 'Untitled')}</h1>
+        ${book.subtitle ? `<p class="front-title-subtitle">${esc(book.subtitle)}</p>` : ''}
+        <div class="front-title-rule"></div>
+        ${author ? `<p class="front-title-author">${esc(author)}</p>` : ''}
+      </div>
+      <p class="front-title-imprint">${esc(imprint)}</p>
+    </section>
+  `
+
+  // Front matter — copyright page. 10pt Source Serif, centered, em-dash
+  // rules between sections.
+  const copyrightHtml = `
+    <section class="page copyright">
+      <div class="copyright-block">
+        <p class="copyright-imprint">${esc(imprint)}</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">An Imprint of FlipBookPro</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">Copyright © ${bookYear} ${esc(author)}</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">All rights reserved including the right to reproduce this book or portions thereof in any form whatsoever.</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">Generated with AI assistance by FlipBookPro — LaunchBox.Media</p>
+        <span class="copyright-rule" aria-hidden="true">—</span>
+        <p class="copyright-line">First FlipBookPro edition ${bookYear}</p>
+      </div>
+    </section>
+  `
+
+  // Front matter — introduction (Introduction/Preface/Foreword chapter or
+  // first-chunk teaser). Renders as one section per chunk, each with its
+  // own printed page break.
+  const introChunks = paginateText(introContent)
+  const introductionHtml = introContent.trim()
+    ? introChunks.map((chunk, k) => {
+        const header = k === 0
+          ? `
+            <span class="chapter-label">${esc(introTitle ?? 'Begin')}</span>
+            <div class="rule"></div>
+          `
+          : `
+            <div class="cont-header">
+              <span class="chapter-label">${esc(introTitle ?? 'Begin')}</span>
+              <span class="cont-page">${k + 1} / ${introChunks.length}</span>
+            </div>
+          `
+        return `
+          <section class="page chapter introduction${k > 0 ? ' chapter-cont' : ''}">
+            ${header}
+            <div class="body">${paragraphs(chunk)}</div>
+          </section>
+        `
+      }).join('')
+    : ''
 
   const tocHtml = chapters.length > 0 ? `
     <section class="page toc">
@@ -194,6 +280,102 @@ body {
 .cover-subtitle { font-size: 1rem; color: var(--accent); font-style: italic; margin-bottom: 1.5rem; }
 .cover-divider { width: 2rem; height: 1px; background: rgba(201,168,76,0.5); margin: 0 auto 1.25rem; }
 .cover-author { font-family: 'Inter', sans-serif; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #888; font-variant: small-caps; }
+
+/* ── Front matter — interior title page ───────────────────────────────── */
+.front-title {
+  min-height: calc(100vh - 4.4cm); /* @page margins eat 4.4cm vertically */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 0;
+}
+.front-spacer { flex: 1 1 auto; }
+.front-title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  max-width: 28rem;
+}
+.front-title-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -0.005em;
+}
+.front-title-subtitle {
+  font-family: ${fontSpec.body};
+  font-size: 1rem;
+  font-style: italic;
+  color: rgba(26,26,26,0.7);
+  margin: 0;
+}
+.front-title-rule {
+  width: 2.5rem;
+  height: 1px;
+  background: var(--accent);
+  margin: 0.5rem 0;
+}
+.front-title-author {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+  margin: 0;
+}
+.front-title-imprint {
+  flex: 0 0 auto;
+  margin-top: auto;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  color: rgba(26,26,26,0.5);
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+}
+
+/* ── Front matter — copyright page ────────────────────────────────────── */
+.copyright {
+  min-height: calc(100vh - 4.4cm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.copyright-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 22rem;
+}
+.copyright-imprint {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10pt;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.95;
+}
+.copyright-line {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10pt;
+  line-height: 1.55;
+  margin: 0;
+  opacity: 0.78;
+}
+.copyright-rule {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 10pt;
+  margin: 0.7rem 0;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+/* ── Front matter — introduction (uses chapter styles) ────────────────── */
+.introduction { padding-top: 3rem; }
 
 /* TOC */
 .toc { padding-top: 3rem; }
@@ -357,6 +539,9 @@ body {
   `}
 </section>
 
+${interiorTitleHtml}
+${copyrightHtml}
+${introductionHtml}
 ${tocHtml}
 ${chaptersHtml}
 ${backMatterHtml}
