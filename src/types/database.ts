@@ -1,6 +1,9 @@
 export type BookStatus = 'draft' | 'generating' | 'ready' | 'published'
 export type PlanType = 'free' | 'standard' | 'pro'
 export type GateType = 'none' | 'email' | 'payment'
+/** New, authoritative gating field on published_books. gate_type is kept in
+ *  sync for backward compatibility but new code should branch on access_type. */
+export type AccessType = 'free' | 'email' | 'paid'
 
 export interface Book {
   id: string
@@ -78,7 +81,8 @@ export interface PublishedBook {
   description: string | null
   cover_image_url: string | null
   gate_type: GateType
-  price_cents: number | null
+  access_type: AccessType
+  price_cents: number
   is_active: boolean
   published_at: string
   created_at: string

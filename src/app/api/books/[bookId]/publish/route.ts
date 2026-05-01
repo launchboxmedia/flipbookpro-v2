@@ -17,7 +17,41 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const gateType: string = body.gateType ?? 'email'
+
+  // accessType is the new authoritative gating field. If a legacy client
+  // still posts gateType, derive accessType from it so old code keeps
+  // working. Both columns are written to keep them in sync.
+  const RAW_ACCESS = (body.accessType ?? body.gateType) as string | undefined
+  const accessType: 'free' | 'email' | 'paid' = (() => {
+    switch (RAW_ACCESS) {
+      case 'free':    return 'free'
+      case 'paid':    return 'paid'
+      case 'email':   return 'email'
+      // legacy gate_type values
+      case 'none':    return 'free'
+      case 'payment': return 'paid'
+      default:        return 'email'
+    }
+  })()
+
+  const gateType: 'none' | 'email' | 'payment' =
+    accessType === 'free' ? 'none' :
+    accessType === 'paid' ? 'payment' :
+                            'email'
+
+  // Price is only meaningful for paid books. Stored as integer cents.
+  // Minimum $1 (100¢) when paid; ignored otherwise.
+  const rawPriceCents = Number(body.priceCents)
+  const priceCents: number = accessType === 'paid'
+    ? (Number.isFinite(rawPriceCents) && rawPriceCents >= 100 ? Math.round(rawPriceCents) : 100)
+    : 0
+
+  if (accessType === 'paid' && (!Number.isFinite(rawPriceCents) || rawPriceCents < 100)) {
+    return NextResponse.json(
+      { error: 'Paid books require a price of at least $1 (100 cents).' },
+      { status: 400 },
+    )
+  }
 
   const { data: book } = await supabase
     .from('books')
@@ -77,6 +111,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       description,
       cover_image_url: book.cover_image_url,
       gate_type: gateType,
+      access_type: accessType,
+      price_cents: priceCents,
       is_active: true,
       published_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

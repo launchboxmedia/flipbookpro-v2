@@ -1,13 +1,17 @@
 import { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { deriveTheme } from '@/lib/bookTheme'
 import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
 import { EmailGate } from '@/components/read/EmailGate'
+import { BuyGate } from '@/components/read/BuyGate'
+import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
 import type { Book, BookPage, Profile } from '@/types/database'
 
 interface Props {
   params: { slug: string }
+  searchParams: { session_id?: string; error?: string }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -47,7 +51,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ReadPage({ params }: Props) {
+export default async function ReadPage({ params, searchParams }: Props) {
+  // If Stripe just redirected here with a session_id, hop to the grant route
+  // which verifies the session, records the lead, and sets the access cookie
+  // before redirecting back to a clean /read/{slug}. Server components can't
+  // set cookies during render, so the route handler is the only place
+  // that can do all three.
+  if (searchParams.session_id) {
+    redirect(`/api/read/${params.slug}/grant?session_id=${encodeURIComponent(searchParams.session_id)}`)
+  }
+
   const supabase = await createClient()
 
   const { data: pub } = await supabase
@@ -92,8 +105,52 @@ export default async function ReadPage({ params }: Props) {
     />
   )
 
-  // Email gate — show gate if gate_type is 'email'
-  if (pub.gate_type === 'email') {
+  // Resolve the effective access type. New rows have access_type set
+  // explicitly; old rows fall back through gate_type.
+  const accessType = (pub.access_type as 'free' | 'email' | 'paid' | undefined)
+    ?? (pub.gate_type === 'none'    ? 'free' :
+        pub.gate_type === 'payment' ? 'paid' : 'email')
+
+  const flipbook = (
+    <FlipbookViewer
+      book={book as Book}
+      chapters={chapters as BookPage[]}
+      backMatter={backMatter as BookPage[]}
+      theme={theme}
+      profile={(authorProfile as Profile) ?? null}
+      isPublicView
+    />
+  )
+
+  // Paid books: show the buy gate unless the visitor has a valid signed
+  // access cookie keyed to this slug.
+  if (accessType === 'paid') {
+    const cookieJar = await cookies()
+    const token = cookieJar.get(cookieNameForSlug(params.slug))?.value
+    const claims = verifyAccessToken(token, params.slug)
+    if (!claims) {
+      return (
+        <>
+          {structuredData}
+          <BuyGate
+            bookId={pub.book_id}
+            title={pub.title}
+            author={pub.author}
+            subtitle={pub.subtitle}
+            description={pub.description}
+            coverImageUrl={pub.cover_image_url}
+            priceCents={pub.price_cents ?? 0}
+            errorCode={searchParams.error ?? null}
+          />
+        </>
+      )
+    }
+    // Valid cookie → show the flipbook, paying buyer is in.
+    return <>{structuredData}{flipbook}</>
+  }
+
+  // Email-gated: collect an email before reading.
+  if (accessType === 'email') {
     return (
       <>
         {structuredData}
@@ -105,30 +162,12 @@ export default async function ReadPage({ params }: Props) {
           author={pub.author}
           description={pub.description}
         >
-          <FlipbookViewer
-            book={book as Book}
-            chapters={chapters as BookPage[]}
-            backMatter={backMatter as BookPage[]}
-            theme={theme}
-            profile={(authorProfile as Profile) ?? null}
-            isPublicView
-          />
+          {flipbook}
         </EmailGate>
       </>
     )
   }
 
-  return (
-    <>
-      {structuredData}
-      <FlipbookViewer
-        book={book as Book}
-        chapters={chapters as BookPage[]}
-        backMatter={backMatter as BookPage[]}
-        theme={theme}
-        profile={(authorProfile as Profile) ?? null}
-        isPublicView
-      />
-    </>
-  )
+  // Free — open access.
+  return <>{structuredData}{flipbook}</>
 }

@@ -2,38 +2,73 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Globe, Copy, Check, ExternalLink, Loader2 } from 'lucide-react'
-import type { Book, PublishedBook } from '@/types/database'
+import { ArrowLeft, Globe, Copy, Check, ExternalLink, Loader2, Lock, Mail, BookOpen } from 'lucide-react'
+import type { AccessType, Book, PublishedBook } from '@/types/database'
 
 interface Props {
   book: Book
   publishedBook: PublishedBook | null
 }
 
+const ACCESS_OPTIONS: ReadonlyArray<{
+  id: AccessType
+  label: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+}> = [
+  { id: 'free',  label: 'Free',        description: 'Anyone with the link can read — no gate.',                icon: BookOpen },
+  { id: 'email', label: 'Email Gate',  description: 'Free with email capture — readers join your list.',       icon: Mail },
+  { id: 'paid',  label: 'Paid',        description: 'Buyer must pay before accessing the book.',               icon: Lock },
+]
+
+// Derive an initial access type from either the new column (preferred) or
+// the legacy gate_type, so historical published_books rows still display
+// correctly until they're saved with the new flow.
+function initialAccessType(p: PublishedBook | null): AccessType {
+  if (!p) return 'email'
+  if (p.access_type) return p.access_type
+  if (p.gate_type === 'none')    return 'free'
+  if (p.gate_type === 'payment') return 'paid'
+  return 'email'
+}
+
 export function PublishPanel({ book, publishedBook: initial }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [published, setPublished] = useState<PublishedBook | null>(initial)
-  const [gateType, setGateType] = useState<'email' | 'none'>(initial?.gate_type as 'email' | 'none' ?? 'email')
+  const [accessType, setAccessType] = useState<AccessType>(initialAccessType(initial))
+  // Price displayed as dollars in the input; persisted as cents on save.
+  const [priceDollars, setPriceDollars] = useState<string>(
+    initial?.price_cents && initial.price_cents > 0
+      ? (initial.price_cents / 100).toFixed(2)
+      : '7.00',
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
   const shareUrl = published
-    ? `${window?.location?.origin ?? ''}/read/${published.slug}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/read/${published.slug}`
     : null
 
   async function handlePublish() {
     setLoading(true)
     setError('')
     try {
+      const priceCents = accessType === 'paid'
+        ? Math.round(parseFloat(priceDollars || '0') * 100)
+        : 0
+
+      if (accessType === 'paid' && (!Number.isFinite(priceCents) || priceCents < 100)) {
+        throw new Error('Paid books require a price of at least $1.')
+      }
+
       const res = await fetch(`/api/books/${book.id}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gateType }),
+        body: JSON.stringify({ accessType, priceCents }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed')
-      // Reload to get full published_book record
       window.location.reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publish failed')
@@ -80,26 +115,67 @@ export function PublishPanel({ book, publishedBook: initial }: Props) {
           </div>
         </div>
 
-        {/* Gate type */}
+        {/* Access type — three options */}
         <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
           <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-3">Access Type</p>
           <div className="space-y-2">
-            {(['email', 'none'] as const).map((gt) => (
-              <label key={gt} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="gateType"
-                  value={gt}
-                  checked={gateType === gt}
-                  onChange={() => setGateType(gt)}
-                  className="accent-accent"
-                />
-                <span className="font-inter text-sm text-cream">
-                  {gt === 'email' ? 'Email gate — collect leads before access' : 'Open access — no gate'}
-                </span>
-              </label>
-            ))}
+            {ACCESS_OPTIONS.map((opt) => {
+              const Icon = opt.icon
+              const selected = accessType === opt.id
+              return (
+                <label
+                  key={opt.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selected
+                      ? 'border-gold/50 bg-gold/5'
+                      : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="accessType"
+                    value={opt.id}
+                    checked={selected}
+                    onChange={() => setAccessType(opt.id)}
+                    className="mt-0.5 accent-gold"
+                  />
+                  <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? 'text-gold' : 'text-muted-foreground'}`} />
+                  <div className="flex-1">
+                    <p className={`font-inter text-sm font-medium ${selected ? 'text-cream' : 'text-cream/80'}`}>
+                      {opt.label}
+                    </p>
+                    <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">
+                      {opt.description}
+                    </p>
+                  </div>
+                </label>
+              )
+            })}
           </div>
+
+          {/* Price input — only when paid */}
+          {accessType === 'paid' && (
+            <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
+              <label className="block text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                Price (USD, minimum $1)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/60 font-inter text-sm">$</span>
+                <input
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  value={priceDollars}
+                  onChange={(e) => setPriceDollars(e.target.value)}
+                  className="w-32 pl-7 pr-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
+                />
+              </div>
+              <p className="text-[11px] font-inter text-muted-foreground mt-2">
+                FlipBookPro takes a 10% platform fee. Net to you per sale: ${' '}
+                {((parseFloat(priceDollars || '0') * 0.9) || 0).toFixed(2)}.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-red-400 font-inter text-xs mb-4">{error}</p>}
