@@ -2,6 +2,50 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateTextStream } from '@/lib/textGeneration'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import type { FrameworkData } from '@/types/database'
+
+/**
+ * For acronym-driven books (e.g. C.R.E.D.I.T.), inject the full framework
+ * definition into the prompt so the writer model knows which letter this
+ * chapter covers, what it stands for, and how to introduce it. Without this
+ * the model only sees the chapter title ("Track, Time, and Tune") and
+ * hallucinates filler like "T. framework" or "T. stands for a stage" because
+ * it can tell there's a framework but doesn't know the system.
+ *
+ * Returns an empty string when the book has no framework_data, or when the
+ * current chapter doesn't map to a framework step (e.g. intro chapters,
+ * back-matter pages).
+ */
+function buildFrameworkContext(
+  framework: FrameworkData | null | undefined,
+  chapterIndex: number,
+): string {
+  if (!framework?.steps?.length) return ''
+  const thisStep = framework.steps.find((s) => s.chapter_index === chapterIndex)
+  if (!thisStep) return ''
+
+  // Normalise the acronym so display is "C.R.E.D.I.T." regardless of how it
+  // was stored ("CREDIT", "C.R.E.D.I.T.", etc.).
+  const letters = framework.acronym.replace(/[^A-Za-z]/g, '').toUpperCase()
+  const acronymDisplay = letters.split('').join('.') + '.'
+
+  const allSteps = framework.steps
+    .map((s) => `  • ${s.letter} — ${s.label}`)
+    .join('\n')
+
+  return `FRAMEWORK CONTEXT — read carefully, this is non-negotiable:
+This book teaches the ${acronymDisplay} framework, a ${framework.steps.length}-step system. Each letter stands for one step:
+${allSteps}
+
+THIS CHAPTER covers step "${thisStep.letter}" — "${thisStep.label}".
+
+Framework writing rules:
+1. The opening paragraph must explicitly name the letter and spell out what it stands for. For example: "The ${thisStep.letter} in ${acronymDisplay} stands for ${thisStep.label}." Vary the exact wording — don't copy that sentence verbatim — but the first paragraph must establish what ${thisStep.letter} represents in this framework.
+2. Never write "${thisStep.letter}. framework", "${thisStep.letter}. stands for a stage", or any abbreviation that treats "${thisStep.letter}." as a standalone token. Always spell out "${thisStep.label}".
+3. You may reference other steps by their full label (e.g. "before we get to ${framework.steps[0]?.label ?? '…'}…"), but this chapter's focus is exclusively "${thisStep.label}".
+4. The first letter of your opening sentence will be set as a large gold drop cap by the layout, and the framework letter "${thisStep.letter}" appears as a decorative overlay in the page corner. Do NOT add any special formatting in the prose itself — just write naturally.
+`
+}
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -73,6 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   const humanNote    = book.human_score
     ? 'Humanization required: vary sentence lengths significantly, use natural transitions, include occasional rhetorical questions, avoid AI-detectable patterns (no "Furthermore", "In conclusion", "It is worth noting", or consecutive sentences of similar length).'
     : ''
+  const frameworkCtx = buildFrameworkContext(book.framework_data, page.chapter_index)
 
   const encoder = new TextEncoder()
   let fullContent = ''
@@ -93,7 +138,7 @@ ${humanNote}
 Book title: ${book.title}
 Chapter ${page.chapter_index + 1}: ${page.chapter_title}
 Chapter brief: ${page.chapter_brief ?? 'No brief provided'}
-
+${frameworkCtx ? `\n${frameworkCtx}\n` : ''}
 Write 250-350 words. No heading — the chapter title is displayed separately. Start with a strong opening sentence directed at the reader. End with a sentence that transitions naturally to the next idea.`,
             maxTokens: 3000,
             humanize: true,
