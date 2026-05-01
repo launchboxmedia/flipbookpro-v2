@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { paginateText } from '@/lib/paginateText'
+import { detectAcronymBlock } from '@/lib/acronymBlock'
+import type { FrameworkData } from '@/types/database'
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -38,15 +40,11 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   const introChapter = allChapters[0] && isIntroChapter(allChapters[0]) ? allChapters[0] : null
   const chapters = introChapter ? allChapters.slice(1) : allChapters
 
-  // The right side of the copyright spread is either:
-  //   1) the full Introduction/Preface chapter (paginated), or
-  //   2) the first chunk of chapter 1 as a teaser if no intro chapter, or
-  //   3) empty if the book has no chapters yet.
-  const introContent = introChapter
-    ? (introChapter.content ?? '')
-    : chapters[0]
-      ? paginateText(chapters[0].content ?? '')[0]
-      : ''
+  // Introduction content is rendered ONLY when the book has an explicit
+  // Introduction/Preface/Foreword chapter. Never auto-promote chapter 1 as
+  // a "teaser" — that broke the spread sequence by surfacing chapter
+  // content before the TOC.
+  const introContent = introChapter ? (introChapter.content ?? '') : ''
   const introTitle = introChapter?.chapter_title ?? null
 
   // Imprint resolution mirrors the FlipbookViewer's resolveImprint().
@@ -104,12 +102,10 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     </section>
   `
 
-  // Front-matter spread 2 right — introduction. If we pulled an Introduction
-  // chapter out of the chapter sequence, render its full text (paginated)
-  // here. Otherwise, render the first chunk of chapter 1 as a teaser per
-  // spec; the chapter still appears in full later.
-  const introChunks = paginateText(introContent)
-  const introductionHtml = introContent.trim()
+  // Front-matter — introduction section, only emitted when an actual intro
+  // chapter exists. Otherwise the export skips straight from copyright to TOC.
+  const introChunks = introContent.trim() ? paginateText(introContent) : []
+  const introductionHtml = introChunks.length > 0
     ? introChunks.map((chunk, k) => `
         <section class="introduction page-break">
           ${k === 0 ? `
@@ -150,12 +146,30 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   // (page-break-inside: avoid would be too aggressive — let the print engine
   // decide). Every word of the chapter is emitted across the chunks; no text
   // is dropped.
+  // Map chapter_index → framework letter for the decorative overlay
+  // (matches the FlipbookViewer's behavior).
+  const framework = (book.framework_data ?? null) as FrameworkData | null
+  const letterByChapterIndex = new Map<number, string>()
+  if (framework?.steps) {
+    for (const step of framework.steps) {
+      if (typeof step.chapter_index === 'number' && step.letter) {
+        letterByChapterIndex.set(step.chapter_index, step.letter.toUpperCase())
+      }
+    }
+  }
+
   const chaptersHtml = chapters.map((ch, i) => {
     const chunks = paginateText(ch.content ?? '')
+    const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
     return chunks.map((chunk, k) => {
       const isFirst = k === 0
+      // Framework letter (e.g. "C" for chapter 3 of CREDIT) overlaid in the
+      // top-right of the chapter opener.
+      const letterOverlay = isFirst && frameworkLetter
+        ? `<span class="framework-letter" aria-hidden="true">${esc(frameworkLetter)}</span>`
+        : ''
       const header = isFirst
-        ? `<div class="chapter-header">
+        ? `<div class="chapter-header${frameworkLetter ? ' has-framework-letter' : ''}">
              <span class="chapter-label">Chapter ${i + 1}</span>
              <h2 class="chapter-title">${esc(ch.chapter_title)}</h2>
              <div class="gold-rule"></div>
@@ -174,6 +188,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
       const sectionClass = `chapter${isFirst ? ' page-break-chapter' : ' page-break-cont'}`
       return `
         <section class="${sectionClass}">
+          ${letterOverlay}
           ${header}
           ${image}
           <div class="chapter-body">${paragraphs(chunk)}</div>
@@ -402,6 +417,53 @@ body {
 .chapter-body p { margin-bottom: 1.3em; }
 .chapter-body p:last-child { margin-bottom: 0; }
 
+/* Acronym block — rendered when a paragraph is a series of "L — definition"
+   lines (e.g. the C.R.E.D.I.T. framework breakdown). */
+.acronym-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  margin: 0.4em 0 1.6em;
+}
+.acronym-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.1em;
+}
+.acronym-letter {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 2.4rem;
+  color: #C9A84C;
+  line-height: 1;
+  width: 1.1em;
+  flex-shrink: 0;
+  text-align: center;
+}
+.acronym-def {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+/* Framework letter overlay — large gold Playfair character in the top-right
+   corner of the chapter opener, partially overlapping the chapter title. */
+.chapter { position: relative; }
+.framework-letter {
+  position: absolute;
+  top: 3rem;
+  right: 1.5rem;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 6rem;
+  color: #C9A84C;
+  opacity: 0.85;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+.chapter-header.has-framework-letter .chapter-title { padding-right: 4rem; }
+
 /* Continuation header — small, italic title, "2 / 3" page indicator. Used
    on every chapter chunk after the first so the reader keeps context. */
 .chapter-cont-header {
@@ -499,6 +561,18 @@ function paragraphs(content: string): string {
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => `<p>${esc(p)}</p>`)
+    .map((p) => {
+      const acronym = detectAcronymBlock(p)
+      if (acronym) {
+        const rows = acronym.map((entry) => `
+          <div class="acronym-row">
+            <span class="acronym-letter">${esc(entry.letter)}</span>
+            <span class="acronym-def">${esc(entry.definition)}</span>
+          </div>
+        `).join('')
+        return `<div class="acronym-block">${rows}</div>`
+      }
+      return `<p>${esc(p)}</p>`
+    })
     .join('')
 }

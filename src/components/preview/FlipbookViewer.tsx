@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { Book, BookPage, Profile } from '@/types/database'
 import type { BookTheme } from '@/lib/bookTheme'
 import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
+import { detectAcronymBlock, type AcronymEntry } from '@/lib/acronymBlock'
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -58,6 +59,12 @@ type PageContent =
       totalChunks: number
       /** Page number printed in the bottom-right corner. */
       pageNum: number
+      /** Decorative framework letter (e.g. "C" for Control Payment History
+       *  in the C.R.E.D.I.T. Cleanse). Only set when the chapter maps to
+       *  a framework step in book.framework_data. Rendered as an 80px
+       *  gold Playfair character in the top-right of the page, partially
+       *  overlapping the chapter title. Shown on the first chunk only. */
+      frameworkLetter?: string
     }
   | { type: 'back-matter';   page: BookPage }
   | { type: 'back-cover' }
@@ -90,10 +97,27 @@ function isIntroChapter(ch: BookPage): boolean {
   return /^(introduction|preface|foreword)\b/i.test(ch.chapter_title.trim())
 }
 
-function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
-  // Pull an introduction chapter (if any) out of the chapter sequence so it
-  // doesn't render twice — once on spread 2 right, once as a regular chapter
-  // spread later.
+function buildSpreads(
+  chapters: BookPage[],
+  backMatter: BookPage[],
+  framework: import('@/types/database').FrameworkData | null,
+): Spread[] {
+  // Map a chapter_index → its framework letter (only for chapters that
+  // correspond to a step). Used to overlay the decorative letter on the
+  // chapter text page.
+  const letterByChapterIndex = new Map<number, string>()
+  if (framework?.steps) {
+    for (const step of framework.steps) {
+      if (typeof step.chapter_index === 'number' && step.letter) {
+        letterByChapterIndex.set(step.chapter_index, step.letter.toUpperCase())
+      }
+    }
+  }
+  // Optional introduction. Only present when the first chapter is explicitly
+  // titled Introduction / Preface / Foreword. Pulled out of the regular
+  // chapter sequence so it doesn't render twice. CRITICAL: never auto-promote
+  // chapter 1 as a "teaser" on the copyright spread — that broke the
+  // sequence by surfacing chapter content before the TOC.
   const introChapter = chapters[0] && isIntroChapter(chapters[0]) ? chapters[0] : null
   const mainChapters = introChapter ? chapters.slice(1) : chapters
 
@@ -101,19 +125,12 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   // needs (and so the TOC can compute correct page numbers).
   const chapterChunks = mainChapters.map((ch) => paginateText(ch.content ?? ''))
 
-  // Compute introduction chunks. Three states:
-  //   1) Introduction chapter exists → paginate its full content. Renders
-  //      across the right of spread 2 + as many continuation spreads as
-  //      needed before the TOC.
-  //   2) No intro chapter but at least one main chapter → render the FIRST
-  //      CHUNK of chapter 1 as a teaser on spread 2 right. The chapter still
-  //      renders later in full with its image opener (deliberate per spec).
-  //   3) No chapters at all → empty placeholder.
+  // Introduction chunks — empty array when there is no intro chapter, which
+  // means no introduction spreads are emitted at all.
   const introChunks: string[] = introChapter
     ? paginateText(introChapter.content ?? '')
-    : mainChapters[0]
-      ? [paginateText(mainChapters[0].content ?? '')[0]]
-      : ['']
+    : []
+  const hasIntro = introChunks.length > 0
   const introTitle = introChapter?.chapter_title
 
   // Each main chapter takes 1 spread for the image+chunk0 opener, then pairs
@@ -121,26 +138,23 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   // ceil((N + 1) / 2) spreads. (N=1 → 1, N=2 → 2, N=3 → 2, N=4 → 3, N=5 → 3.)
   function spreadsForChapter(n: number) { return Math.ceil((n + 1) / 2) }
 
-  // Front-matter spreads consume 3 spreads total before the TOC:
+  // Front-matter spread layout:
   //   0 = cover
   //   1 = diamond + interior title
-  //   2 = copyright + introduction (chunk 0)
-  //   …continuation intro spreads, if intro is long…
+  //   2 = copyright + (intro chunk 0 if hasIntro, else blank)
+  //   …continuation intro spreads only when hasIntro and intro is long…
   //   N = TOC
   //   N+1… = chapter spreads
   //
   // Page numbering convention — every spread has 2 pages, left=even, right=odd:
   //   spread 0 = cover                     pages 0, 1
   //   spread 1 = title                     pages 2, 3
-  //   spread 2 = copyright + intro         pages 4, 5
+  //   spread 2 = copyright (+ intro|blank) pages 4, 5
   //   …                                    …
   //   spread N (TOC)                       pages 2N, 2N+1
   //   spread N+k = chapter…                pages 2(N+k), 2(N+k)+1
   // pageNum = spreadIdx * 2 + (side === 'left' ? 0 : 1)
-  //
-  // Intro continuation spreads (if any) come after spread 2 (copyright +
-  // chunk 0) and pair chunks 1+2, 3+4, …
-  const introContinuationSpreads = introChunks.length > 1
+  const introContinuationSpreads = hasIntro && introChunks.length > 1
     ? Math.ceil((introChunks.length - 1) / 2)
     : 0
 
@@ -177,44 +191,48 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
     transition: 'flip',
   })
 
-  // Spread 2 — copyright (left) + introduction chunk 0 (right).
+  // Spread 2 — copyright (left) + introduction chunk 0 (right) when an intro
+  // chapter exists, otherwise blank right.
   out.push({
     id: 'front-copyright',
     left:  { type: 'copyright' },
-    right: {
-      type: 'introduction',
-      sourceChapterTitle: introTitle,
-      chunk: introChunks[0],
-      chunkIndex: 0,
-      totalChunks: introChunks.length,
-    },
+    right: hasIntro
+      ? {
+          type: 'introduction',
+          sourceChapterTitle: introTitle,
+          chunk: introChunks[0],
+          chunkIndex: 0,
+          totalChunks: introChunks.length,
+        }
+      : { type: 'blank' },
     transition: 'flip',
   })
 
   // Spreads 3..N-1 — introduction continuation, pairing chunks 1+2, 3+4, …
-  // Only present when the source was a real Introduction chapter long enough
-  // to spill onto more pages.
-  for (let k = 1; k < introChunks.length; k += 2) {
-    out.push({
-      id: `front-intro-cont-${k}`,
-      left: {
-        type: 'introduction',
-        sourceChapterTitle: introTitle,
-        chunk: introChunks[k],
-        chunkIndex: k,
-        totalChunks: introChunks.length,
-      },
-      right: introChunks[k + 1] !== undefined
-        ? {
-            type: 'introduction',
-            sourceChapterTitle: introTitle,
-            chunk: introChunks[k + 1]!,
-            chunkIndex: k + 1,
-            totalChunks: introChunks.length,
-          }
-        : { type: 'blank' },
-      transition: 'flip',
-    })
+  // Only emitted when an intro chapter actually exists.
+  if (hasIntro) {
+    for (let k = 1; k < introChunks.length; k += 2) {
+      out.push({
+        id: `front-intro-cont-${k}`,
+        left: {
+          type: 'introduction',
+          sourceChapterTitle: introTitle,
+          chunk: introChunks[k],
+          chunkIndex: k,
+          totalChunks: introChunks.length,
+        },
+        right: introChunks[k + 1] !== undefined
+          ? {
+              type: 'introduction',
+              sourceChapterTitle: introTitle,
+              chunk: introChunks[k + 1]!,
+              chunkIndex: k + 1,
+              totalChunks: introChunks.length,
+            }
+          : { type: 'blank' },
+        transition: 'flip',
+      })
+    }
   }
 
   // Spread N — TOC. Blank left, TOC right.
@@ -234,8 +252,14 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
   let runningSpreadIdx = tocSpreadIdx + 1
   mainChapters.forEach((ch, i) => {
     const chunks = chapterChunks[i]
+    // Look up by the page's actual chapter_index (which is the source-of-truth
+    // identifier for framework mapping), not by position in mainChapters
+    // (which can drift if the intro chapter is excluded).
+    const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
 
-    // Opener
+    // Opener — image left, first text chunk right. Framework letter overlay
+    // (if any) goes on the opener only since that's where the chapter title
+    // lives.
     const openerIdx = runningSpreadIdx
     out.push({
       id:           `ch-${ch.id}-s${openerIdx}`,
@@ -248,6 +272,7 @@ function buildSpreads(chapters: BookPage[], backMatter: BookPage[]): Spread[] {
         chunkIndex:  0,
         totalChunks: chunks.length,
         pageNum:     openerIdx * 2 + 1,
+        frameworkLetter,
       },
       transition:   'flip',
       chapterNum:   i + 1,
@@ -729,32 +754,78 @@ function TocPage({ entries }: { entries: TocEntry[] }) {
   )
 }
 
-function ChapterImagePage({ page, num }: { page: BookPage; num: number }) {
+function ChapterImagePage({ page }: { page: BookPage; num: number }) {
+  // Full-bleed art only — no chapter number, no title overlay, no page
+  // number. The "Chapter N" + title appear on the facing right text page.
+  // This keeps any digit out of the image area entirely (the user reported
+  // numbers bleeding into images; even a "Chapter 2" caption was being read
+  // as a stray page number).
   return (
     <div style={{ ...pageBase, background: 'var(--canvas-bg)', position: 'relative', overflow: 'hidden' }}>
-      {/* Full-bleed image */}
       {page.image_url
         ? <img src={page.image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 1 }} />
         : <div style={{ position: 'absolute', inset: 0, background: 'var(--accent-subtle)', zIndex: 1 }} />
       }
-      {/* Bottom gradient — z:2 */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%)', zIndex: 2 }} />
-      {/* Chapter info overlaid on gradient — z:3 */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 26px 24px', zIndex: 3 }}>
-        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--accent)', display: 'block', marginBottom: 5 }}>
-          Chapter {num}
+    </div>
+  )
+}
+
+/** Render either an AcronymBlock or a plain paragraph. Used by both the
+ *  chapter text page and (in spirit) the HTML export. */
+function ParagraphOrAcronym({
+  text, withDropCap,
+}: {
+  text: string
+  withDropCap?: boolean
+}) {
+  const acronym = detectAcronymBlock(text)
+  if (acronym) return <AcronymBlock entries={acronym} />
+  if (withDropCap) {
+    return (
+      <p style={{ margin: '0 0 0.8em' }}>
+        <span style={{ float: 'left', fontFamily: 'var(--heading-font)', fontSize: 'var(--drop-cap-size)', fontWeight: 700, lineHeight: 0.78, marginRight: '0.05em', marginTop: '0.1em', color: 'var(--drop-cap-color)' }}>
+          {text[0]}
         </span>
-        <div style={{ width: 20, height: 2, background: 'var(--accent)', marginBottom: 7 }} />
-        <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 16, fontWeight: 700, color: '#FFFFFF', margin: 0, lineHeight: 1.2, textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
-          {page.chapter_title}
-        </h3>
-      </div>
+        {text.slice(1)}
+      </p>
+    )
+  }
+  return <p style={{ margin: '0 0 0.8em' }}>{text}</p>
+}
+
+function AcronymBlock({ entries }: { entries: AcronymEntry[] }) {
+  return (
+    <div style={{ margin: '0.4em 0 1.1em', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {entries.map((entry, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+          <span style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontWeight: 700,
+            fontSize: 26,
+            color: 'var(--accent)',
+            lineHeight: 1,
+            width: '1.15em',
+            flexShrink: 0,
+            textAlign: 'center',
+          }}>
+            {entry.letter}
+          </span>
+          <span style={{
+            fontFamily: 'var(--body-font)',
+            fontSize: 'var(--body-size)',
+            color: 'var(--page-text)',
+            lineHeight: 1.45,
+          }}>
+            {entry.definition}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
 function ChapterTextPage({
-  page, num, chunk, chunkIndex, totalChunks, pageNum, side,
+  page, num, chunk, chunkIndex, totalChunks, pageNum, side, frameworkLetter,
 }: {
   page: BookPage
   num: number
@@ -763,6 +834,7 @@ function ChapterTextPage({
   totalChunks: number
   pageNum: number
   side: 'left' | 'right'
+  frameworkLetter?: string
 }) {
   const isFirstChunk = chunkIndex === 0 // always rendered on the right page
   const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
@@ -773,18 +845,47 @@ function ChapterTextPage({
   // the outer corner so the spread feels balanced.
   const pad = side === 'left' ? padLeft : padRight
   const numAlign: React.CSSProperties['textAlign'] = side === 'left' ? 'left' : 'right'
+  // The drop cap on the first chunk's first paragraph is suppressed when
+  // that paragraph is itself an acronym block — no leading character to
+  // letter-set.
+  const firstIsAcronym = !!first && !!detectAcronymBlock(first)
 
   return (
-    <div style={{ ...pageBase, ...pad, background: 'var(--page-bg)' }}>
+    <div style={{ ...pageBase, ...pad, background: 'var(--page-bg)', position: 'relative' }}>
+      {/* Decorative framework letter — only on the chapter opener (first
+          chunk, right page) when the chapter maps to a framework step. 80px
+          gold Playfair, top-right corner, partially overlapping the chapter
+          title area below. pointer-events:none so it never blocks clicks. */}
+      {isFirstChunk && frameworkLetter && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 18,
+            right: 26,
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 80,
+            fontWeight: 700,
+            color: 'var(--accent)',
+            opacity: 0.85,
+            lineHeight: 1,
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        >
+          {frameworkLetter}
+        </span>
+      )}
+
       {/* Header — full chapter title + accent rule on first page; smaller
           continuation header ("Chapter N · cont.") on overflow pages so the
           reader keeps context without the title eating a third of the page. */}
       {isFirstChunk ? (
-        <div style={{ flexShrink: 0, marginBottom: 16 }}>
+        <div style={{ flexShrink: 0, marginBottom: 16, position: 'relative', zIndex: 3 }}>
           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 7.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--chapter-num-color)', display: 'block', marginBottom: 3 }}>
             Chapter {num}
           </span>
-          <h2 style={{ fontFamily: 'var(--heading-font)', fontSize: 'var(--heading-size)', fontWeight: 700, color: 'var(--page-text)', lineHeight: 1.2, margin: '0 0 9px' }}>
+          <h2 style={{ fontFamily: 'var(--heading-font)', fontSize: 'var(--heading-size)', fontWeight: 700, color: 'var(--page-text)', lineHeight: 1.2, margin: '0 0 9px', /* leave room for the framework letter overlay so the title doesn't visually collide with it */ paddingRight: frameworkLetter ? 60 : 0 }}>
             {page.chapter_title}
           </h2>
           <div style={{ width: 22, height: 2, background: 'var(--accent)' }} />
@@ -808,30 +909,24 @@ function ChapterTextPage({
           partial line. The mask softens that to transparent rather than
           slicing letters. With proper pagination this only ever affects a
           handful of pixels. */}
-      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask }}>
+      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask, position: 'relative', zIndex: 3 }}>
         {!hasContent ? (
           <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>Chapter not yet written.</p>
         ) : isFirstChunk ? (
           <>
             {first && (
-              <p style={{ margin: '0 0 0.8em' }}>
-                {/* Drop cap — first paragraph of the chapter only */}
-                <span style={{ float: 'left', fontFamily: 'var(--heading-font)', fontSize: 'var(--drop-cap-size)', fontWeight: 700, lineHeight: 0.78, marginRight: '0.05em', marginTop: '0.1em', color: 'var(--drop-cap-color)' }}>
-                  {first[0]}
-                </span>
-                {first.slice(1)}
-              </p>
+              <ParagraphOrAcronym text={first} withDropCap={!firstIsAcronym} />
             )}
-            {rest.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)}
+            {rest.map((p, i) => <ParagraphOrAcronym key={i} text={p} />)}
           </>
         ) : (
           // Continuation page — no drop cap, paragraphs flow normally.
-          paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)
+          paras.map((p, i) => <ParagraphOrAcronym key={i} text={p} />)
         )}
       </div>
 
       {/* Page number — pinned to the outer corner of the spread */}
-      <div style={{ flexShrink: 0, textAlign: numAlign, fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6 }}>
+      <div style={{ flexShrink: 0, textAlign: numAlign, fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6, position: 'relative', zIndex: 3 }}>
         {pageNum}
       </div>
     </div>
@@ -1003,6 +1098,7 @@ function Page({
         totalChunks={content.totalChunks}
         pageNum={content.pageNum}
         side={side}
+        frameworkLetter={content.frameworkLetter}
       />
     )
     case 'back-matter':   return <BackMatterPage   page={content.page} side={side} />
@@ -1109,7 +1205,10 @@ function ExportMenu({ bookId }: { bookId: string }) {
 }
 
 export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false }: FlipbookViewerProps) {
-  const spreads = useMemo(() => buildSpreads(chapters, backMatter), [chapters, backMatter])
+  const spreads = useMemo(
+    () => buildSpreads(chapters, backMatter, book.framework_data ?? null),
+    [chapters, backMatter, book.framework_data],
+  )
 
   const [spreadIdx, setSpreadIdx] = useState(0)
   const [flipState, setFlipState] = useState<FlipState | null>(null)

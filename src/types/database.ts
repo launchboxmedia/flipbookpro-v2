@@ -5,6 +5,20 @@ export type GateType = 'none' | 'email' | 'payment'
  *  sync for backward compatibility but new code should branch on access_type. */
 export type AccessType = 'free' | 'email' | 'paid'
 
+/** A single step in an acronym-driven framework book. */
+export interface FrameworkStep {
+  letter: string         // single uppercase letter, e.g. 'C'
+  label: string          // short label for the step, e.g. 'Control Payment History'
+  /** 0-based chapter_index this step maps to, when applicable. */
+  chapter_index?: number
+}
+
+export interface FrameworkData {
+  /** Display string for the acronym (e.g. "CREDIT" or "C.R.E.D.I.T."). */
+  acronym: string
+  steps: FrameworkStep[]
+}
+
 export interface Book {
   id: string
   user_id: string
@@ -16,6 +30,10 @@ export interface Book {
    *  title/subtitle/author. Renderers should display the image plain and
    *  skip the overlay text + dark gradients. */
   cover_has_text: boolean
+  /** Optional framework definition for acronym-driven books. When set,
+   *  chapters whose chapter_index appears in any step get a decorative
+   *  framework letter overlay. NULL = no framework. */
+  framework_data: FrameworkData | null
   status: BookStatus
   persona: string | null
   visual_style: string | null
