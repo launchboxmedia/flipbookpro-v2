@@ -172,7 +172,24 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   const chaptersHtml = chapters.map((ch, i) => {
     const chunks = paginateText(ch.content ?? '')
     const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
+    // Pull-quote block — appended inline after the body of the LAST chunk so
+    // it sits at the natural end of each chapter in the printed flow. NULL
+    // pull_quote means we render nothing (the field hasn't been extracted
+    // yet, or extraction failed). The viewer renders the rules even when
+    // the quote is null; in print there's no facing-page concern, so we
+    // omit the block entirely instead of emitting empty rules.
+    const pullQuote = ch.pull_quote?.trim() || ''
+    const pullQuoteBlock = pullQuote
+      ? `
+          <div class="pull-quote-block">
+            <div class="pull-quote-rule"></div>
+            <blockquote class="pull-quote-text">${esc(pullQuote)}</blockquote>
+            <div class="pull-quote-rule"></div>
+          </div>
+        `
+      : ''
     return chunks.map((chunk, k) => {
+      const isLastChunk = k === chunks.length - 1
       if (k === 0) {
         const overlay = frameworkLetter
           ? `<span class="framework-letter" aria-hidden="true">${esc(frameworkLetter)}</span>`
@@ -185,6 +202,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
             <div class="rule"></div>
             ${ch.image_url ? `<img src="${esc(ch.image_url)}" class="chapter-img" alt="" />` : ''}
             <div class="body">${paragraphs(chunk)}</div>
+            ${isLastChunk ? pullQuoteBlock : ''}
           </section>
         `
       }
@@ -196,6 +214,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
             <span class="cont-page">${k + 1} / ${chunks.length}</span>
           </div>
           <div class="body">${paragraphs(chunk)}</div>
+          ${isLastChunk ? pullQuoteBlock : ''}
         </section>
       `
     }).join('')
@@ -408,6 +427,14 @@ body {
 .chapter-img { width: 100%; max-height: 200pt; object-fit: cover; border-radius: 3px; margin-bottom: 1.5rem; }
 .body p { margin-bottom: 1.1em; }
 .body p:last-child { margin-bottom: 0; }
+
+/* Pull quote — appended after each chapter's body when pull_quote exists.
+   Two thin gold rules bracketing a centred italic Playfair line. Token
+   colour matches the gold accent so it ties to the rest of the typography. */
+.pull-quote-block { margin: 2.5rem auto; max-width: 75%; text-align: center; }
+.pull-quote-rule { width: 4rem; height: 1px; background-color: var(--accent); margin: 0 auto 1.25rem; }
+.pull-quote-block .pull-quote-rule:last-child { margin: 1.25rem auto 0; }
+.pull-quote-text { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-size: 1.2rem; line-height: 1.7; color: #1C2333; margin: 0; padding: 0; }
 
 /* Acronym block — matches the FlipbookViewer layout. */
 .acronym-block {

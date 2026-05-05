@@ -22,7 +22,17 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const allowed = ['full_name', 'author_bio', 'brand_color', 'accent_color', 'social_links', 'logo_url']
+  const allowed = [
+    'full_name', 'author_bio', 'brand_color', 'accent_color', 'social_links', 'logo_url',
+    'brand_voice_tone', 'brand_voice_style', 'brand_voice_avoid', 'brand_voice_example',
+    // Enrichment-populated fields. The user can hand-edit these on the
+    // brand panel after auto-fill, and the panel also persists them via
+    // this PATCH after a successful enrichment so the user sees what was
+    // saved. enrich_ran_at is server-managed and intentionally NOT here.
+    'display_name', 'brand_name', 'brand_tagline', 'cta_url', 'cta_text',
+    'primary_color', 'background_color', 'expertise', 'audience_description',
+    'offer_types', 'website_url',
+  ]
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const key of allowed) {
     if (key in body) patch[key] = body[key]

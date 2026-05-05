@@ -161,8 +161,23 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   const chaptersHtml = chapters.map((ch, i) => {
     const chunks = paginateText(ch.content ?? '')
     const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
+    // Pull-quote block — appended after the LAST chunk of the chapter so
+    // it sits at the natural end of the chapter flow. NULL pull_quote means
+    // skip the block entirely (no facing-page concern in the linear HTML
+    // export, unlike the flipbook viewer).
+    const pullQuote = ch.pull_quote?.trim() || ''
+    const pullQuoteBlock = pullQuote
+      ? `
+          <div class="pull-quote-block">
+            <div class="pull-quote-rule"></div>
+            <blockquote class="pull-quote-text">${esc(pullQuote)}</blockquote>
+            <div class="pull-quote-rule"></div>
+          </div>
+        `
+      : ''
     return chunks.map((chunk, k) => {
       const isFirst = k === 0
+      const isLast = k === chunks.length - 1
       // Framework letter (e.g. "C" for chapter 3 of CREDIT) overlaid in the
       // top-right of the chapter opener.
       const letterOverlay = isFirst && frameworkLetter
@@ -192,6 +207,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
           ${header}
           ${image}
           <div class="chapter-body">${paragraphs(chunk)}</div>
+          ${isLast ? pullQuoteBlock : ''}
         </section>
       `
     }).join('')
@@ -416,6 +432,14 @@ body {
 .chapter-image { width: 100%; max-height: 260px; object-fit: cover; border-radius: 4px; margin-bottom: 2rem; }
 .chapter-body p { margin-bottom: 1.3em; }
 .chapter-body p:last-child { margin-bottom: 0; }
+
+/* Pull quote — appended after each chapter's body when pull_quote exists.
+   Two thin gold rules bracketing a centred italic Playfair line. Only
+   rendered when the LAST chunk of a chapter emits the block. */
+.pull-quote-block { margin: 2.5rem auto; max-width: 75%; text-align: center; }
+.pull-quote-rule { width: 4rem; height: 1px; background-color: #C9A84C; margin: 0 auto 1.25rem; }
+.pull-quote-block .pull-quote-rule:last-child { margin: 1.25rem auto 0; }
+.pull-quote-text { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-size: 1.2rem; line-height: 1.7; color: #1C2333; margin: 0; padding: 0; }
 
 /* Acronym block — rendered when a paragraph is a series of "L — definition"
    lines (e.g. the C.R.E.D.I.T. framework breakdown). */

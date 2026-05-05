@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     }
 
     const { buffer: imageBuffer, provider } = await generateImage(finalPrompt, {
-      aspectRatio: '16:9',
+      aspectRatio: '3:4',
       personGeneration: personGenerationFor(book),
     })
 
