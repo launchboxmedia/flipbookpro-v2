@@ -53,6 +53,183 @@ export interface Book {
   published_at: string | null
   created_at: string
   updated_at: string
+  // Creator Radar — market intelligence inputs + last result snapshot.
+  target_audience: string | null
+  website_url: string | null
+  genre: string | null
+  // Business-persona-only context: what the author sells, what they want
+  // readers to do, and social proof to weave into chapters and Radar
+  // positioning. All three are NULL for non-business personas.
+  offer_type: string | null
+  cta_intent: string | null
+  testimonials: string | null
+  creator_radar_data: RadarResult | null
+  creator_radar_ran_at: string | null
+  /** Set by /apply-radar when the user accepts radar intelligence. The
+   *  distilled context lives in radar_context; this column is the "we've
+   *  applied at least once" signal the UI uses to show "Applied X days ago". */
+  radar_applied_at?: string | null
+  radar_context?: RadarContext | null
+}
+
+// ── Creator Radar ───────────────────────────────────────────────────────────
+// Free-tier responses ship with most fields stripped; everything past the
+// summary + a bare-signal list is gated. Hence everything below `summary`
+// is optional on the result type — UI must be defensive.
+
+export interface RadarMarketSignal {
+  signal: string
+  why_it_matters?: string
+  urgency?: 'high' | 'medium' | 'low'
+}
+
+export interface RadarContentAngle {
+  angle: string
+  differentiator: string
+  audience_fit: string
+}
+
+export interface RadarAudienceInsights {
+  biggestPain: string
+  alreadyTried: string[]
+  willingToPay: string
+  where_they_gather: string[]
+}
+
+export interface RadarCompetitorLandscape {
+  crowded_areas: string[]
+  gaps: string[]
+  price_range: string
+}
+
+export interface RadarBookRecommendations {
+  positioning: string
+  suggested_hook: string
+  ideal_length: string
+  monetization: 'free' | 'paid' | 'lead_magnet'
+  monetization_reason: string
+}
+
+/** Per-competitor analysis pulled from publisher-persona enrichment.
+ *  Each entry comes from a Firecrawl scrape of a competitor URL extracted
+ *  from the Perplexity research, then a Sonnet pass to extract the four
+ *  fields below. Pro tier only on the panel. */
+export interface RadarCompetitorEntry {
+  title: string
+  promise: string
+  price: string
+  weaknesses: string[]
+  strengths: string[]
+}
+
+/** Structured website extraction for the business persona. Populated by
+ *  the enrichment pass that runs after the Firecrawl scrape — single
+ *  Sonnet call extracts all of these in one shot, plus the conversion
+ *  recommendation pair. Pro tier only on the panel. */
+export interface RadarWebsiteExtraction {
+  companyName: string
+  tagline: string
+  offer: string
+  targetAudience: string
+  keyDifferentiators: string[]
+  ctaText: string
+  testimonials: string[]
+  brandVoice: string
+}
+
+/** Granular per-aspect selections recorded by /apply-radar (new flow) so
+ *  downstream consumers (OutlineStage, generate-draft) can honour what
+ *  the user opted into. Defaults to all-true when missing — the legacy
+ *  "Apply to Book" modal didn't ship with selections. */
+export interface RadarAppliedSelections {
+  targetAudience:   boolean
+  chapterStructure: boolean
+  backCover:        boolean
+  openingHook:      boolean
+  monetization:     boolean
+}
+
+/** Distilled radar intelligence stored on books.radar_context. Derived from
+ *  the full RadarResult by /api/books/[id]/apply-radar so the chapter
+ *  generation prompt has a focused, schema-stable surface to inject.
+ *  Distinct from books.creator_radar_data which holds the full result. */
+export interface RadarContext {
+  audience_pain: string
+  already_tried: string[]
+  willing_to_pay: string
+  where_they_gather: string[]
+  positioning: string
+  suggested_hook: string
+  content_gaps: string[]
+  monetization: string
+  monetization_reason: string
+  /** Storyteller-only — empty array when not present in the source result. */
+  reader_language: string[]
+  /** New flow only. The interstitial's checked-box state, persisted so
+   *  later steps can gate on what was opted in to (e.g. don't prepend
+   *  the suggested hook to Chapter 1 if openingHook was unchecked). */
+  applied_selections?: RadarAppliedSelections
+}
+
+export interface RadarResult {
+  summary: string
+  marketSignals: RadarMarketSignal[]
+  contentAngles?: RadarContentAngle[]
+  audienceInsights?: RadarAudienceInsights
+  competitorLandscape?: RadarCompetitorLandscape
+  bookRecommendations?: RadarBookRecommendations
+  sources: string[]
+  // ── Persona-specific enrichment ────────────────────────────────────────
+  /** Publisher only — per-competitor analysis from Firecrawl + Sonnet. */
+  competitorData?: RadarCompetitorEntry[]
+  /** Storyteller only — phrases pulled from Goodreads / reviews that the
+   *  target reader actually uses to describe what they want. */
+  readerLanguage?: string[]
+  /** Business only — derived from the website's CTA verbs (buy/enroll/
+   *  subscribe/etc) by Sonnet during structured extraction. */
+  conversionRecommendation?: 'free' | 'paid' | 'lead_magnet'
+  conversionReason?: string
+  /** Business only — structured website analysis surfaced to Pro users. */
+  websiteExtraction?: RadarWebsiteExtraction
+}
+
+/** A single citation pulled from Perplexity research. Stored as jsonb on
+ *  book_pages.research_citations and serialised into the draft prompt. */
+export interface ResearchCitation {
+  title: string
+  url: string
+}
+
+// ── Pre-book Creator Radar (topic discovery) ─────────────────────────────
+// Distinct from per-book RadarResult: this powers the wizard Step 1 scratch
+// mode where the user has no book yet. Perplexity returns three buckets of
+// idea candidates. Used only as a discovery aid; not persisted to a row.
+
+export interface CreatorRadarHotSignal {
+  topic: string
+  engagement: number
+  /** Free-form, e.g. "rising", "stable", "spiking 2026" */
+  trend_direction?: string
+}
+
+export interface CreatorRadarEvergreen {
+  topic: string
+  longevity_score: number
+}
+
+export interface CreatorRadarHiddenGold {
+  niche: string
+  opportunity_score: number
+  competition_level: 'low' | 'medium' | 'high'
+}
+
+export interface CreatorRadarResult {
+  hot_signals: CreatorRadarHotSignal[]
+  evergreen_winners: CreatorRadarEvergreen[]
+  hidden_gold: CreatorRadarHiddenGold[]
+  /** When true, the result is synthetic (Perplexity fetch or parse failed)
+   *  and the UI should hint to the user that they're seeing fallback data. */
+  is_mock?: boolean
 }
 
 export interface BookPage {
@@ -64,6 +241,16 @@ export interface BookPage {
   content: string | null
   image_url: string | null
   approved: boolean
+  /** Editorial single-sentence pull quote, extracted by Sonnet on chapter
+   *  approval. NULL when extraction hasn't run yet or returned a result that
+   *  failed validation. Viewer and PDF exporter both fall back gracefully. */
+  pull_quote?: string | null
+  /** Newline-delimited list of verified facts pulled by Perplexity Sonar
+   *  for this chapter. NULL when research hasn't been run. Injected into
+   *  the generate-draft prompt as background grounding. */
+  research_facts?: string | null
+  /** Source citations that back research_facts. Populated together with it. */
+  research_citations?: ResearchCitation[] | null
   created_at: string
   updated_at: string
 }
@@ -79,6 +266,34 @@ export interface Profile {
   accent_color: string | null
   author_bio: string | null
   social_links: Record<string, string> | null
+  brand_voice_tone: string | null
+  brand_voice_style: string | null
+  brand_voice_avoid: string | null
+  brand_voice_example: string | null
+  // ── Enrichment fields ──────────────────────────────────────────────────
+  // Populated by /api/profile/enrich. All optional — a profile that's
+  // never been enriched leaves these NULL and the UI degrades gracefully.
+  /** Brand-facing name. Often a pen name or company; full_name is the auth-
+   *  side identity. Used by the FlipbookViewer interior title page when set. */
+  display_name?: string | null
+  brand_name?: string | null
+  brand_tagline?: string | null
+  /** Primary call-to-action URL surfaced on the back cover and email gates. */
+  cta_url?: string | null
+  cta_text?: string | null
+  /** Sits alongside brand_color/accent_color so the enrichment can write
+   *  brand identity colors without overwriting manual customisations the
+   *  user already set on the brand panel. */
+  primary_color?: string | null
+  background_color?: string | null
+  expertise?: string[] | null
+  audience_description?: string | null
+  offer_types?: string[] | null
+  website_url?: string | null
+  /** Last successful enrichment run. Used by the brand panel to show a
+   *  "last enriched X days ago" hint. */
+  enrich_ran_at?: string | null
+  // ── ─────────────────────────────────────────────────────────────────────
   stripe_customer_id: string | null
   stripe_connect_id: string | null
   stripe_connect_status: string | null

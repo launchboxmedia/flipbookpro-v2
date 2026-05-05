@@ -11,6 +11,7 @@ import {
   Star, HelpCircle, Shield, ChevronDown, ChevronUp,
   Crown, BarChart3, Loader2, RefreshCw, Upload, X, Wand2,
   ImageIcon, FileText, Users, MessageSquare, Gauge, BookMarked, Type, Lock,
+  Radar,
 } from 'lucide-react'
 import type { BookPage } from '@/types/database'
 import type { CoauthorStage, ImageStatus } from '@/components/coauthor/CoauthorShell'
@@ -133,7 +134,7 @@ export function AppSidebar({
     window.location.href = `/book/${bookId}/wizard?step=${n}`
   }
 
-  function gotoCoauthorStage(stage: 'outline' | 'chapter' | 'complete') {
+  function gotoCoauthorStage(stage: 'outline' | 'radar' | 'chapter' | 'complete') {
     if (bookContext?.onStageChange && onCoauthorPath) {
       bookContext.onStageChange(stage)
       return
@@ -335,6 +336,19 @@ export function AppSidebar({
               <AlignLeft className="w-4 h-4" />,
               () => gotoCoauthorStage('outline'),
               onCoauthorPath && buildStage === 'outline',
+              !bookId,
+              undefined,
+              !bookId ? 'Open a book to access' : undefined,
+            )}
+            {/* Creator Radar lives between Outline and the Setup section so
+                it reads as a top-level workspace, not a setup step. Same
+                top-level visual treatment as Outline (no indent). Locked
+                when no book is open, same gating as Outline. */}
+            {navItem(
+              'Creator Radar',
+              <Radar className="w-4 h-4" />,
+              () => gotoCoauthorStage('radar'),
+              onCoauthorPath && buildStage === 'radar',
               !bookId,
               undefined,
               !bookId ? 'Open a book to access' : undefined,

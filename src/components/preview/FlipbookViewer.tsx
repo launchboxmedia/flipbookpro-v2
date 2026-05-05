@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useCallback, useState, useEffect, useMemo } from 'react'
+import { useRef, useCallback, useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Download, ArrowLeft, FileText, Printer } from 'lucide-react'
 import Link from 'next/link'
 import type { Book, BookPage, Profile } from '@/types/database'
 import type { BookTheme } from '@/lib/bookTheme'
 import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
+import { paginateMeasured } from '@/lib/paginateMeasured'
 import { detectAcronymBlock, type AcronymEntry } from '@/lib/acronymBlock'
 
 // ── Layout constants ────────────────────────────────────────────────────────
@@ -68,6 +69,11 @@ type PageContent =
     }
   | { type: 'back-matter';   page: BookPage }
   | { type: 'back-cover' }
+  /** Editorial pull-quote spread, only emitted on the right page of a
+   *  continuation spread when a chapter ends on the LEFT (the right slot
+   *  would otherwise be blank) AND it is not the final chapter.
+   *  `quote === null` renders just the two gold rules — better than blank. */
+  | { type: 'pull-quote'; quote: string | null }
 
 interface TocEntry {
   num: number
@@ -101,7 +107,18 @@ function buildSpreads(
   chapters: BookPage[],
   backMatter: BookPage[],
   framework: import('@/types/database').FrameworkData | null,
+  /** Optional pre-measured chunks per chapter id. When present, these are
+   *  used verbatim — the measurement layer has already split the chapter
+   *  by rendered-pixel height. When absent, fall back to the heuristic
+   *  paginateText (also used for SSR / initial paint before layout-effect
+   *  measurement runs). */
+  measuredByChapterId?: Map<string, string[]> | null,
 ): Spread[] {
+  const chunksFor = (ch: BookPage): string[] => {
+    const measured = measuredByChapterId?.get(ch.id)
+    if (measured && measured.length > 0) return measured
+    return paginateText(ch.content ?? '')
+  }
   // Map a chapter_index → its framework letter (only for chapters that
   // correspond to a step). Used to overlay the decorative letter on the
   // chapter text page.
@@ -122,8 +139,10 @@ function buildSpreads(
   const mainChapters = introChapter ? chapters.slice(1) : chapters
 
   // Pre-paginate every main chapter so we know how many spreads each one
-  // needs (and so the TOC can compute correct page numbers).
-  const chapterChunks = mainChapters.map((ch) => paginateText(ch.content ?? ''))
+  // needs (and so the TOC can compute correct page numbers). Uses the
+  // measured chunks when available, falls back to the heuristic paginator
+  // otherwise.
+  const chapterChunks = mainChapters.map((ch) => chunksFor(ch))
 
   // Introduction chunks — empty array when there is no intro chapter, which
   // means no introduction spreads are emitted at all.
@@ -281,10 +300,30 @@ function buildSpreads(
     runningSpreadIdx++
 
     // Continuation spreads: pair chunks 1+2, 3+4, …
+    const isFinalChapter = i === mainChapters.length - 1
     for (let k = 1; k < chunks.length; k += 2) {
       const sIdx = runningSpreadIdx
       const leftChunk = chunks[k]
       const rightChunk: string | undefined = chunks[k + 1]
+      // When the chapter ends on the LEFT of this continuation spread, the
+      // right slot is otherwise blank. Use that slot for an editorial pull
+      // quote — except on the final chapter, where there's nothing to lead
+      // into. Quote may be null if extraction hasn't run yet; the renderer
+      // falls back to two gold rules in that case.
+      const rightSlot: PageContent =
+        rightChunk !== undefined
+          ? {
+              type:        'chapter-text',
+              page:        ch,
+              num:         i + 1,
+              chunk:       rightChunk,
+              chunkIndex:  k + 1,
+              totalChunks: chunks.length,
+              pageNum:     sIdx * 2 + 1,
+            }
+          : isFinalChapter
+            ? { type: 'blank' }
+            : { type: 'pull-quote', quote: ch.pull_quote ?? null }
       out.push({
         id:           `ch-${ch.id}-s${sIdx}`,
         left: {
@@ -296,17 +335,7 @@ function buildSpreads(
           totalChunks: chunks.length,
           pageNum:     sIdx * 2,
         },
-        right: rightChunk !== undefined
-          ? {
-              type:        'chapter-text',
-              page:        ch,
-              num:         i + 1,
-              chunk:       rightChunk,
-              chunkIndex:  k + 1,
-              totalChunks: chunks.length,
-              pageNum:     sIdx * 2 + 1,
-            }
-          : { type: 'blank' },
+        right:        rightSlot,
         transition:   'flip',
         chapterNum:   i + 1,
         chapterTitle: ch.chapter_title,
@@ -755,16 +784,40 @@ function TocPage({ entries }: { entries: TocEntry[] }) {
 }
 
 function ChapterImagePage({ page }: { page: BookPage; num: number }) {
-  // Full-bleed art only — no chapter number, no title overlay, no page
-  // number. The "Chapter N" + title appear on the facing right text page.
-  // This keeps any digit out of the image area entirely (the user reported
-  // numbers bleeding into images; even a "Chapter 2" caption was being read
-  // as a stray page number).
+  // Full-bleed art on the left page. Chapter images are generated at 16:9
+  // and the page is portrait (400×550, ~3:4), so contain leaves a thumbnail
+  // floating in dark canvas. cover + inset:0 fills the page and trims the
+  // landscape sides — the trade-off is intentional and what "fills the
+  // page" actually means here.
   return (
-    <div style={{ ...pageBase, background: 'var(--canvas-bg)', position: 'relative', overflow: 'hidden' }}>
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'var(--canvas-bg)',
+        overflow: 'hidden',
+      }}
+    >
       {page.image_url
-        ? <img src={page.image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 1 }} />
-        : <div style={{ position: 'absolute', inset: 0, background: 'var(--accent-subtle)', zIndex: 1 }} />
+        ? <img
+            src={page.image_url}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        : <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'var(--accent-subtle)',
+            }}
+          />
       }
     </div>
   )
@@ -929,6 +982,45 @@ function ChapterTextPage({
       <div style={{ flexShrink: 0, textAlign: numAlign, fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--page-text-muted)', paddingTop: 6, position: 'relative', zIndex: 3 }}>
         {pageNum}
       </div>
+    </div>
+  )
+}
+
+/** Centred italic pull quote bracketed by two thin gold rules. Renders on
+ *  the right page of a continuation spread when a chapter ends on the LEFT
+ *  and would otherwise leave the right blank. With NULL quote we still emit
+ *  the two rules — a quieter, deliberate spread is better than a blank one. */
+function PullQuotePage({ quote }: { quote: string | null }) {
+  return (
+    <div
+      style={{
+        ...pageBase,
+        background: 'var(--page-bg)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 36px',
+      }}
+    >
+      <div style={{ width: '4rem', height: 1, background: 'var(--accent)' }} />
+      {quote && (
+        <blockquote
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontStyle: 'italic',
+            fontSize: 18,
+            lineHeight: 1.6,
+            color: 'var(--page-text)',
+            textAlign: 'center',
+            maxWidth: '75%',
+            margin: '20px 0',
+            padding: 0,
+          }}
+        >
+          {quote}
+        </blockquote>
+      )}
+      {!quote && <div style={{ height: 40 }} />}
+      <div style={{ width: '4rem', height: 1, background: 'var(--accent)' }} />
     </div>
   )
 }
@@ -1103,6 +1195,7 @@ function Page({
     )
     case 'back-matter':   return <BackMatterPage   page={content.page} side={side} />
     case 'back-cover':    return <BackCoverPage book={book} profile={profile} />
+    case 'pull-quote':    return <PullQuotePage quote={content.quote} />
   }
 }
 
@@ -1205,9 +1298,58 @@ function ExportMenu({ bookId }: { bookId: string }) {
 }
 
 export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false }: FlipbookViewerProps) {
+  // Measured chunks per chapter id. Initially null — the first paint uses
+  // the heuristic paginator (paginateText). Once useLayoutEffect runs, we
+  // populate this map with pixel-measured splits and re-render with the
+  // accurate chunks before the user sees the heuristic version.
+  const [measuredChunks, setMeasuredChunks] = useState<Map<string, string[]> | null>(null)
+
+  // Body geometry constants — derived from the page layout (PW=400, PH=550)
+  // and the symmetric padLeft/padRight horizontal padding (24+38=62). The
+  // first-chunk and continuation body heights account for the rendered
+  // chrome (label + title + rule + footer for first; compact header +
+  // footer for continuation), with a small margin of safety so a 2-line
+  // chapter title doesn't push the body past the available height.
+  const BODY_WIDTH         = PW - 62
+  const FIRST_BODY_HEIGHT  = 380
+  const CONT_BODY_HEIGHT   = 440
+
+  // Re-measure whenever chapters or the active theme changes. useLayoutEffect
+  // runs synchronously after DOM commit but before browser paint, so the
+  // user sees the measured chunks on first visible frame instead of a
+  // heuristic-then-measured flash.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const fontFamily =
+      theme.vars['--body-font'] ??
+      "'Source Serif 4', Georgia, serif"
+    const fontSize   = theme.vars['--body-size']   ?? '13px'
+    const lineHeight = theme.vars['--line-height'] ?? '1.75'
+
+    const map = new Map<string, string[]>()
+    for (const ch of chapters) {
+      if (!ch.content || !ch.content.trim()) continue
+      try {
+        const chunks = paginateMeasured(ch.content, {
+          bodyWidth:         BODY_WIDTH,
+          firstPageHeight:   FIRST_BODY_HEIGHT,
+          continuationHeight: CONT_BODY_HEIGHT,
+          fontFamily,
+          fontSize,
+          lineHeight,
+        })
+        map.set(ch.id, chunks)
+      } catch {
+        // Measurement failure → leave the chapter to fall back to paginateText.
+      }
+    }
+    setMeasuredChunks(map)
+  }, [chapters, theme])
+
   const spreads = useMemo(
-    () => buildSpreads(chapters, backMatter, book.framework_data ?? null),
-    [chapters, backMatter, book.framework_data],
+    () => buildSpreads(chapters, backMatter, book.framework_data ?? null, measuredChunks),
+    [chapters, backMatter, book.framework_data, measuredChunks],
   )
 
   const [spreadIdx, setSpreadIdx] = useState(0)

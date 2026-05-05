@@ -7,9 +7,10 @@ import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
 import { BackMatterStage } from './BackMatterStage'
 import { CompleteStage } from './CompleteStage'
+import { CreatorRadarStage } from './CreatorRadarStage'
 import type { Book, BookPage } from '@/types/database'
 
-export type CoauthorStage = 'outline' | 'chapter' | 'back-matter' | 'complete'
+export type CoauthorStage = 'outline' | 'radar' | 'chapter' | 'back-matter' | 'complete'
 export type ImageStatus = 'idle' | 'generating' | 'done' | 'error'
 
 interface Props {
@@ -18,10 +19,12 @@ interface Props {
   userEmail: string
   isPremium?: boolean
   isAdmin?: boolean
+  /** Plan tier as Creator Radar sees it (admin collapsed to 'pro'). */
+  radarPlan?: 'free' | 'standard' | 'pro'
   initialStage?: CoauthorStage
 }
 
-export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium, isAdmin, initialStage = 'outline' }: Props) {
+export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium, isAdmin, radarPlan = 'free', initialStage = 'outline' }: Props) {
   const [pages, setPages] = useState<BookPage[]>(initialPages)
   const [stage, setStage] = useState<CoauthorStage>(initialStage)
   const [activeChapterIndex, setActiveChapterIndex] = useState(0)
@@ -277,15 +280,24 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
                 book={book}
                 pages={chapterPages}
                 onPagesChange={(updated) => {
-                  // Merge updated chapter pages back into the full pages state,
-                  // preserving back-matter pages and any image_url values.
-                  const updatedById = Object.fromEntries(updated.map((p) => [p.id, p]))
-                  setPages((prev) => prev.map((p) => {
-                    if (!updatedById[p.id]) return p
-                    const merged = { ...p, ...updatedById[p.id] }
-                    if (!updatedById[p.id].image_url && p.image_url) merged.image_url = p.image_url
-                    return merged
-                  }))
+                  // OutlineStage owns the chapter list (chapter_index >= 0).
+                  // Replace those rows wholesale so insertions/renumbers
+                  // propagate, while preserving back-matter (chapter_index < 0)
+                  // and existing image_url when the updater didn't include one.
+                  setPages((prev) => {
+                    const backMatter = prev.filter((p) => p.chapter_index < 0)
+                    const merged = updated.map((u) => {
+                      const old = prev.find((p) => p.id === u.id)
+                      if (!old) return u
+                      const next = { ...old, ...u }
+                      if (!u.image_url && old.image_url) next.image_url = old.image_url
+                      return next
+                    })
+                    return [...backMatter, ...merged]
+                  })
+                  // Reset the chapter cursor so a stale activeChapterIndex
+                  // can't point past the end after a structural change.
+                  setActiveChapterIndex((idx) => Math.min(idx, Math.max(0, updated.length - 1)))
                 }}
                 onNavigateChapter={navigateChapter}
               />
@@ -321,6 +333,13 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
                     setStage('outline')
                   }
                 }}
+              />
+            )}
+            {stage === 'radar' && (
+              <CreatorRadarStage
+                book={book}
+                plan={radarPlan}
+                onStageChange={setStage}
               />
             )}
             {stage === 'back-matter' && (

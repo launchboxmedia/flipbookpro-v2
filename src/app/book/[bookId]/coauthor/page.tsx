@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { CoauthorShell, type CoauthorStage } from '@/components/coauthor/CoauthorShell'
+import { CoauthorEntry } from '@/components/coauthor/CoauthorEntry'
+import type { CoauthorStage } from '@/components/coauthor/CoauthorShell'
 import { getEffectivePlan } from '@/lib/auth'
 
-const VALID_STAGES: CoauthorStage[] = ['outline', 'chapter', 'back-matter', 'complete']
+const VALID_STAGES: CoauthorStage[] = ['outline', 'radar', 'chapter', 'back-matter', 'complete']
 
 export default async function CoauthorPage({
   params,
@@ -29,12 +30,15 @@ export default async function CoauthorPage({
     : 'outline'
 
   return (
-    <CoauthorShell
+    <CoauthorEntry
       book={book}
       pages={pages ?? []}
       userEmail={user.email ?? ''}
       isPremium={planInfo.plan !== 'free'}
       isAdmin={planInfo.isAdmin}
+      // Creator Radar gates content by plan. Admins see everything,
+      // collapsing to the 'pro' tier from the panel's perspective.
+      radarPlan={planInfo.plan === 'admin' ? 'pro' : planInfo.plan}
       initialStage={initialStage}
     />
   )

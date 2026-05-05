@@ -4,24 +4,26 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
-import { Step1Outline } from './Step1Outline'
+import { Step1Radar } from './Step1Radar'
+import { Step2Persona } from './Step2Persona'
 import { Step2Meta } from './Step2Meta'
-import { Step3Persona } from './Step3Persona'
-import { Step4Tone } from './Step4Tone'
-import { Step5ReaderLevel } from './Step5ReaderLevel'
-import { Step4Style as Step6Style } from './Step4Style'
-import { Step5Cover as Step7Cover } from './Step5Cover'
-import { Step6Typography as Step8Typography } from './Step6Typography'
+import { Step4ToneReader } from './Step4ToneReader'
+import { Step5StyleCover } from './Step5StyleCover'
+import { Step6Typography } from './Step6Typography'
 import { Check } from 'lucide-react'
+import type { RadarResult, CreatorRadarResult } from '@/types/database'
 
+// Step order — 6 steps. Radar runs first, then persona triggers the
+// per-book deep radar in the background, then title / tone / look-and-
+// feel / typography. Setup runs at the end of typography. Chapters
+// aren't collected here anymore — the OutlineStage in coauthor auto-
+// generates them from radar context after the wizard completes.
 const STEPS = [
-  'Outline',
+  'Radar',
+  'Persona',
   'Details',
-  'Audience',
   'Tone',
-  'Reader',
-  'Illustrations',
-  'Cover',
+  'Style',
   'Typography',
 ]
 
@@ -32,6 +34,23 @@ export interface WizardData {
   subtitle: string
   authorName: string
   persona: string
+  // Creator Radar inputs collected on the Audience step. All three are
+  // optional — radar gracefully degrades when they're missing.
+  targetAudience: string
+  /** Only relevant for the `business` persona — used by Firecrawl. */
+  websiteUrl: string
+  /** Only relevant for the `storyteller` persona — drives genre-specific
+   *  comp-title research in the Perplexity prompt. */
+  genre: string
+  // Business-persona-only context. Fed into Creator Radar (sharpens
+  // positioning + monetization advice) and the chapter draft prompt
+  // (informs a persona-appropriate close + lets the model weave proof).
+  /** What the author sells: coaching / course / service / product / consulting / other. */
+  offerType: string
+  /** What they want readers to do after finishing — short free-form. */
+  ctaIntent: string
+  /** Pasted testimonials / social proof. Free-form, capped server-side. */
+  testimonials: string
   vibe: string
   writingTone: string
   readerLevel: number
@@ -40,6 +59,29 @@ export interface WizardData {
   palette: string
   coverDirection: string
   typography: string
+  // ── Step 1 radar context (wizard-session only, NOT persisted) ───────────
+  // The wizard-progress route drops unknown fields, so these never round-
+  // trip to the books row. They live in client memory for the duration of
+  // the wizard so later steps can pre-fill / decorate from the discovery
+  // scan the user just ran.
+  /** Niche / topic the user typed into the Step 1 search field. */
+  niche?: string
+  /** A radar result the user clicked. Free-form string — could be a hot
+   *  signal topic, an evergreen winner, or a hidden gold niche. */
+  radarTopic?: string
+  /** Full shared-discovery radar payload — feeds Step 3 title generation
+   *  and Step 4 audience pre-fill. */
+  radarResults?: CreatorRadarResult
+  /** Step 1 textarea — the user's own description of the book idea.
+   *  Optional companion to / alternative to the radar pick. When set,
+   *  takes priority as the topic that flows into title generation and
+   *  chapter generation; the radar still supplements with market signals. */
+  ideaDescription?: string
+  /** True once the per-book deep Creator Radar has been fired in the
+   *  background by the Audience→Outline transition. Step 4 reads this
+   *  to decide whether to poll for radar results before generating
+   *  chapters. Wizard-session only; never persisted. */
+  deepRadarFired?: boolean
 }
 
 interface WizardShellProps {
@@ -47,9 +89,30 @@ interface WizardShellProps {
   initialData?: Partial<WizardData>
   maxChapters?: number
   initialStep?: number
+  /** Step 1 entry mode. 'scratch' = user describes idea, AI proposes a
+   *  chapter structure; 'upload' (default) = user pastes an outline / TOC,
+   *  AI parses it. Subsequent steps don't depend on mode. */
+  mode?: 'scratch' | 'upload'
+  /** Radar fields from the book row, hydrated by the wizard page. The
+   *  Radar step uses these to decide between auto-firing (first run) and
+   *  hydrating an existing result on re-entry. */
+  initialRadar?: {
+    ranAt:     string | null
+    data:      RadarResult | null
+    appliedAt: string | null
+  }
+  /** Plan tier as Creator Radar sees it. Admin collapses to 'pro' upstream
+   *  in the wizard page so the panel only ever has to handle 3 buckets. */
+  radarPlan?: 'free' | 'standard' | 'pro'
 }
 
-export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep = 0 }: WizardShellProps) {
+export function WizardShell({
+  bookId, initialData, maxChapters = 6, initialStep = 0, mode = 'upload',
+  initialRadar = { ranAt: null, data: null, appliedAt: null },
+  radarPlan = 'free',
+}: WizardShellProps) {
+  // eslint-disable-next-line no-console
+  console.log('[WizardShell] mode:', mode)
   const isEditing = (initialData?.chapters?.length ?? 0) > 0
   const clampedInitial = Math.max(0, Math.min(STEPS.length - 1, initialStep))
   const [step, setStep] = useState(isEditing ? clampedInitial : 0)
@@ -60,6 +123,12 @@ export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep 
     subtitle: '',
     authorName: '',
     persona: '',
+    targetAudience: '',
+    websiteUrl: '',
+    genre: '',
+    offerType: '',
+    ctaIntent: '',
+    testimonials: '',
     vibe: '',
     writingTone: '',
     readerLevel: 5,
@@ -71,13 +140,80 @@ export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep 
     ...initialData,
   })
 
-  function next(patch: Partial<WizardData>) {
-    setData((prev) => ({ ...prev, ...patch }))
+  async function next(patch: Partial<WizardData>) {
+    const merged: WizardData = { ...data, ...patch }
+
+    // Persona (index 1) → Details (index 2) is the special case: the
+    // per-book Creator Radar route reads persona/target_audience/
+    // website_url/etc. directly from the books row, so we have to AWAIT
+    // the wizard-progress save before firing it. After the save lands,
+    // we fire the radar fire-and-forget — the coauthor interstitial
+    // polls for results when the user lands there.
+    const isPersonaToDetails = step === 1
+
+    if (isPersonaToDetails) {
+      // Pre-set deepRadarFired so Step 4 knows to wait. Set it BEFORE
+      // setData/setStep so Step 4's mount effect sees the flag.
+      merged.deepRadarFired = true
+      setData(merged)
+      try {
+        await persistProgress(merged)
+      } catch {
+        // persistProgress already swallows errors; included here so even
+        // an unexpected throw doesn't block step advance.
+      }
+      // Fire and don't await. Stream the SSE to completion in the
+      // background so the result lands in books.creator_radar_data;
+      // Step 4 polls books for that to appear.
+      void fireDeepRadar()
+    } else {
+      setData(merged)
+      void persistProgress(merged)
+    }
+
     setStep((s) => s + 1)
+  }
+
+  /** Background per-book radar trigger. The route streams results as SSE;
+   *  we drain the reader so the route's persistence side-effect runs to
+   *  completion. Errors are silent — radar enhances the outline step but
+   *  doesn't gate it. */
+  async function fireDeepRadar() {
+    try {
+      const res = await fetch(`/api/books/${bookId}/creator-radar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ refresh: false }),
+      })
+      const reader = res.body?.getReader()
+      if (!reader) return
+      // Drain the stream — we don't read the deltas, we just need the
+      // server's persistence path (intelligence_cache + books.creator_
+      // radar_data update) to complete.
+      while (true) {
+        const { done } = await reader.read()
+        if (done) break
+      }
+    } catch {
+      // Silent — Step 4's poll will time out gracefully and proceed
+      // without per-book context.
+    }
   }
 
   function back() {
     setStep((s) => Math.max(0, s - 1))
+  }
+
+  async function persistProgress(d: WizardData) {
+    try {
+      await fetch(`/api/books/${bookId}/wizard-progress`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(d),
+      })
+    } catch {
+      // Silent — the next step transition tries again with the latest state.
+    }
   }
 
   return (
@@ -158,14 +294,12 @@ export function WizardShell({ bookId, initialData, maxChapters = 6, initialStep 
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="bg-cream-1 border border-cream-3 rounded-2xl p-9 shadow-[0_28px_60px_-24px_rgba(0,0,0,0.55)] ring-1 ring-gold/15"
             >
-              {step === 0 && <Step1Outline data={data} onNext={next} maxChapters={maxChapters} />}
-              {step === 1 && <Step2Meta data={data} onNext={next} onBack={back} />}
-              {step === 2 && <Step3Persona data={data} onNext={next} onBack={back} />}
-              {step === 3 && <Step4Tone data={data} onNext={next} onBack={back} />}
-              {step === 4 && <Step5ReaderLevel data={data} onNext={next} onBack={back} />}
-              {step === 5 && <Step6Style data={data} onNext={next} onBack={back} />}
-              {step === 6 && <Step7Cover data={data} onNext={next} onBack={back} />}
-              {step === 7 && <Step8Typography data={data} bookId={bookId} onBack={back} />}
+              {step === 0 && <Step1Radar       data={data} onNext={next} mode={mode} />}
+              {step === 1 && <Step2Persona     data={data} onNext={next} onBack={back} />}
+              {step === 2 && <Step2Meta        data={data} bookId={bookId} onNext={next} onBack={back} />}
+              {step === 3 && <Step4ToneReader  data={data} onNext={next} onBack={back} />}
+              {step === 4 && <Step5StyleCover  data={data} onNext={next} onBack={back} />}
+              {step === 5 && <Step6Typography  data={data} bookId={bookId} onBack={back} />}
             </motion.div>
           </AnimatePresence>
         </div>

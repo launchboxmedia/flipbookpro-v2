@@ -37,6 +37,32 @@
 export const WORDS_PER_PAGE = 180
 export const FIRST_PAGE_BUDGET = 125
 
+/**
+ * The viewer renders acronym blocks (e.g.
+ *
+ *     C — Control Payment History
+ *     R — Reduce and Optimize Utilization
+ *     …
+ *
+ * detected at render time) with 26-px display letters and per-row gaps. The
+ * letter column eats ~14% of the line width, so definitions wrap more
+ * aggressively than prose, and each row carries an extra 6 px of vertical
+ * gap. Without this weighting the paginator packs prose around the block
+ * and the body container's `overflow: hidden` silently clips the last
+ * sentence on the page.
+ *
+ * Cost model:
+ *   • Prose words inside the entries × 1.4 (extra wrapping in narrower col)
+ *   • + lines.length * ACRONYM_ENTRY_GAP_COST (per-row vertical gap)
+ *   • Floor at lines.length * ACRONYM_MIN_ENTRY_COST so a block of short
+ *     labels still consumes meaningful budget.
+ */
+const ACRONYM_ENTRY_GAP_COST = 4
+const ACRONYM_MIN_ENTRY_COST = 14
+const ACRONYM_WRAP_MULTIPLIER = 1.4
+
+const ACRONYM_LINE_RE = /^\s*[A-Z]\.?\s*[-–—]\s*\S+/
+
 interface PaginateOptions {
   /** Words on the first page of a chapter (drop cap + chapter header eat
    *  vertical space, so the budget is smaller). */
@@ -81,6 +107,19 @@ export function paginateText(content: string, opts: PaginateOptions = {}): strin
   }
 
   for (const paragraph of paragraphs) {
+    // Acronym blocks render with a vertical-list layout that costs much more
+    // visual height than the word count suggests. Treat them as atomic so
+    // they can't be split, and charge per-entry rather than per-word.
+    const acronymCost = acronymBlockCost(paragraph)
+    if (acronymCost !== null) {
+      if (pageWords + acronymCost > budget() && pageBuf.length > 0) {
+        flushPage()
+      }
+      pageBuf.push(paragraph)
+      pageWords += acronymCost
+      continue
+    }
+
     const sentences = splitSentences(paragraph)
 
     // Within this paragraph, accumulate sentences into a sub-buffer. When we
@@ -156,4 +195,25 @@ function splitSentences(text: string): string[] {
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+/**
+ * If the paragraph is structured as an acronym block (every line is
+ * `<single uppercase letter><dash><definition>` with at least 2 entries),
+ * return its visual-weight cost. Otherwise return null.
+ *
+ * Mirrors the detection in lib/acronymBlock.ts — kept inline to avoid
+ * coupling pagination to the renderer's data shape. The two regexes must
+ * stay in sync.
+ */
+function acronymBlockCost(paragraph: string): number | null {
+  const lines = paragraph.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length < 2) return null
+  for (const line of lines) {
+    if (!ACRONYM_LINE_RE.test(line)) return null
+  }
+  const words = countWords(paragraph)
+  const wrapped = Math.round(words * ACRONYM_WRAP_MULTIPLIER) + lines.length * ACRONYM_ENTRY_GAP_COST
+  const floor = lines.length * ACRONYM_MIN_ENTRY_COST
+  return Math.max(wrapped, floor)
 }

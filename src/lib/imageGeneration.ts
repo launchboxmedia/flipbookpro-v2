@@ -237,7 +237,13 @@ ${briefs.length > 0 ? briefs.map((b, i) => `${i + 1}. ${b}`).join('\n') : '(no c
 // bar). Fallback: Google Imagen 4 if OPENAI_API_KEY is missing OR if the
 // gpt-image call fails.
 
-export type AspectRatio = '16:9' | '1:1' | '3:4' | '4:3' | '9:16'
+// '2:3' is the standard book-cover proportion (e.g. Amazon KDP, IngramSpark
+// all want 1.5× height-to-width). gpt-image-2 hits it exactly via
+// 1024×1536; Imagen 4 doesn't accept '2:3' as a value, so the Imagen path
+// silently substitutes the closest portrait ratio it does support ('3:4').
+// Callers should treat '2:3' as semantically "book cover" — the precise
+// pixel ratio differs between providers but both produce portrait covers.
+export type AspectRatio = '16:9' | '1:1' | '2:3' | '3:4' | '4:3' | '9:16'
 export type GptImageSize = '1024x1024' | '1024x1536' | '1536x1024'
 export type PersonGeneration = 'ALLOW_ADULT' | 'DONT_ALLOW'
 
@@ -245,8 +251,21 @@ const ASPECT_TO_GPT_SIZE: Record<AspectRatio, GptImageSize> = {
   '16:9':  '1536x1024',
   '4:3':   '1536x1024',
   '1:1':   '1024x1024',
+  '2:3':   '1024x1536',
   '3:4':   '1024x1536',
   '9:16':  '1024x1536',
+}
+
+// Imagen 4 supports a fixed list of aspect ratios — '2:3' is not on it.
+// For our purposes the closest portrait substitute is '3:4'.
+type ImagenAspectRatio = Exclude<AspectRatio, '2:3'>
+const ASPECT_TO_IMAGEN: Record<AspectRatio, ImagenAspectRatio> = {
+  '16:9': '16:9',
+  '4:3':  '4:3',
+  '1:1':  '1:1',
+  '2:3':  '3:4',
+  '3:4':  '3:4',
+  '9:16': '9:16',
 }
 
 export interface ImagenOptions {
@@ -334,6 +353,11 @@ export async function generateWithImagen(
   const aspectRatio = opts.aspectRatio ?? '16:9'
   const personGeneration = opts.personGeneration ?? 'ALLOW_ADULT'
 
+  // Imagen 4 doesn't accept '2:3' — substitute the closest portrait
+  // ratio it supports. gpt-image-2 hits 2:3 exactly via 1024×1536, so
+  // this fallback only affects the secondary provider.
+  const imagenAspectRatio = ASPECT_TO_IMAGEN[aspectRatio]
+
   const url = `${IMAGEN_API_URL}?key=${apiKey}`
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -352,7 +376,7 @@ export async function generateWithImagen(
           instances: [{ prompt }],
           parameters: {
             sampleCount: 1,
-            aspectRatio,
+            aspectRatio: imagenAspectRatio,
             personGeneration,
           },
         }),

@@ -41,7 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const flags: CheckFlag[] = []
-  const chapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
+  const chapters = (pages ?? []).filter((p) => p.chapter_index >= 0 && p.chapter_index < 99)
+  const ctaChapter = (pages ?? []).find((p) => p.chapter_index === 99)
 
   // ── Deterministic blockers ────────────────────────────────────────────────
 
@@ -95,6 +96,18 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   }
   if (!book.back_cover_description || book.back_cover_description.trim().length < 30) {
     flags.push({ category: 'BRAND', severity: 'warning', message: 'Back-cover description is missing or very short.', suggestion: 'Add a 2-sentence description in the Back Matter step. It\'s used for the published page metadata.' })
+  }
+  // CTA chapter without a destination URL — the closing chapter asks the
+  // reader to take an action with nowhere to go. Warn (not block) so the
+  // author can still publish without a link if they intentionally want to
+  // route readers via prose alone.
+  if (ctaChapter && (!book.back_cover_cta_url || book.back_cover_cta_url.trim() === '')) {
+    flags.push({
+      category: 'BRAND',
+      severity: 'warning',
+      message: 'Closing CTA chapter has no destination URL.',
+      suggestion: 'Set a CTA URL on the Publish step, or remove the CTA chapter from your outline.',
+    })
   }
 
   // ── AI consistency check (only if we passed the basics) ──────────────────

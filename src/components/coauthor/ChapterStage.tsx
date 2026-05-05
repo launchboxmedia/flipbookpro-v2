@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload } from 'lucide-react'
-import type { Book, BookPage } from '@/types/database'
+import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload, FlaskConical, ExternalLink } from 'lucide-react'
+import type { Book, BookPage, ResearchCitation } from '@/types/database'
 import type { ImageStatus } from './CoauthorShell'
 import { STYLE_OPTIONS } from '@/lib/imageStyles'
 import { PALETTES } from '@/lib/palettes'
@@ -93,6 +93,18 @@ export function ChapterStage({
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [applyingFlag, setApplyingFlag] = useState<number | null>(null)
   const [analyzeError, setAnalyzeError] = useState('')
+  // Research panel state. Hydrated from page.research_facts on mount so a
+  // chapter that's already been researched re-shows the panel collapsed
+  // when navigating between chapters.
+  const [researchFacts,     setResearchFacts]     = useState<string[]>(
+    page?.research_facts ? page.research_facts.split('\n').filter(Boolean) : [],
+  )
+  const [researchCitations, setResearchCitations] = useState<ResearchCitation[]>(
+    page?.research_citations ?? [],
+  )
+  const [researchOpen,    setResearchOpen]    = useState(false)
+  const [researching,     setResearching]     = useState(false)
+  const [researchError,   setResearchError]   = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -104,13 +116,41 @@ export function ChapterStage({
     setDismissedFlags(new Set())
     setHasAnalyzed(false)
     setAnalyzeError('')
-  }, [page?.id])
+    // Re-hydrate research from the new page; reset open + error state so
+    // moving between chapters doesn't carry over a previous chapter's panel.
+    setResearchFacts(page?.research_facts ? page.research_facts.split('\n').filter(Boolean) : [])
+    setResearchCitations(page?.research_citations ?? [])
+    setResearchOpen(false)
+    setResearchError('')
+  }, [page?.id, page?.research_facts, page?.research_citations])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   async function generateDraft() {
+    if (generating) return
+    // If the chapter is approved, unapprove first. Approval locks the
+    // textarea and the server treats approved chapters as canonical, so
+    // we have to release that lock before streaming a replacement.
+    if (approved) {
+      try {
+        const res = await fetch(`/api/books/${book.id}/approve-chapter`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: page.id, approved: false }),
+        })
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}))
+          throw new Error(json.error ?? `Unapprove failed (${res.status})`)
+        }
+        setApproved(false)
+        onPageUpdate({ id: page.id, approved: false })
+      } catch (e) {
+        console.error('[generateDraft] auto-unapprove failed', e)
+        return
+      }
+    }
     setGenerating(true)
     setDraft('')
     try {
@@ -234,6 +274,38 @@ export function ChapterStage({
     const file = e.target.files?.[0]
     if (file) onUploadImage(file)
     e.target.value = ''
+  }
+
+  async function runResearch() {
+    if (researching) return
+    setResearching(true)
+    setResearchError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/research-chapter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapterIndex: page.chapter_index }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Research failed (${res.status})`)
+      const facts = Array.isArray(json.facts) ? (json.facts as string[]) : []
+      const cits  = Array.isArray(json.citations) ? (json.citations as ResearchCitation[]) : []
+      setResearchFacts(facts)
+      setResearchCitations(cits)
+      setResearchOpen(true)
+      // Reflect saved research locally so the next page edit doesn't wipe
+      // the panel state during a re-render.
+      onPageUpdate({
+        id: page.id,
+        research_facts: facts.join('\n'),
+        research_citations: cits,
+      })
+    } catch (e) {
+      setResearchError(e instanceof Error ? e.message : 'Research failed')
+      setResearchOpen(true)
+    } finally {
+      setResearching(false)
+    }
   }
 
   async function runAnalysis() {
@@ -411,12 +483,28 @@ export function ChapterStage({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={runResearch}
+              disabled={researching}
+              title="Pull verified facts + sources for this chapter"
+              className="flex items-center gap-2 px-3 py-2 border border-gold/50 hover:border-gold text-gold-dim hover:text-gold-dim/80 text-sm font-inter rounded-md transition-colors disabled:opacity-50 press-scale"
+            >
+              {researching
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <FlaskConical className="w-4 h-4" />}
+              {researching
+                ? 'Researching…'
+                : researchFacts.length > 0
+                  ? 'Re-research'
+                  : 'Research Facts'}
+            </button>
+            <button
               onClick={generateDraft}
-              disabled={generating || approved}
+              disabled={generating}
+              title={approved ? 'Unapproves and regenerates this chapter' : undefined}
               className="flex items-center gap-2 px-4 py-2 bg-ink-1 hover:bg-ink-2 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-              {generating ? 'Generating…' : 'Generate Draft'}
+              {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
             </button>
             <button
               onClick={runAnalysis}
@@ -447,6 +535,77 @@ export function ChapterStage({
           {analyzeError && (
             <div className="mb-4 px-3 py-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-inter">
               {analyzeError}
+            </div>
+          )}
+
+          {/* Research panel — shows when researchOpen OR when there's an error
+              to surface. Hidden by default after navigation; user expands it
+              by clicking Research. The "Generate Draft with Research" button
+              calls the same generateDraft() — research_facts is already saved
+              to the page row, so the draft route picks it up automatically. */}
+          {(researchOpen || researchError) && (
+            <div className="mb-6 bg-ink-2 border border-ink-3 rounded-xl p-4 text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4 text-gold" />
+                  <p className="font-inter font-semibold text-cream-1 text-sm tracking-wide uppercase">Research Facts</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResearchOpen(false)}
+                  className="text-cream-1/50 hover:text-cream-1 transition-colors"
+                  aria-label="Close research panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {researchError && (
+                <p className="text-rose-300 text-xs font-inter mb-3">{researchError}</p>
+              )}
+
+              {researchFacts.length > 0 && (
+                <ul className="space-y-2 mb-4">
+                  {researchFacts.map((fact, i) => (
+                    <li key={i} className="flex gap-2 text-xs leading-relaxed font-source-serif text-cream-1/85">
+                      <span className="text-gold mt-1 shrink-0">•</span>
+                      <span>{fact}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {researchCitations.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[11px] font-inter font-medium text-cream-1/55 uppercase tracking-wider mb-2">Sources</p>
+                  <div className="flex flex-wrap gap-2">
+                    {researchCitations.map((c, i) => (
+                      <a
+                        key={i}
+                        href={c.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-3 hover:bg-ink-4 border border-ink-4 text-gold hover:text-gold-soft text-[11px] font-inter transition-colors"
+                      >
+                        {c.title}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {researchFacts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={generateDraft}
+                  disabled={generating}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-xs rounded-md transition-colors disabled:opacity-50"
+                >
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                  {generating ? 'Generating…' : 'Generate Draft with Research'}
+                </button>
+              )}
             </div>
           )}
 

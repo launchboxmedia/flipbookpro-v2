@@ -9,6 +9,16 @@ const MAX_AUTHOR = 120
 const MAX_CHAPTER_TITLE = 200
 const MAX_CHAPTER_BRIEF = 1000
 const MAX_CHAPTERS = 30
+// Creator Radar inputs — generous caps so users can be specific without
+// blowing out the Perplexity prompt.
+const MAX_TARGET_AUDIENCE = 500
+const MAX_WEBSITE_URL = 500
+const MAX_GENRE = 80
+// Business-persona context — generous on testimonials so authors can paste
+// a few full quotes; offer/CTA stay short.
+const MAX_OFFER_TYPE = 50
+const MAX_CTA_INTENT = 200
+const MAX_TESTIMONIALS = 2000
 
 interface ChapterInput {
   title: string
@@ -65,12 +75,23 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid palette.' }, { status: 400 })
   }
 
-  const chapters = validateChapters(body.chapters)
-  if (!chapters) {
-    return NextResponse.json(
-      { error: `Provide between 1 and ${MAX_CHAPTERS} chapters.` },
-      { status: 400 },
-    )
+  // Chapters are now optional — the new wizard doesn't collect chapters
+  // before /setup runs (the OutlineStage in coauthor auto-generates them
+  // from radar context). Treat any of the following as "skip the
+  // book_pages step entirely":
+  //   - field absent / null
+  //   - empty array
+  // When the caller sends a non-empty array, validate strictly so we
+  // don't accept malformed payloads silently.
+  let chapters: ChapterInput[] | null = null
+  if (Array.isArray(body.chapters) && body.chapters.length > 0) {
+    chapters = validateChapters(body.chapters)
+    if (!chapters) {
+      return NextResponse.json(
+        { error: `Provide between 1 and ${MAX_CHAPTERS} chapters, or omit the field entirely.` },
+        { status: 400 },
+      )
+    }
   }
 
   const readerLevelRaw = typeof body.readerLevel === 'number' ? body.readerLevel : 5
@@ -91,6 +112,19 @@ export async function POST(
       palette,
       cover_direction: clampString(body.coverDirection, 50),
       typography:      clampString(body.typography, 50),
+      // Creator Radar inputs. Persona-conditional fields (website_url for
+      // business, genre for storyteller) come through cleared by the wizard
+      // when the persona doesn't match — clampString turns empty strings
+      // into nulls automatically.
+      target_audience: clampString(body.targetAudience, MAX_TARGET_AUDIENCE),
+      website_url:     clampString(body.websiteUrl,    MAX_WEBSITE_URL),
+      genre:           clampString(body.genre,         MAX_GENRE),
+      // Business-persona-only context. The wizard clears these when persona
+      // !== 'business', so clampString turns empty input into NULLs and
+      // non-business books stay clean.
+      offer_type:      clampString(body.offerType,    MAX_OFFER_TYPE),
+      cta_intent:      clampString(body.ctaIntent,    MAX_CTA_INTENT),
+      testimonials:    clampString(body.testimonials, MAX_TESTIMONIALS),
       status:          'draft',
       updated_at:      new Date().toISOString(),
     })
@@ -106,6 +140,13 @@ export async function POST(
   // counter drift can be diagnosed.
   const { error: incError } = await supabase.rpc('increment_books_created', { user_id_input: user.id })
   if (incError) console.error('[setup] increment_books_created failed', incError.message)
+
+  // Chapters block — runs only when the caller sent a chapters array.
+  // The new wizard skips this entirely; the OutlineStage in coauthor
+  // generates chapters from radar context after setup completes.
+  if (chapters === null) {
+    return NextResponse.json({ ok: true })
+  }
 
   // Replace chapters: fetch existing first so we can preserve content/approval/image
   // for unchanged indices, then batch-upsert in a single round-trip.

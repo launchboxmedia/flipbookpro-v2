@@ -9,9 +9,15 @@ export default async function PublishPage({ params }: { params: { bookId: string
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: book }, { data: published }, planInfo] = await Promise.all([
+  const [{ data: book }, { data: published }, { data: profile }, { count: ctaCount }, planInfo] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
     supabase.from('published_books').select('*').eq('book_id', params.bookId).maybeSingle(),
+    supabase.from('profiles').select('stripe_connect_id').eq('id', user.id).maybeSingle(),
+    supabase
+      .from('book_pages')
+      .select('id', { count: 'exact', head: true })
+      .eq('book_id', params.bookId)
+      .eq('chapter_index', 99),
     getEffectivePlan(supabase, user.id),
   ])
 
@@ -24,7 +30,12 @@ export default async function PublishPage({ params }: { params: { bookId: string
       isAdmin={planInfo.isAdmin}
       pageTitle={`Publish · ${book.title}`}
     >
-      <PublishPanel book={book} publishedBook={published ?? null} />
+      <PublishPanel
+        book={book}
+        publishedBook={published ?? null}
+        hasStripeConnect={!!profile?.stripe_connect_id}
+        hasCtaChapter={(ctaCount ?? 0) > 0}
+      />
     </AppShell>
   )
 }

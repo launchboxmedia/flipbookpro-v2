@@ -4,19 +4,47 @@ import { useState } from 'react'
 import Link from 'next/link'
 import type { WizardData } from './WizardShell'
 import { Loader2, Trash2, Plus, ArrowRight } from 'lucide-react'
+import { Step1Scratch } from './Step1Scratch'
 
 interface Props {
   data: WizardData
+  /** Required in scratch mode now that Step 4 polls for the per-book
+   *  radar; harmless in upload mode (the upload branch ignores it). */
+  bookId: string
   onNext: (patch: Partial<WizardData>) => void
+  /** Optional in the legacy first-step shape; required now that the
+   *  radar step sits before this one. WizardShell always passes it. */
+  onBack?: () => void
   maxChapters?: number
+  /** 'scratch' = user describes the idea, Claude generates a suggested
+   *  chapter structure. 'upload' = user pastes an existing outline,
+   *  Claude parses it. Default is 'upload' for backward-compat with the
+   *  edit-existing-book flow. */
+  mode?: 'scratch' | 'upload'
 }
 
-export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
+export function Step1Outline({ data, bookId, onNext, onBack, maxChapters = 6, mode = 'upload' }: Props) {
+  // eslint-disable-next-line no-console
+  console.log('[Step1Outline] mode:', mode)
+  // Scratch mode is a wholly different experience (problem-statement +
+  // optional radar insight card from Step 1). Dispatch to the dedicated
+  // component so the upload/edit path below stays untouched.
+  if (mode === 'scratch') {
+    return <Step1Scratch data={data} bookId={bookId} onNext={onNext} onBack={onBack} maxChapters={maxChapters} />
+  }
+
   const [outline, setOutline] = useState(data.outline)
   const [chapters, setChapters] = useState<Array<{ title: string; brief: string }>>(data.chapters)
   const [detecting, setDetecting] = useState(false)
   const [error, setError] = useState('')
   const [detected, setDetected] = useState(chapters.length > 0)
+
+  const heading     = 'Your Outline'
+  const description = 'Paste your table of contents or chapter outline. Claude will detect the chapters automatically.'
+  const placeholder = 'Chapter 1: The Foundation\nChapter 2: Building Momentum\n...'
+  const detectButton = 'Detect Chapters with AI'
+  const detectingLabel = 'Detecting chapters…'
+  const chapterListHeading = `${chapters.length} chapter${chapters.length !== 1 ? 's' : ''} detected`
 
   async function detectChapters() {
     if (!outline.trim()) {
@@ -29,7 +57,7 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
       const res = await fetch('/api/detect-chapters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ outline }),
+        body: JSON.stringify({ outline, mode: 'upload' }),
       })
       if (!res.ok && res.headers.get('content-type')?.includes('text/html')) {
         throw new Error(`Server error ${res.status}`)
@@ -74,16 +102,16 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-playfair text-2xl text-ink-1 mb-1">Your Outline</h2>
+        <h2 className="font-playfair text-2xl text-ink-1 mb-1">{heading}</h2>
         <p className="text-ink-1/60 text-sm font-source-serif">
-          Paste your table of contents or chapter outline. Claude will detect the chapters automatically.
+          {description}
         </p>
       </div>
 
       <textarea
         value={outline}
         onChange={(e) => setOutline(e.target.value)}
-        placeholder="Chapter 1: The Foundation&#10;Chapter 2: Building Momentum&#10;..."
+        placeholder={placeholder}
         rows={8}
         className="w-full px-3 py-3 rounded-md bg-white border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
       />
@@ -97,20 +125,20 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
           className="flex items-center gap-2 px-4 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-60"
         >
           {detecting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {detecting ? 'Detecting chapters...' : 'Detect Chapters with AI'}
+          {detecting ? detectingLabel : detectButton}
         </button>
       )}
 
       {chapters.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-4">
             <h3 className="font-inter text-sm font-medium text-ink-1/80">
-              {chapters.length} chapter{chapters.length !== 1 ? 's' : ''} detected
+              {chapterListHeading}
             </h3>
             <button
               onClick={detectChapters}
               disabled={detecting}
-              className="text-xs text-ink-1/60 hover:text-gold font-inter transition-colors"
+              className="text-xs text-ink-1/60 hover:text-gold font-inter transition-colors whitespace-nowrap shrink-0"
             >
               Re-detect
             </button>
@@ -169,7 +197,15 @@ export function Step1Outline({ data, onNext, maxChapters = 6 }: Props) {
         </div>
       )}
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-between pt-2">
+        {onBack ? (
+          <button
+            onClick={onBack}
+            className="px-4 py-2.5 text-ink-1/60 hover:text-ink-1 font-inter text-sm transition-colors"
+          >
+            Back
+          </button>
+        ) : <span />}
         <button
           onClick={handleNext}
           disabled={chapters.length === 0}

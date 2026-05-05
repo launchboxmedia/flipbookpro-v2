@@ -63,10 +63,27 @@ export function BookCard({ book, chapterCount }: { book: Book; chapterCount: num
           </span>
         </div>
 
+        {/* Missing-cover nudge — visual reminder that publishing is blocked
+            without a cover. Clicking the card still navigates as normal;
+            this is just a passive cue. */}
+        {!book.cover_image_url && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-inter font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              No cover
+            </span>
+          </div>
+        )}
+
         {/* Quick actions on hover */}
         <div className={`absolute bottom-3 left-3 right-3 z-10 flex gap-2 transition-all duration-300 ${hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
           <Link
-            href={`/book/${book.id}/coauthor`}
+            // Same wizard-not-finalised gate as ContinueWorking — without
+            // visual_style the wizard hasn't run /setup, so the coauthor
+            // view would be empty. Send the user back to finish.
+            href={book.visual_style
+              ? `/book/${book.id}/coauthor`
+              : `/book/${book.id}/wizard`}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-lg transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5" />

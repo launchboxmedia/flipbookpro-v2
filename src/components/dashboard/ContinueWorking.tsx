@@ -70,7 +70,13 @@ export function ContinueWorking({ book, chapterCount }: Props) {
 
           <div className="flex items-center gap-2">
             <Link
-              href={`/book/${book.id}/coauthor`}
+              // Wizard hasn't finalised setup until visual_style is set
+              // (the /setup route gates on it). Until then, Resume goes
+              // back to the wizard so the user can finish — otherwise
+              // we'd land them on the coauthor view of an empty book.
+              href={book.visual_style
+                ? `/book/${book.id}/coauthor`
+                : `/book/${book.id}/wizard`}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter text-sm font-semibold rounded-lg shadow-[0_4px_18px_-6px_rgba(201,168,76,0.5)] transition-colors press-scale"
             >
               Resume

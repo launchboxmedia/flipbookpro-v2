@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { WizardData } from './WizardShell'
 import { PALETTES, type PaletteId } from '@/lib/palettes'
 
-const STYLES = [
+export const STYLES = [
   {
     id: 'watercolor',
     label: 'Watercolor',

@@ -196,7 +196,7 @@ function StudioProductCover() {
   )
 }
 
-const COVER_DIRECTIONS = [
+export const COVER_DIRECTIONS = [
   {
     id: 'bold_operator',
     label: 'Bold Operator',
