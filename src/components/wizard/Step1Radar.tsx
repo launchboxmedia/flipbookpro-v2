@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Loader2, Search, RefreshCw, ArrowRight, Sparkles,
-  TrendingUp, Star, Target, X, Pin,
+  TrendingUp, Star, Target, X, Pin, AlertTriangle,
 } from 'lucide-react'
 import type { WizardData } from './WizardShell'
 import type { CreatorRadarResult } from '@/types/database'
@@ -41,8 +41,16 @@ export function Step1Radar({ data, onNext }: Props) {
   const [scanning, setScanning]           = useState(false)
   const [radarResult, setRadarResult]     = useState<CreatorRadarResult | null>(data.radarResults ?? null)
   const [radarError, setRadarError]       = useState('')
+  /** True when the route returned errorType: 'service_unavailable'. We
+   *  render an inline retry path instead of the standard error string so
+   *  the user gets one tap to retry without re-typing their topic. */
+  const [serviceUnavailable, setServiceUnavailable] = useState(false)
   const [refreshNonce, setRefreshNonce]   = useState(0)
   const [scanStep, setScanStep]           = useState<0 | 1 | 2 | 3>(0)
+  /** When the result is low-opportunity, the columns stay hidden behind a
+   *  pivot prompt until the user explicitly opts to see "adjacent
+   *  opportunities". This flag tracks that opt-in. */
+  const [pivotRevealed, setPivotRevealed] = useState(false)
 
   // Picked radar finding (clicked from one of the three columns) —
   // surfaces as a removable pill above the Continue button.
@@ -113,21 +121,22 @@ export function Step1Radar({ data, onNext }: Props) {
   /** Run the Creator Radar against a topic. When `overrideTopic` is set we
    *  use it directly (auto-scan path triggered from Continue with only a
    *  description filled in); otherwise we use the niche field. Returns
-   *  `true` on success so the caller can chain a follow-up action like
-   *  auto-advancing the wizard. */
-  /** Run the Creator Radar against a topic. When `overrideTopic` is set we
-   *  use it directly (auto-scan path triggered from Continue with only a
-   *  description filled in); otherwise we use the niche field. Returns
-   *  `true` on success so the caller can chain a follow-up action like
-   *  auto-advancing the wizard. */
-  async function runRadar(nonce?: number, overrideTopic?: string): Promise<boolean> {
+   *  the parsed result on success, or null on failure (validation,
+   *  service-unavailable, or any other error). Callers that only care
+   *  about success/failure can coerce `!== null`; callers that need to
+   *  branch on `low_opportunity` read the field off the returned result. */
+  async function runRadar(nonce?: number, overrideTopic?: string): Promise<CreatorRadarResult | null> {
     const topic = (overrideTopic ?? niche).trim()
     if (topic.length < 2) {
       setRadarError('Type a topic first.')
-      return false
+      return null
     }
     setScanning(true)
     setRadarError('')
+    setServiceUnavailable(false)
+    // A new scan invalidates whatever pivot state was showing — the result
+    // we're about to receive may or may not be low-opportunity.
+    setPivotRevealed(false)
     try {
       const res = await fetch('/api/creator-radar', {
         method:  'POST',
@@ -135,12 +144,21 @@ export function Step1Radar({ data, onNext }: Props) {
         body:    JSON.stringify({ topic, refreshNonce: nonce ?? undefined }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error ?? `Scan failed (${res.status})`)
-      setRadarResult(json as CreatorRadarResult)
-      return true
+      // 503 with errorType: 'service_unavailable' is the canonical
+      // upstream-failure signal. We surface a focused retry UI, not an
+      // error string in the corner.
+      if (res.status === 503 && json?.errorType === 'service_unavailable') {
+        setServiceUnavailable(true)
+        setRadarResult(null)
+        return null
+      }
+      if (!res.ok) throw new Error(json?.error ?? `Scan failed (${res.status})`)
+      const result = json as CreatorRadarResult
+      setRadarResult(result)
+      return result
     } catch (e) {
       setRadarError(e instanceof Error ? e.message : 'Scan failed')
-      return false
+      return null
     } finally {
       setScanning(false)
     }
@@ -160,6 +178,19 @@ export function Step1Radar({ data, onNext }: Props) {
 
   function clearPick() {
     setPickedTopic('')
+  }
+
+  /** "Try a different topic" handler from the pivot prompt. Drops the
+   *  result entirely and refocuses the niche input so the user can type
+   *  a fresh topic without scrolling back up. */
+  function tryDifferentTopic() {
+    setRadarResult(null)
+    setPivotRevealed(false)
+    setRadarError('')
+    setNiche('')
+    // Defer focus so the disabled→enabled state on the input has time to
+    // settle from the scanning state changes above.
+    setTimeout(() => nicheRef.current?.focus(), 50)
   }
 
   /** Commit wizard state and advance to the next step. Pure — does not
@@ -197,22 +228,27 @@ export function Step1Radar({ data, onNext }: Props) {
       commitContinue()
       return
     }
-    // Auto-scan path — description has 30+ chars but no scan yet. Run the
-    // radar with the description as the topic, briefly show the results,
-    // then advance.
+    // Auto-scan path — description has 30+ chars but no scan yet. Run
+    // the radar with the description as the topic. Behavior splits on
+    // the result:
+    //   • low_opportunity → stop here and let the pivot prompt do its
+    //     job. Auto-advancing past it would defeat the entire point.
+    //   • normal opportunity → hold on the results for ~2.5s so the user
+    //     sees what was found, then advance.
     if (trimmedDescription.length >= MIN_DESCRIPTION_LENGTH) {
       setContinuingViaScan(true)
-      const ok = await runRadar(undefined, trimmedDescription)
-      if (!ok) {
+      const result = await runRadar(undefined, trimmedDescription)
+      if (!result) {
         setContinuingViaScan(false)
         return
       }
-      // Hold on the results for ~2.5s so the user sees what was found
-      // before the page transitions to Step 2. Long enough to register the
-      // three columns; short enough not to feel like waiting.
+      if (result.low_opportunity) {
+        setContinuingViaScan(false)
+        return
+      }
       await new Promise<void>((resolve) => setTimeout(resolve, 2500))
       setContinuingViaScan(false)
-      commitContinue()
+      commitContinue(result)
     }
   }
 
@@ -263,7 +299,27 @@ export function Step1Radar({ data, onNext }: Props) {
           </button>
         </div>
 
-        {radarError && (
+        {/* Service-unavailable inline state: the route returned 503 (no
+            mock data anymore). Honest copy + one-tap retry — no amber
+            banner pretending the result is real. */}
+        {serviceUnavailable && (
+          <div className="flex flex-col items-center gap-2 py-3">
+            <p className="text-ink-subtle text-sm font-inter">
+              Market research is unavailable right now.
+            </p>
+            <button
+              type="button"
+              onClick={() => void runRadar()}
+              disabled={scanning || niche.trim().length < 2}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gold/60 hover:bg-gold/10 text-gold-dim font-inter font-medium text-xs rounded-md transition-colors disabled:opacity-40"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {radarError && !serviceUnavailable && (
           <p className="text-red-500 text-xs font-inter">{radarError}</p>
         )}
 
@@ -283,17 +339,60 @@ export function Step1Radar({ data, onNext }: Props) {
           </div>
         )}
 
-        {/* RESULTS — three columns */}
-        {radarResult && (
-          <div className="space-y-3 pt-2">
-            {radarResult.is_mock && (
-              <p className="text-amber-700 text-[11px] font-inter italic">
-                Live research is unavailable right now — showing illustrative ideas. Refresh to retry.
+        {/* PIVOT PROMPT — shown when the route flagged the topic as
+            low-opportunity AND the user hasn't opted to see the results
+            yet. This intentionally gates the columns: dumping low scores
+            on a user without context feels like a failure, but framed as
+            a pivot it's actionable. */}
+        {radarResult && radarResult.low_opportunity && !pivotRevealed && (
+          <div className="bg-ink-3/5 border border-ink-4/30 border-l-2 border-l-amber-400 rounded-lg p-5 space-y-4">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="font-inter font-semibold text-ink-1 text-sm leading-snug">
+                Limited book market for this topic
               </p>
-            )}
+            </div>
+
+            <p className="text-ink-1/80 font-source-serif text-sm leading-relaxed">
+              <span className="italic text-ink-1">
+                &ldquo;{radarResult.pivot_topic ?? niche.trim()}&rdquo;
+              </span>{' '}
+              has limited reader demand as a standalone book.
+            </p>
+
+            <p className="text-ink-1/80 font-source-serif text-sm leading-relaxed">
+              We found some adjacent opportunities that do have buyers.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setPivotRevealed(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-gold hover:bg-gold/10 text-gold-dim font-inter font-semibold text-sm rounded-md transition-colors"
+              >
+                Show Adjacent Opportunities <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={tryDifferentTopic}
+                className="inline-flex items-center justify-center px-4 py-2 text-ink-subtle hover:text-ink-1 font-inter text-sm transition-colors"
+              >
+                Try a different topic
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* RESULTS — three columns. Hidden behind the pivot prompt when
+            the result is low-opportunity until the user explicitly
+            reveals it. */}
+        {radarResult && (!radarResult.low_opportunity || pivotRevealed) && (
+          <div className="space-y-3 pt-2">
             <div className="flex items-start justify-between gap-3">
               <p className="text-[10px] font-inter font-semibold text-ink-1/70 uppercase tracking-[0.15em]">
-                Market scan results — pick a topic or refine below
+                {radarResult.low_opportunity
+                  ? 'Adjacent opportunities in this space'
+                  : 'Market scan results — pick a topic or refine below'}
               </p>
               <button
                 type="button"

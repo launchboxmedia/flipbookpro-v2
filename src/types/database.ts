@@ -227,9 +227,17 @@ export interface CreatorRadarResult {
   hot_signals: CreatorRadarHotSignal[]
   evergreen_winners: CreatorRadarEvergreen[]
   hidden_gold: CreatorRadarHiddenGold[]
-  /** When true, the result is synthetic (Perplexity fetch or parse failed)
-   *  and the UI should hint to the user that they're seeing fallback data. */
-  is_mock?: boolean
+  /** Set when scoring across all buckets averages below the
+   *  low-opportunity threshold (or every score is below the per-item
+   *  floor). The wizard reframes the result as "adjacent opportunities"
+   *  and offers a pivot prompt rather than presenting the topic as a
+   *  viable standalone book idea. */
+  low_opportunity?: boolean
+  pivot_available?: boolean
+  pivot_note?:      string
+  /** Echo of the original topic the user typed, so the wizard can show
+   *  the pivot prompt without re-deriving it from input state. */
+  pivot_topic?:     string
 }
 
 export interface BookPage {
