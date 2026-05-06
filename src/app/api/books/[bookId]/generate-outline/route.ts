@@ -5,6 +5,11 @@ import { consumeRateLimit } from '@/lib/rateLimit'
 import type { Book, BookPage, RadarContext } from '@/types/database'
 import { getEffectivePlan } from '@/lib/auth'
 
+// Sonnet at maxTokens 4000 routinely takes 15-30s. Default Vercel
+// function timeout (10s) was killing this mid-flight, hanging the
+// OutlineStage spinner because the response never arrived.
+export const maxDuration = 60
+
 const MAX_TITLE  = 200
 const MAX_BRIEF  = 1000
 const MIN_CHAPTERS = 4

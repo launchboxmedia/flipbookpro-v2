@@ -82,29 +82,39 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   const [autoGenerating, setAutoGenerating] = useState(false)
   const [autoError, setAutoError] = useState('')
   const autoFiredRef = useRef(false)
+  // When the user opts out of auto-generation (or after timeout), we
+  // stop spinning forever and show the manual-build empty state. This
+  // is also the escape hatch from the loading panel.
+  const [manualMode, setManualMode] = useState(false)
+  // Hard ceiling on generation. The server route has maxDuration=60 so
+  // the model normally finishes in 15-30s — 30s here gives a small
+  // buffer, then aborts and surfaces an error rather than spinning.
+  const GENERATION_TIMEOUT_MS = 30_000
 
-  useEffect(() => {
-    // Gate: only fire once per mount, only when there are zero regular
-    // chapters, and only when radar has been applied OR persona is set.
-    // The radar interstitial gates upstream so by the time we land here
-    // either radar_applied_at is set or the user explicitly skipped.
-    if (autoFiredRef.current) return
-    if (regularPages.length > 0) return
+  function runAutoGeneration() {
     if (autoGenerating) return
-    autoFiredRef.current = true
-
     let cancelled = false
+    const controller = new AbortController()
+    // 30s timeout so the spinner can never persist beyond this. Aborting
+    // also frees the underlying connection on the client side.
+    const timeoutId = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS)
+
     ;(async () => {
       setAutoGenerating(true)
       setAutoError('')
       try {
-        const res = await fetch(`/api/books/${book.id}/generate-outline`, { method: 'POST' })
+        // eslint-disable-next-line no-console
+        console.log('[outline] calling generate-outline for', book.id)
+        const res = await fetch(`/api/books/${book.id}/generate-outline`, {
+          method: 'POST',
+          signal: controller.signal,
+        })
         if (!res.ok) {
           // 409 = chapters already exist; just refetch and move on. Any
           // other error surfaces a retry button.
           if (res.status !== 409) {
             const j = await res.json().catch(() => ({}))
-            throw new Error(j?.error || 'Generation failed')
+            throw new Error(j?.error || `Generation failed (${res.status})`)
           }
         }
         const j = await res.json().catch(() => ({}))
@@ -116,7 +126,8 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           const existingCta = pages.filter((p) => p.chapter_index >= 99)
           onPagesChange([...newPages, ...existingCta])
         } else {
-          // Server returned 409 with no body — refetch from supabase.
+          // Server returned 409 (or empty) — refetch from supabase to pick
+          // up whatever chapters are there.
           const supabase = createClient()
           const { data } = await supabase
             .from('book_pages')
@@ -127,22 +138,62 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
         }
       } catch (e) {
         if (cancelled) return
-        const msg = e instanceof Error ? e.message : 'Generation failed'
+        const aborted = e instanceof DOMException && e.name === 'AbortError'
+        const msg = aborted
+          ? "Generation took longer than expected. The model can be slow on complex topics — try again, or build your outline manually."
+          : (e instanceof Error ? e.message : 'Generation failed')
+        // eslint-disable-next-line no-console
+        console.warn('[outline] generate-outline failed:', msg)
         setAutoError(msg)
         // Reset the gate so the retry button can fire it again.
         autoFiredRef.current = false
       } finally {
+        clearTimeout(timeoutId)
         if (!cancelled) setAutoGenerating(false)
       }
     })()
 
-    return () => { cancelled = true }
-  // We intentionally key only on book.id and regularPages.length:
-  // once chapters exist (regularPages.length > 0) the effect short-
-  // circuits, and we don't want pages-array-identity changes from the
-  // critique flow to retrigger generation.
+    // Caller cleans up via the returned function — used by the useEffect
+    // mount path so unmount aborts the in-flight fetch.
+    return () => {
+      cancelled = true
+      controller.abort()
+      clearTimeout(timeoutId)
+    }
+  }
+
+  useEffect(() => {
+    // Gate: only fire once per mount, only when there are zero regular
+    // chapters, only when not already generating, and only when the user
+    // hasn't opted into manual mode. The radar interstitial gates upstream
+    // so by the time we land here either radar_applied_at is set or the
+    // user explicitly skipped — radar enhances but never gates outline.
+    if (autoFiredRef.current) return
+    if (regularPages.length > 0) return
+    if (autoGenerating) return
+    if (manualMode) return
+    autoFiredRef.current = true
+    return runAutoGeneration()
+  // We intentionally key only on book.id, regularPages.length, and
+  // manualMode: once chapters exist (regularPages.length > 0) the effect
+  // short-circuits; entering manualMode also short-circuits. We don't
+  // want pages-array-identity changes from the critique flow to
+  // retrigger generation.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book.id, regularPages.length])
+  }, [book.id, regularPages.length, manualMode])
+
+  function buildManually() {
+    setManualMode(true)
+    setAutoError('')
+    setAutoGenerating(false)
+    autoFiredRef.current = true
+  }
+
+  function retryAutoGeneration() {
+    autoFiredRef.current = false
+    setAutoError('')
+    runAutoGeneration()
+  }
 
   const ctaCreatingRef = useRef(false)
   const [ctaCreating, setCtaCreating] = useState(false)
@@ -316,6 +367,8 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
         {autoGenerating && regularPages.length === 0 && (
           // Full-bleed loading panel takes the place of the chapter list while
           // Sonnet is drafting. BookOpen + slow-spin loader for visual weight.
+          // The "Build Manually" link is always present so the user is never
+          // trapped in the spinner — even if the timeout fails to fire.
           <div className="flex flex-col items-center justify-center text-center bg-white border border-cream-3 rounded-2xl p-12 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)]">
             <div className="relative mb-5">
               <BookOpen className="w-12 h-12 text-gold" strokeWidth={1.5} />
@@ -324,26 +377,66 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
             <p className="font-playfair text-xl text-ink-1 font-semibold mb-1">
               Drafting your outline
             </p>
-            <p className="text-ink-1/70 text-sm font-source-serif max-w-sm leading-relaxed">
+            <p className="text-ink-1/70 text-sm font-source-serif max-w-sm leading-relaxed mb-4">
               Pulling together your radar intelligence, persona, and audience to
               propose a chapter sequence. Takes about 20 seconds.
             </p>
+            <button
+              type="button"
+              onClick={buildManually}
+              className="text-ink-1/60 hover:text-ink-1 font-inter text-xs underline underline-offset-4 transition-colors"
+            >
+              Build manually instead
+            </button>
           </div>
         )}
 
-        {!autoGenerating && autoError && regularPages.length === 0 && (
+        {!autoGenerating && autoError && regularPages.length === 0 && !manualMode && (
           <div className="bg-white border border-rose-200 rounded-2xl p-6">
             <p className="font-inter font-semibold text-rose-700 text-sm mb-1">
-              Auto-outline failed
+              Couldn&rsquo;t generate your outline automatically
             </p>
-            <p className="text-ink-1/70 text-xs font-source-serif mb-3">{autoError}</p>
+            <p className="text-ink-1/70 text-xs font-source-serif mb-4">{autoError}</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={retryAutoGeneration}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ink-1 hover:bg-ink-2 text-cream text-xs font-inter font-medium rounded-md transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Try Again
+              </button>
+              <button
+                type="button"
+                onClick={buildManually}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-ink-3 hover:bg-cream-2 text-ink-1 text-xs font-inter font-medium rounded-md transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Build Manually
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!autoGenerating && !autoError && manualMode && regularPages.length === 0 && (
+          // Manual-build empty state — the auto-gen path was bypassed and
+          // there are no chapters yet. Single CTA into the existing insert
+          // flow at index 0.
+          <div className="flex flex-col items-center justify-center text-center bg-white border border-dashed border-cream-3 rounded-2xl p-12">
+            <p className="font-playfair text-xl text-ink-1 font-semibold mb-1">
+              Build your outline
+            </p>
+            <p className="text-ink-1/70 text-sm font-source-serif max-w-sm leading-relaxed mb-5">
+              Add chapters one at a time. You can always run the AI outline
+              again later.
+            </p>
             <button
               type="button"
-              onClick={() => { autoFiredRef.current = false; setAutoError(''); /* trigger by toggling */ onPagesChange([...pages]) }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ink-1 hover:bg-ink-2 text-cream text-xs font-inter font-medium rounded-md transition-colors"
+              onClick={() => openInsertAt(0)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gold hover:bg-gold-soft text-ink-1 text-sm font-inter font-semibold rounded-md transition-colors"
             >
-              <RefreshCw className="w-3 h-3" />
-              Retry
+              <Plus className="w-3.5 h-3.5" />
+              Add your first chapter
             </button>
           </div>
         )}
