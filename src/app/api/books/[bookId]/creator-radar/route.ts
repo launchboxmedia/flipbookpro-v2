@@ -59,23 +59,29 @@ interface BookForRadar {
 }
 
 function buildPerplexityQuery(persona: Persona, book: BookForRadar): string {
-  const titleLine = book.subtitle ? `"${book.title} — ${book.subtitle}"` : `"${book.title}"`
-  const audience = book.target_audience ?? 'a general adult audience'
-  const niche    = book.genre ?? book.target_audience ?? book.title
+  // The user-typed topic from wizard Step 1 is the strongest signal
+  // about what the book is about. Title and genre are often empty on
+  // new books; niche is the field the user explicitly entered to
+  // describe the book. Anchor every query on it.
+  const topic    = book.niche ?? book.title ?? 'business'
+  const audience = book.target_audience ?? (persona === 'business' ? 'business owners' : 'a general adult audience')
   if (persona === 'business') {
-    return `Market research for the book ${titleLine} targeting ${audience}. ` +
+    return `Market research for a book about: ${topic}\n` +
+      `Targeting: ${audience}\n` +
       `What are the biggest pain points, unsolved problems, and trending topics ` +
-      `in 2025-2026 for ${niche}? Cite primary sources where possible.`
+      `in 2025-2026 for this specific topic? Cite primary sources.`
   }
   if (persona === 'publisher') {
-    return `Competitor analysis for a book about ${titleLine}. What books exist in ` +
-      `this space, what do readers complain about in reviews, what subtopics are ` +
-      `underserved, and what are typical price points? Cite primary sources.`
+    return `Competitor analysis for a book about: ${topic}\n` +
+      `What books exist on this topic, what do readers complain about in reviews, ` +
+      `what subtopics are underserved, and what are typical price points? ` +
+      `Cite primary sources.`
   }
   // storyteller
-  return `Trending tropes, comp titles, and reader expectations on BookTok, ` +
-    `Goodreads, and Reddit for ${niche || 'this'} fiction in 2025-2026. ` +
-    `What are readers demanding right now? Cite primary sources.`
+  return `Trending tropes and reader expectations for a book about: ${topic}\n` +
+    `Genre: ${book.genre ?? 'general fiction'}\n` +
+    `What are readers on BookTok, Goodreads, and Reddit demanding right now ` +
+    `in this space? Cite primary sources.`
 }
 
 function personaWeighting(persona: Persona): string {

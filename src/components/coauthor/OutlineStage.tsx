@@ -81,34 +81,46 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   // (or nothing) seeds the prompt server-side.
   const [autoGenerating, setAutoGenerating] = useState(false)
   const [autoError, setAutoError] = useState('')
-  const autoFiredRef = useRef(false)
   // When the user opts out of auto-generation (or after timeout), we
-  // stop spinning forever and show the manual-build empty state. This
-  // is also the escape hatch from the loading panel.
+  // stop spinning and show the manual-build empty state. Also the
+  // escape hatch from the loading panel.
   const [manualMode, setManualMode] = useState(false)
   // Hard ceiling on generation. The server route has maxDuration=60 so
-  // the model normally finishes in 15-30s — 30s here gives a small
-  // buffer, then aborts and surfaces an error rather than spinning.
-  const GENERATION_TIMEOUT_MS = 30_000
+  // the model normally finishes in 15-30s — 20s here aborts and shows
+  // the error panel so the user can retry or build manually.
+  const GENERATION_TIMEOUT_MS = 20_000
+  // Tracks whether a fetch is currently in flight. Replaces the old
+  // ref-based "autoFiredRef" gate which interacted badly with React 18
+  // strict-mode double-invoke (the ref persisted across the second
+  // mount, blocking the re-fire and leaving autoGenerating wedged).
+  // Using `autoGenerating` state directly here means each effect mount
+  // re-evaluates the guard on the latest render's state.
+  const inflightRef = useRef(false)
 
-  function runAutoGeneration() {
-    if (autoGenerating) return
+  function runAutoGeneration(): () => void {
+    if (inflightRef.current) return () => {}
+    inflightRef.current = true
     let cancelled = false
     const controller = new AbortController()
-    // 30s timeout so the spinner can never persist beyond this. Aborting
-    // also frees the underlying connection on the client side.
-    const timeoutId = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS)
+    // 20s hard timeout — aborts the fetch and surfaces the error panel.
+    const timeoutId = setTimeout(() => {
+      // eslint-disable-next-line no-console
+      console.log('[outline] timeout fired', Date.now())
+      controller.abort()
+    }, GENERATION_TIMEOUT_MS)
 
     ;(async () => {
       setAutoGenerating(true)
       setAutoError('')
       try {
         // eslint-disable-next-line no-console
-        console.log('[outline] calling generate-outline for', book.id)
+        console.log('[outline] fetch start', Date.now(), 'book:', book.id)
         const res = await fetch(`/api/books/${book.id}/generate-outline`, {
           method: 'POST',
           signal: controller.signal,
         })
+        // eslint-disable-next-line no-console
+        console.log('[outline] fetch end', Date.now(), 'status:', res.status)
         if (!res.ok) {
           // 409 = chapters already exist; just refetch and move on. Any
           // other error surfaces a retry button.
@@ -139,22 +151,29 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
       } catch (e) {
         if (cancelled) return
         const aborted = e instanceof DOMException && e.name === 'AbortError'
+        if (aborted) {
+          // eslint-disable-next-line no-console
+          console.log('[outline] aborted', Date.now())
+        }
         const msg = aborted
-          ? "Generation took longer than expected. The model can be slow on complex topics — try again, or build your outline manually."
+          ? 'Taking longer than expected.'
           : (e instanceof Error ? e.message : 'Generation failed')
         // eslint-disable-next-line no-console
         console.warn('[outline] generate-outline failed:', msg)
         setAutoError(msg)
-        // Reset the gate so the retry button can fire it again.
-        autoFiredRef.current = false
       } finally {
         clearTimeout(timeoutId)
-        if (!cancelled) setAutoGenerating(false)
+        // Always reset state when the IIFE exits, regardless of
+        // cancelled. Calling setState on an unmounted component is a
+        // no-op in React 18+; this is what unwedges the spinner when
+        // strict-mode double-invoke cancels the first fetch.
+        setAutoGenerating(false)
+        inflightRef.current = false
       }
     })()
 
-    // Caller cleans up via the returned function — used by the useEffect
-    // mount path so unmount aborts the in-flight fetch.
+    // Caller cleans up via the returned function — used by useEffect's
+    // cleanup to abort an in-flight fetch on unmount or dependency change.
     return () => {
       cancelled = true
       controller.abort()
@@ -163,22 +182,22 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   }
 
   useEffect(() => {
-    // Gate: only fire once per mount, only when there are zero regular
-    // chapters, only when not already generating, and only when the user
-    // hasn't opted into manual mode. The radar interstitial gates upstream
-    // so by the time we land here either radar_applied_at is set or the
-    // user explicitly skipped — radar enhances but never gates outline.
-    if (autoFiredRef.current) return
+    // eslint-disable-next-line no-console
+    console.log('[outline] mount, chapters:', regularPages.length, Date.now())
+    // Gate: only fire when there are zero regular chapters, when nothing
+    // is already in flight, and when the user hasn't opted into manual
+    // mode. The radar interstitial gates upstream so by the time we
+    // land here either radar_applied_at is set or the user explicitly
+    // skipped — radar enhances but never gates outline.
     if (regularPages.length > 0) return
-    if (autoGenerating) return
     if (manualMode) return
-    autoFiredRef.current = true
+    if (inflightRef.current) return
     return runAutoGeneration()
   // We intentionally key only on book.id, regularPages.length, and
-  // manualMode: once chapters exist (regularPages.length > 0) the effect
-  // short-circuits; entering manualMode also short-circuits. We don't
-  // want pages-array-identity changes from the critique flow to
-  // retrigger generation.
+  // manualMode: once chapters exist the effect short-circuits, and we
+  // don't want pages-array-identity changes from the critique flow to
+  // retrigger generation. inflightRef guards against double-fires
+  // within the same dependency-stable window (e.g. strict-mode).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book.id, regularPages.length, manualMode])
 
@@ -186,11 +205,10 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     setManualMode(true)
     setAutoError('')
     setAutoGenerating(false)
-    autoFiredRef.current = true
+    inflightRef.current = false
   }
 
   function retryAutoGeneration() {
-    autoFiredRef.current = false
     setAutoError('')
     runAutoGeneration()
   }
