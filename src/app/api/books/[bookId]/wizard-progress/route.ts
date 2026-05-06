@@ -105,6 +105,12 @@ export async function POST(
   if ('offerType'      in body) patch.offer_type      = clampString(body.offerType,      MAX_OFFER_TYPE)
   if ('ctaIntent'      in body) patch.cta_intent      = clampString(body.ctaIntent,      MAX_CTA_INTENT)
   if ('testimonials'   in body) patch.testimonials    = clampString(body.testimonials,   MAX_TESTIMONIALS)
+  // Niche is the topic string from Step 1. Persisted so the per-book
+  // Creator Radar's intelligence_cache key has meaningful entropy on the
+  // new wizard, where title/audience/genre/etc. are all empty when the
+  // background radar fires. Capped at 200 chars (matches MAX_TITLE-ish
+  // since users sometimes paste a sentence).
+  if ('niche'          in body) patch.niche           = clampString(body.niche, 200)
 
   // Update book row only when there's at least one field to set besides
   // updated_at (avoids a no-op DB write).

@@ -143,17 +143,23 @@ export function WizardShell({
   async function next(patch: Partial<WizardData>) {
     const merged: WizardData = { ...data, ...patch }
 
-    // Persona (index 1) → Details (index 2) is the special case: the
-    // per-book Creator Radar route reads persona/target_audience/
-    // website_url/etc. directly from the books row, so we have to AWAIT
-    // the wizard-progress save before firing it. After the save lands,
-    // we fire the radar fire-and-forget — the coauthor interstitial
-    // polls for results when the user lands there.
-    const isPersonaToDetails = step === 1
+    // Details (index 2) → Tone (index 3) is the special case: by this
+    // transition the user has typed the niche (Step 1), persona +
+    // offerType (Step 2), and title + subtitle (Step 3). All of these
+    // feed the Creator Radar's intelligence_cache key, so firing here
+    // gives the cache meaningful entropy per-book — versus firing on
+    // step 1→2 (the old persona transition), where title/niche/etc.
+    // hadn't landed yet and every new book hashed to the same key.
+    //
+    // We AWAIT the wizard-progress save before firing so the radar
+    // route reads the freshly-persisted niche + title + persona off
+    // the books row. Then fire-and-forget; the coauthor interstitial
+    // polls books.creator_radar_data when the user lands there.
+    const isDetailsToTone = step === 2
 
-    if (isPersonaToDetails) {
-      // Pre-set deepRadarFired so Step 4 knows to wait. Set it BEFORE
-      // setData/setStep so Step 4's mount effect sees the flag.
+    if (isDetailsToTone) {
+      // Pre-set deepRadarFired so the interstitial knows a fire is in
+      // flight. Set it BEFORE setData/setStep so mount effects see it.
       merged.deepRadarFired = true
       setData(merged)
       try {
@@ -164,7 +170,7 @@ export function WizardShell({
       }
       // Fire and don't await. Stream the SSE to completion in the
       // background so the result lands in books.creator_radar_data;
-      // Step 4 polls books for that to appear.
+      // the interstitial polls for that to appear.
       void fireDeepRadar()
     } else {
       setData(merged)

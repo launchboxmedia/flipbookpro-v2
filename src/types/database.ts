@@ -57,6 +57,11 @@ export interface Book {
   target_audience: string | null
   website_url: string | null
   genre: string | null
+  /** Topic string the user typed in Step 1 of the wizard. Used as a
+   *  per-book differentiator in the intelligence_cache key so two new
+   *  books in the same persona+offer pair don't collide on the cached
+   *  radar result before title/audience/etc. are filled in. */
+  niche?: string | null
   // Business-persona-only context: what the author sells, what they want
   // readers to do, and social proof to weave into chapters and Radar
   // positioning. All three are NULL for non-business personas.

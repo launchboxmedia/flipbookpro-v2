@@ -46,6 +46,10 @@ interface BookForRadar {
   target_audience: string | null
   website_url: string | null
   genre: string | null
+  /** Topic string the user typed in wizard Step 1. Used in the
+   *  intelligence_cache key so two new books with the same persona but
+   *  different topics don't collide on the cached radar. */
+  niche: string | null
   // Business-persona-only context (NULL for publisher/storyteller).
   offer_type: string | null
   cta_intent: string | null
@@ -432,7 +436,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   const [{ data: book }, planInfo] = await Promise.all([
     supabase
       .from('books')
-      .select('id, user_id, persona, title, subtitle, target_audience, website_url, genre, offer_type, cta_intent, testimonials, creator_radar_data, creator_radar_ran_at')
+      .select('id, user_id, persona, title, subtitle, target_audience, website_url, genre, niche, offer_type, cta_intent, testimonials, creator_radar_data, creator_radar_ran_at')
       .eq('id', params.bookId)
       .eq('user_id', user.id)
       .single<BookForRadar>(),
@@ -448,13 +452,24 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     ? book.persona
     : 'business'
 
-  // Cache key includes the business-persona offer fields so two books in
-  // the same niche but with different offers/CTAs don't collide on a
-  // shared cached result. Testimonials don't shift positioning advice
-  // meaningfully and would bust the cache too aggressively, so they're
-  // omitted from the key — they're still passed into the prompt below.
+  // Cache key includes the business-persona offer fields plus the topic
+  // string from Step 1 so two new books in the same persona but on
+  // different topics don't collide on a shared cached result. The new
+  // 6-step wizard fires this route before title/audience/website/genre
+  // are filled, so without `niche` every new book hashes to the same key.
+  // Testimonials and cta_intent don't shift positioning advice meaningfully
+  // and would bust the cache too aggressively, so they're omitted from the
+  // key — they're still passed into the prompt below when set.
   const cacheKey = createHash('sha256')
-    .update(`${persona}:${book.title}:${book.website_url ?? ''}:${book.genre ?? ''}:${book.target_audience ?? ''}:${book.offer_type ?? ''}:${book.cta_intent ?? ''}`)
+    .update([
+      persona,
+      book.title          ?? '',
+      book.website_url    ?? '',
+      book.genre          ?? '',
+      book.target_audience ?? '',
+      book.offer_type     ?? '',
+      book.niche          ?? '',
+    ].join(':'))
     .digest('hex')
 
   const ttlMs = TTL_DAYS_BY_PERSONA[persona] * 24 * 60 * 60 * 1000
