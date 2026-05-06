@@ -17,23 +17,29 @@ interface Props {
   mode?: 'scratch' | 'upload'
 }
 
-const TYPEWRITER_TOPICS = [
-  'personal finance',
-  'AI productivity tools',
-  'health and wellness',
-  'career development',
-  'small business growth',
+/** Placeholder examples that cycle in the niche textarea every 3s while
+ *  the field is empty. Spec mix: short niches and full one-liner ideas
+ *  so the user sees both shapes work. */
+const PLACEHOLDERS = [
+  'personal finance for millennials',
+  'helping new business owners build credit from zero',
+  'overcoming anxiety without medication',
+  'productivity systems for ADHD entrepreneurs',
+  'teaching kids to read before kindergarten',
 ] as const
 
-const TYPE_DELAY_MS  = 65
-const ERASE_DELAY_MS = 35
-const HOLD_TYPED_MS  = 1500
-const HOLD_ERASED_MS = 350
+const PLACEHOLDER_INTERVAL_MS = 3000
 
-/** Minimum characters for the idea-description textarea to count as a
- *  valid Continue path. Long enough that detect-chapters has something
- *  meaningful to chew on; short enough that a focused pitch works. */
-const MIN_DESCRIPTION_LENGTH = 30
+/** Minimum chars in the niche field for the Continue button to enable
+ *  (the auto-scan path also uses this threshold). Below this, the user
+ *  needs to either pick a result from the scan or type more. */
+const MIN_NICHE_LENGTH = 10
+
+/** Min/max heights for the auto-expanding niche textarea. Tuned to match
+ *  one-row at the bottom and ~three rows at the top with the current
+ *  text-sm + py-2.5 padding. */
+const TEXTAREA_MIN_HEIGHT_PX = 44
+const TEXTAREA_MAX_HEIGHT_PX = 92
 
 export function Step1Radar({ data, onNext }: Props) {
   // ── Niche input + radar streaming state ────────────────────────────────
@@ -56,51 +62,37 @@ export function Step1Radar({ data, onNext }: Props) {
   // surfaces as a removable pill above the Continue button.
   const [pickedTopic, setPickedTopic] = useState(data.radarTopic ?? '')
 
-  // The user's own idea description. Optional companion to the radar
-  // pick — when both are set, the description takes priority for title +
-  // chapter generation while the radar provides market signals.
-  const [ideaDescription, setIdeaDescription] = useState(data.ideaDescription ?? '')
-
   const [toast, setToast] = useState<string | null>(null)
 
-  const nicheRef       = useRef<HTMLInputElement>(null)
-  const ideaRef        = useRef<HTMLTextAreaElement>(null)
+  const nicheRef = useRef<HTMLTextAreaElement>(null)
 
-  // ── Typewriter placeholder ──────────────────────────────────────────────
-  const [typewriter, setTypewriter] = useState('')
+  // ── Rotating placeholder ────────────────────────────────────────────────
+  // Simple cycle, no typewriter effect — swaps every PLACEHOLDER_INTERVAL_MS
+  // while the field is empty. Once the user starts typing, the cycling
+  // pauses (the placeholder isn't visible anyway).
+  const [placeholderIdx, setPlaceholderIdx] = useState(0)
   useEffect(() => {
     if (niche.length > 0) return
-    let topicIdx = 0
-    let charIdx = 0
-    let mode: 'typing' | 'erasing' = 'typing'
-    let cancelled = false
-    function tick() {
-      if (cancelled) return
-      const target = TYPEWRITER_TOPICS[topicIdx]
-      if (mode === 'typing') {
-        charIdx++
-        setTypewriter(target.slice(0, charIdx))
-        if (charIdx >= target.length) {
-          mode = 'erasing'
-          setTimeout(tick, HOLD_TYPED_MS)
-          return
-        }
-        setTimeout(tick, TYPE_DELAY_MS)
-        return
-      }
-      charIdx--
-      setTypewriter(target.slice(0, charIdx))
-      if (charIdx <= 0) {
-        topicIdx = (topicIdx + 1) % TYPEWRITER_TOPICS.length
-        mode = 'typing'
-        setTimeout(tick, HOLD_ERASED_MS)
-        return
-      }
-      setTimeout(tick, ERASE_DELAY_MS)
-    }
-    tick()
-    return () => { cancelled = true }
+    const id = setInterval(() => {
+      setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length)
+    }, PLACEHOLDER_INTERVAL_MS)
+    return () => clearInterval(id)
   }, [niche.length])
+
+  // ── Auto-expand the textarea between 1 and 3 rows ──────────────────────
+  // Reset height to auto so scrollHeight reflects content (not the previous
+  // expanded height), then clamp to the min/max range. Runs on every value
+  // change so backspacing also collapses the box.
+  useEffect(() => {
+    const el = nicheRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const target = Math.min(
+      Math.max(el.scrollHeight, TEXTAREA_MIN_HEIGHT_PX),
+      TEXTAREA_MAX_HEIGHT_PX,
+    )
+    el.style.height = `${target}px`
+  }, [niche])
 
   // ── Toast lifetime ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -119,12 +111,12 @@ export function Step1Radar({ data, onNext }: Props) {
   }, [scanning])
 
   /** Run the Creator Radar against a topic. When `overrideTopic` is set we
-   *  use it directly (auto-scan path triggered from Continue with only a
-   *  description filled in); otherwise we use the niche field. Returns
-   *  the parsed result on success, or null on failure (validation,
-   *  service-unavailable, or any other error). Callers that only care
-   *  about success/failure can coerce `!== null`; callers that need to
-   *  branch on `low_opportunity` read the field off the returned result. */
+   *  use it directly (auto-scan path triggered from Continue); otherwise
+   *  we use the niche field. Returns the parsed result on success, or
+   *  null on failure (validation, service-unavailable, or any other
+   *  error). Callers that only care about success/failure can coerce
+   *  `!== null`; callers that need to branch on `low_opportunity` read
+   *  the field off the returned result. */
   async function runRadar(nonce?: number, overrideTopic?: string): Promise<CreatorRadarResult | null> {
     const topic = (overrideTopic ?? niche).trim()
     if (topic.length < 2) {
@@ -173,7 +165,7 @@ export function Step1Radar({ data, onNext }: Props) {
 
   function handlePickTopic(topic: string) {
     setPickedTopic(topic)
-    setToast('Topic selected. Add details below or click Continue.')
+    setToast('Topic selected — click Continue to keep going.')
   }
 
   function clearPick() {
@@ -188,56 +180,47 @@ export function Step1Radar({ data, onNext }: Props) {
     setPivotRevealed(false)
     setRadarError('')
     setNiche('')
-    // Defer focus so the disabled→enabled state on the input has time to
-    // settle from the scanning state changes above.
     setTimeout(() => nicheRef.current?.focus(), 50)
   }
 
   /** Commit wizard state and advance to the next step. Pure — does not
-   *  trigger any scan; runs only when the data is settled. */
+   *  trigger any scan; runs only when the data is settled. The niche
+   *  field doubles as the outline seed: downstream steps that key off
+   *  `niche` (deep radar) and `outline` (chapter generation) both read
+   *  from the same string. */
   function commitContinue(forcedRadar?: CreatorRadarResult) {
-    const trimmedNiche       = niche.trim()
-    const trimmedDescription = ideaDescription.trim()
-    // The downstream `outline` field carries the topic forward. Priority:
-    //   1. Idea description — richest context, drives detect-chapters
-    //      and title generation as primary signal.
-    //   2. Picked radar topic — deliberate user choice from the scan.
-    //   3. Niche — last resort, the niche string itself becomes the topic.
-    const topic = trimmedDescription || pickedTopic || trimmedNiche
+    const trimmedNiche = niche.trim()
+    const topic = pickedTopic || trimmedNiche
     onNext({
-      // Description doubles as niche when it's the only input, so downstream
-      // steps that key off `niche` (deep radar) still have a topic string.
-      niche:           trimmedNiche       || trimmedDescription || undefined,
-      radarTopic:      pickedTopic        || undefined,
-      radarResults:    forcedRadar ?? radarResult ?? undefined,
-      ideaDescription: trimmedDescription || undefined,
-      outline:         topic,
+      niche:        trimmedNiche || undefined,
+      radarTopic:   pickedTopic  || undefined,
+      radarResults: forcedRadar ?? radarResult ?? undefined,
+      outline:      topic,
     })
   }
 
-  // True when the user has clicked Continue but the auto-scan is in flight.
-  // Drives the "scanning the market for your topic" loading copy and disables
-  // the button so a double-click can't fire two scans.
+  // True when Continue clicked but the auto-scan is in flight. Drives the
+  // "scanning the market for your topic" loading copy and disables the
+  // button so a double-click can't fire two scans.
   const [continuingViaScan, setContinuingViaScan] = useState(false)
 
   async function handleContinue() {
-    const trimmedDescription = ideaDescription.trim()
+    const trimmedNiche = niche.trim()
     // Already-scanned path — radar results or a pinned topic mean we have
     // enough context to commit immediately.
     if (radarResult || pickedTopic) {
       commitContinue()
       return
     }
-    // Auto-scan path — description has 30+ chars but no scan yet. Run
-    // the radar with the description as the topic. Behavior splits on
-    // the result:
+    // Auto-scan path — niche has 10+ chars but no scan yet. Run the
+    // radar with the niche as the topic. Behavior splits on the result:
     //   • low_opportunity → stop here and let the pivot prompt do its
     //     job. Auto-advancing past it would defeat the entire point.
     //   • normal opportunity → hold on the results for ~2.5s so the user
     //     sees what was found, then advance.
-    if (trimmedDescription.length >= MIN_DESCRIPTION_LENGTH) {
+    if (trimmedNiche.length >= MIN_NICHE_LENGTH) {
       setContinuingViaScan(true)
-      const result = await runRadar(undefined, trimmedDescription)
+      const result = await runRadar(undefined, trimmedNiche)
       if (!result) {
         setContinuingViaScan(false)
         return
@@ -252,12 +235,10 @@ export function Step1Radar({ data, onNext }: Props) {
     }
   }
 
-  // Continue gating: a picked topic OR a 30+ char description satisfies.
-  // Both can be set — that's the best case; the description wins for
-  // primary context and the radar layers in market signals.
+  // Continue gating: a picked topic OR a 10+ char niche satisfies.
   const canContinue =
     pickedTopic.length > 0 ||
-    ideaDescription.trim().length >= MIN_DESCRIPTION_LENGTH
+    niche.trim().length >= MIN_NICHE_LENGTH
 
   return (
     <div className="space-y-7">
@@ -265,26 +246,24 @@ export function Step1Radar({ data, onNext }: Props) {
         <h2 className="font-playfair text-2xl text-ink-1 mb-1">
           What&rsquo;s your book about?
         </h2>
-        <p className="text-ink-1/60 text-sm font-source-serif">
-          Tell us your topic and we&rsquo;ll scan the market for opportunities before you write a single word.
-        </p>
       </div>
 
-      {/* SECTION 1 — Market Scan input. No label per the new copy: the
-          subheader already explains both inputs feed the same scan. */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row gap-2">
+      {/* Single niche input — auto-expanding textarea (1-3 rows) so the
+          field works both for short niches ("personal finance") and for
+          longer one-liner ideas. Same scan triggers either way. */}
+      <div className="space-y-2.5">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-1/40" />
-            <input
+            <Search className="absolute left-3 top-3.5 w-4 h-4 text-ink-1/40" />
+            <textarea
               ref={nicheRef}
-              type="text"
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleScan() }}
-              placeholder={typewriter}
+              placeholder={PLACEHOLDERS[placeholderIdx]}
               disabled={scanning}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
+              rows={1}
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-inter text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50 resize-none overflow-hidden"
+              style={{ minHeight: TEXTAREA_MIN_HEIGHT_PX, maxHeight: TEXTAREA_MAX_HEIGHT_PX }}
             />
           </div>
           <button
@@ -299,9 +278,12 @@ export function Step1Radar({ data, onNext }: Props) {
           </button>
         </div>
 
+        <p className="text-xs font-inter text-ink-subtle">
+          A word, a niche, or a full idea — we&rsquo;ll scan the market and show you what&rsquo;s selling before you commit.
+        </p>
+
         {/* Service-unavailable inline state: the route returned 503 (no
-            mock data anymore). Honest copy + one-tap retry — no amber
-            banner pretending the result is real. */}
+            mock data anymore). Honest copy + one-tap retry. */}
         {serviceUnavailable && (
           <div className="flex flex-col items-center gap-2 py-3">
             <p className="text-ink-subtle text-sm font-inter">
@@ -323,9 +305,9 @@ export function Step1Radar({ data, onNext }: Props) {
           <p className="text-red-500 text-xs font-inter">{radarError}</p>
         )}
 
-        {/* Loading state. When the scan was triggered via the Continue
-            button (no scan run yet, description-only path) we show an
-            additional headline so the user knows why the page paused. */}
+        {/* Loading state. When the scan was triggered via Continue (no
+            scan run yet) we show an additional headline so the user
+            knows why the page paused. */}
         {scanning && !radarResult && (
           <div className="space-y-2 mt-2">
             {continuingViaScan && (
@@ -341,9 +323,9 @@ export function Step1Radar({ data, onNext }: Props) {
 
         {/* PIVOT PROMPT — shown when the route flagged the topic as
             low-opportunity AND the user hasn't opted to see the results
-            yet. This intentionally gates the columns: dumping low scores
-            on a user without context feels like a failure, but framed as
-            a pivot it's actionable. */}
+            yet. Gates the columns: dumping low scores on a user without
+            context feels like a failure, but framed as a pivot it's
+            actionable. */}
         {radarResult && radarResult.low_opportunity && !pivotRevealed && (
           <div className="bg-ink-3/5 border border-ink-4/30 border-l-2 border-l-amber-400 rounded-lg p-5 space-y-4">
             <div className="flex items-start gap-2.5">
@@ -459,36 +441,6 @@ export function Step1Radar({ data, onNext }: Props) {
         )}
       </div>
 
-      {/* DIVIDER */}
-      <div className="flex items-center gap-3" aria-hidden="true">
-        <div className="flex-1 h-px bg-ink-4/40" />
-        <span className="text-[11px] font-inter uppercase tracking-[0.18em] text-ink-1/40">
-          or be more specific
-        </span>
-        <div className="flex-1 h-px bg-ink-4/40" />
-      </div>
-
-      {/* SECTION 2 — Idea Description. No label: the placeholder carries
-          enough hint, and the unified helper text below both inputs explains
-          what happens next. */}
-      <div className="space-y-2.5">
-        <textarea
-          ref={ideaRef}
-          value={ideaDescription}
-          onChange={(e) => setIdeaDescription(e.target.value)}
-          rows={3}
-          placeholder="e.g. A step-by-step guide for new business owners who need to build business credit from scratch before applying for their first loan"
-          className="w-full px-3 py-3 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none min-h-[80px]"
-        />
-      </div>
-
-      {/* Unified helper — explains that both inputs lead to the same scan
-          so the user understands the description path doesn't skip the
-          market intelligence step. */}
-      <p className="text-xs font-inter text-ink-subtle text-center -mt-2">
-        Either way, we&rsquo;ll scan the market and show you what&rsquo;s trending in your niche before you commit to a direction.
-      </p>
-
       {/* Picked topic pill — surfaces directly above the Continue button. */}
       {pickedTopic && (
         <div className="flex items-center gap-2">
@@ -508,8 +460,8 @@ export function Step1Radar({ data, onNext }: Props) {
         </div>
       )}
 
-      {/* Footer — full-width Continue per spec. When continuing via auto-scan
-          the button shows the scan-then-advance state so the user sees the
+      {/* Footer — full-width Continue. When continuing via auto-scan the
+          button shows the scan-then-advance state so the user sees the
           page is doing something. */}
       <div className="pt-2">
         <button
