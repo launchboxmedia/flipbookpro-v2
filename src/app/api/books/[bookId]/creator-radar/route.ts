@@ -451,6 +451,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   if (!book) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 })
 
+  // TEMP DEBUG — confirm the new code path with niche is actually executing.
+  // eslint-disable-next-line no-console
+  console.log('[creator-radar] niche from book:', book.niche)
+
   // Admin collapses to 'pro' for filterByPlan's purposes — the filter map
   // only knows the three commercial tiers; admin gets full access.
   const plan: Plan = planInfo.plan === 'admin' ? 'pro' : planInfo.plan
@@ -575,6 +579,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       try {
         // 1. Perplexity research
         const perplexityQuery = buildPerplexityQuery(persona, book)
+        // TEMP DEBUG — confirm the query includes the user's niche, not
+        // just title/audience/genre fallbacks.
+        // eslint-disable-next-line no-console
+        console.log('[creator-radar] perplexity query:', perplexityQuery)
         const { research, citations } = await runPerplexity(perplexityQuery)
         if (aborted) return
         send(controller, { type: 'research_complete' })
