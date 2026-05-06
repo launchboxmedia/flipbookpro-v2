@@ -460,6 +460,20 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   // Testimonials and cta_intent don't shift positioning advice meaningfully
   // and would bust the cache too aggressively, so they're omitted from the
   // key — they're still passed into the prompt below when set.
+  // TEMP DEBUG — verify what's being fed into the cache key for books
+  // that are mysteriously sharing a cache row. Remove these logs once
+  // the niche-persistence path is confirmed working in production.
+  // eslint-disable-next-line no-console
+  console.log('[radar cache key inputs]', {
+    bookId:          book.id,
+    persona:         book.persona,
+    title:           book.title,
+    website_url:     book.website_url,
+    genre:           book.genre,
+    target_audience: book.target_audience,
+    offer_type:      book.offer_type,
+    niche:           book.niche,
+  })
   const cacheKey = createHash('sha256')
     .update([
       persona,
@@ -471,6 +485,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       book.niche          ?? '',
     ].join(':'))
     .digest('hex')
+  // eslint-disable-next-line no-console
+  console.log('[radar cache key]', cacheKey)
 
   const ttlMs = TTL_DAYS_BY_PERSONA[persona] * 24 * 60 * 60 * 1000
 
@@ -497,6 +513,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       const stale = !fresh && now < expiresAt + STALE_WINDOW_MS
 
       if (fresh || stale) {
+        // eslint-disable-next-line no-console
+        console.log('[radar] CACHE HIT for key:', cacheKey, fresh ? '(fresh)' : '(stale)')
         const filtered = filterByPlan(cached.result, plan)
         const ranAt = new Date().toISOString()
 
@@ -538,6 +556,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   }
 
   // ── Live generation path ────────────────────────────────────────────────
+  // eslint-disable-next-line no-console
+  console.log('[radar] CACHE MISS - running fresh for key:', cacheKey)
 
   const stream = new ReadableStream({
     async start(controller) {
