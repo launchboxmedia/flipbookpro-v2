@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { PanelLeft } from 'lucide-react'
+import { Menu, PanelLeft } from 'lucide-react'
 import { AppSidebar, type BookContext } from './AppSidebar'
+import { MobileDrawer } from './MobileDrawer'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 interface Props {
   userEmail: string
@@ -44,6 +46,20 @@ export function AppShell({
     }
   }, [])
 
+  // Mobile / tablet — sidebar is hidden via CSS below the lg breakpoint
+  // (1024px) and the hamburger drawer takes over. Auto-collapse so that
+  // when the user resizes from narrow → wide, the sidebar reappears in
+  // its tighter icon-only mode rather than the full 220px expanded
+  // state, which on tablet widths feels overwhelming.
+  const isMobile = useMediaQuery('(max-width: 1023px)')
+  useEffect(() => {
+    if (isMobile) setCollapsed(true)
+  }, [isMobile])
+
+  // Drawer state — only relevant on mobile. Closed by default; the
+  // hamburger button toggles it.
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
   function toggleCollapsed() {
     setCollapsed((prev) => {
       const next = !prev
@@ -58,25 +74,53 @@ export function AppShell({
 
   return (
     <div className={`flex h-screen overflow-hidden ${mainBackground}`}>
-      <AppSidebar
+      {/* Desktop sidebar — hidden below the lg breakpoint, where the
+          hamburger drawer takes over. lg:flex re-enables it at 1024px+. */}
+      <div className="hidden lg:flex">
+        <AppSidebar
+          userEmail={userEmail}
+          isPremium={isPremium}
+          isAdmin={isAdmin}
+          bookContext={bookContext}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
+      </div>
+
+      {/* Mobile drawer — overlays the page when opened from the
+          hamburger. AppSidebar isn't rendered on mobile at all (CSS
+          hidden), so this is the only nav surface below 1024px. */}
+      <MobileDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         userEmail={userEmail}
         isPremium={isPremium}
         isAdmin={isAdmin}
         bookContext={bookContext}
-        collapsed={collapsed}
-        onToggleCollapse={toggleCollapsed}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky top header — h-14, ink with backdrop blur for depth on
-            scroll. The trigger is shown collapsed-only as a quick re-expand;
-            in expanded mode the sidebar's own header carries the toggle. */}
+            scroll. On mobile the leading control is the hamburger that
+            opens the drawer. On desktop, when the sidebar is collapsed
+            the leading control is the PanelLeft expand button; when
+            expanded the sidebar's own header carries the toggle and the
+            header has no leading control. */}
         <header className="sticky top-0 z-30 h-14 flex items-center gap-3 px-4 border-b border-ink-3 bg-ink-1/80 backdrop-blur-md backdrop-saturate-150">
+          {/* Mobile-only hamburger */}
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation"
+            className="lg:hidden p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors press-scale"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+          {/* Desktop-only collapse toggle (only when collapsed) */}
           {collapsed && (
             <button
               onClick={toggleCollapsed}
               aria-label="Expand sidebar"
-              className="p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors press-scale"
+              className="hidden lg:inline-flex p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors press-scale"
             >
               <PanelLeft className="w-4 h-4" />
             </button>

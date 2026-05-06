@@ -228,12 +228,29 @@ export function WizardShell({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.08)_0%,transparent_55%)]" />
 
       <div className="relative max-w-3xl mx-auto px-4 py-12">
+        {/* Always-visible back arrow. On step > 0 it goes to the previous
+            step; on step 0 it goes home. Editing flow keeps the explicit
+            "Back to book" affordance below since it's a different mental
+            model (jumping out of edit mode). */}
+        <button
+          type="button"
+          onClick={() => {
+            if (step > 0) setStep((s) => s - 1)
+            else window.location.href = '/dashboard'
+          }}
+          aria-label={step > 0 ? 'Previous step' : 'Back to dashboard'}
+          className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {step > 0 ? 'Back' : 'Back to dashboard'}
+        </button>
+
         {isEditing && (
           <Link
             href={`/book/${bookId}/coauthor`}
-            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6"
+            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6 ml-4"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to book
+            Back to book
           </Link>
         )}
         <div className="mb-10">
@@ -243,7 +260,17 @@ export function WizardShell({
           <h1 className="font-playfair text-4xl text-cream font-semibold mb-7 text-center">
             Set the foundations
           </h1>
-          <div className="flex items-center justify-between">
+
+          {/* Mobile-only condensed step indicator. Below sm the full
+              pill row gets unreadable in 320px viewports — show
+              "Step N of M" instead. The pill row reappears at sm+. */}
+          <p className="sm:hidden text-center text-sm font-inter text-ink-subtle">
+            Step {step + 1} of {STEPS.length}
+            <span className="text-ink-muted/60 mx-1.5" aria-hidden="true">·</span>
+            <span className="text-gold">{STEPS[step]}</span>
+          </p>
+
+          <div className="hidden sm:flex items-center justify-between">
             {STEPS.map((label, i) => {
               const pill = (
                 <div
@@ -273,7 +300,7 @@ export function WizardShell({
                     ) : (
                       pill
                     )}
-                    <span className={`text-[10px] font-inter hidden sm:block tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
+                    <span className={`text-[10px] font-inter tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
                       {label}
                     </span>
                   </div>

@@ -153,7 +153,7 @@ export function CompleteStage({ book, pages }: Props) {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-6 py-16 text-center">
+    <div className="max-w-xl mx-auto px-4 sm:px-6 py-16 text-center">
       {done ? (
         <div className="space-y-6">
           <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto">

@@ -351,7 +351,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     // Two-column 60/40 layout via grid-cols-5. Left chapter list (col-span-3
     // = 60%), right critique panel (col-span-2 = 40%). The critique panel
     // gets enough width to show flag cards with breathing room.
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-6 py-8 bg-cream-1 min-h-screen">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-4 sm:px-6 py-8 bg-cream-1 min-h-screen">
       {/* Left — chapter list (60%) */}
       <div className="md:col-span-3 min-w-0">
         <div className="mb-6">

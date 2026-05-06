@@ -57,7 +57,7 @@ export function CreatorRadarStage({ book, plan, onStageChange }: Props) {
   if (hasNeverRun && !emptyStateClicked) {
     return (
       <div className="bg-ink-1 min-h-screen">
-        <div className="max-w-2xl mx-auto px-6 py-16">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
           <div className="bg-ink-2 border border-ink-3 rounded-2xl p-8 text-center space-y-5">
             <div className="w-14 h-14 mx-auto rounded-full bg-gold/15 flex items-center justify-center">
               <Radar className="w-6 h-6 text-gold" />
@@ -98,7 +98,7 @@ export function CreatorRadarStage({ book, plan, onStageChange }: Props) {
 
   return (
     <div className="bg-ink-1 min-h-screen">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
             Market Intelligence

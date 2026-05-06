@@ -242,7 +242,7 @@ export function BackMatterStage({ book, onComplete }: Props) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h2 className="font-playfair text-3xl text-cream">Back Matter</h2>

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
-  Sparkles, Radar, Loader2, Check, ArrowRight,
+  Sparkles, Radar, Loader2, Check, ArrowRight, ArrowLeft,
   Users, Layers, FileText, Lightbulb, Target, X,
 } from 'lucide-react'
 import type { Book, RadarResult, RadarAppliedSelections } from '@/types/database'
@@ -195,7 +196,34 @@ export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
 
   return (
     <div className="bg-ink-1 min-h-screen">
-      <div className="max-w-3xl mx-auto px-6 py-12">
+      {/* Top bar — gives the user an exit before they apply anything.
+          Sticky so it stays visible even on long mobile scrolls. */}
+      <div className="sticky top-0 z-20 bg-ink-1/90 backdrop-blur border-b border-ink-3">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+          </Link>
+          <div className="flex-1 min-w-0 text-center">
+            <p className="font-inter text-xs text-cream-1 truncate">
+              {book.title || 'Untitled book'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void markSkipped()}
+            className="inline-flex items-center gap-1 text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors shrink-0"
+          >
+            Skip
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
         {/* Header */}
         <div className="mb-8 text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold/15 border border-gold/40 text-gold text-xs font-inter font-semibold uppercase tracking-[0.18em]">
