@@ -196,6 +196,13 @@ export interface RadarResult {
   conversionReason?: string
   /** Business only — structured website analysis surfaced to Pro users. */
   websiteExtraction?: RadarWebsiteExtraction
+  /** Business only — set by the relevance check that runs after the
+   *  website is scraped. `true` = author's business serves the same
+   *  audience as the book; `false` = the website was deemed irrelevant
+   *  and stripped from synthesis (websiteExtraction is null in that
+   *  case). Undefined when no relevance check ran (no website, scrape
+   *  failed, or legacy result from before this field existed). */
+  websiteRelevant?: boolean
 }
 
 /** A single citation pulled from Perplexity research. Stored as jsonb on

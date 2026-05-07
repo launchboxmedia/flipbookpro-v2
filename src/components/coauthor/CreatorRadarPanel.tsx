@@ -18,7 +18,7 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Zap, RefreshCw, Loader2, Sparkles, TrendingUp, Compass, Users, Trophy,
   BookOpen, ExternalLink, AlertTriangle, Lock, Check, Globe, MessageCircle,
-  Target,
+  Target, Plus,
 } from 'lucide-react'
 import type {
   RadarResult, RadarMarketSignal, RadarContentAngle,
@@ -127,6 +127,14 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
   const [applyResult, setApplyResult]         = useState<RadarApplyResult | null>(null)
   const [appliedAt, setAppliedAt]             = useState<string | null>(initialAppliedAt ?? null)
   const [modalOpen, setModalOpen]             = useState(false)
+  // Business Context visibility overrides. Local-only — they reset every
+  // panel mount so the relevance check verdict from the route is the
+  // source of truth on each page load. `hideBusinessContext` lets a
+  // relevant-flagged user dismiss the section anyway; `showBusinessContext`
+  // lets an irrelevant-flagged user force-show it (and request a refresh
+  // when the extraction was stripped server-side).
+  const [hideBusinessContext, setHideBusinessContext] = useState(false)
+  const [showBusinessContext, setShowBusinessContext] = useState(false)
 
   const running = status === 'researching' || status === 'scraping' || status === 'synthesizing'
 
@@ -316,6 +324,35 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
   const showCompetitorBreakdown = plan === 'pro' // publisher
   const showReaderLanguage      = plan !== 'free' // storyteller (Standard+)
 
+  // Business Context block visibility — derived from the route's
+  // websiteRelevant verdict combined with the user's local toggles.
+  // Three derived flags drive the render:
+  //   - showBusinessContextBlock: whether the Conversion Rec / divider /
+  //     Website Analysis cluster renders at all.
+  //   - showBusinessContextHideLink: whether the "Not relevant? Hide" link
+  //     appears inside the divider header.
+  //   - showBusinessContextAddLink: whether the bottom "Add your business
+  //     context" link appears.
+  // For backward compat, results without an explicit websiteRelevant
+  // (legacy data, or non-business persona) treat undefined as "show as
+  // before" — the cluster renders whenever an extraction exists, no
+  // Hide/Add affordances are offered.
+  const isExplicitlyIrrelevant = result?.websiteRelevant === false
+  const isExplicitlyRelevant   = result?.websiteRelevant === true
+  const hasWebsiteExtraction   = !!result?.websiteExtraction
+  const showBusinessContextBlock = persona === 'business' && (
+    (hasWebsiteExtraction && !isExplicitlyIrrelevant && !hideBusinessContext) ||
+    showBusinessContext
+  )
+  const showBusinessContextHideLink = persona === 'business'
+    && isExplicitlyRelevant
+    && hasWebsiteExtraction
+    && !hideBusinessContext
+    && !showBusinessContext
+  const showBusinessContextAddLink = persona === 'business'
+    && isExplicitlyIrrelevant
+    && !showBusinessContext
+
   return (
     <div className="bg-ink-2 border border-ink-3 rounded-2xl overflow-hidden flex flex-col">
       {/* Header bar */}
@@ -402,8 +439,10 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
 
             {/* Conversion recommendation pill — Business persona only.
                 Pro tier; on lower plans we show a locked teaser when the
-                book is business persona, otherwise omit entirely. */}
-            {persona === 'business' && (showWebsiteAnalysis ? result.conversionRecommendation : true) && (
+                book is business persona, otherwise omit entirely. Also
+                gated by showBusinessContextBlock so the Hide affordance
+                in the divider below collapses this section in lockstep. */}
+            {showBusinessContextBlock && (showWebsiteAnalysis ? result.conversionRecommendation : true) && (
               <Section icon={<Target className="w-3.5 h-3.5" />} label="Conversion Recommendation" tier="PRO">
                 {showWebsiteAnalysis
                   ? <ConversionRecBlock
@@ -481,23 +520,57 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
                 author's actual business — and this divider mirrors that
                 separation in the UI so the user can read above and trust
                 it as objective market data, then read below as advice
-                tailored to their specific business. */}
-            {persona === 'business' && (
-              <div className="border-t border-ink-4 pt-6 mt-2">
-                <p className="text-xs font-inter tracking-widest uppercase text-ink-subtle mb-6">
+                tailored to their specific business.
+
+                The Hide link gives a relevance-flagged user an escape
+                hatch when the route's check got it wrong — clicking it
+                collapses the entire business-context cluster (this
+                divider + Website Analysis + Conversion Recommendation)
+                without persisting the choice. */}
+            {showBusinessContextBlock && (
+              <div className="border-t border-ink-4 pt-6 mt-2 flex items-center justify-between mb-6">
+                <p className="text-xs font-inter tracking-widest uppercase text-ink-subtle">
                   Your Business Context
                 </p>
+                {showBusinessContextHideLink && (
+                  <button
+                    type="button"
+                    onClick={() => setHideBusinessContext(true)}
+                    className="text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors"
+                  >
+                    Not relevant to this book? Hide
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Website analysis — Business only, Pro tier. */}
-            {persona === 'business' && (
+            {/* Website analysis — Business only, Pro tier. When the user
+                force-shows business context but extraction was stripped
+                server-side (relevance check excluded it), render a
+                refresh prompt instead of the empty / ghost view so the
+                user has a clear next step. */}
+            {showBusinessContextBlock && (
               <Section icon={<Globe className="w-3.5 h-3.5" />} label="Website Analysis" tier="PRO">
-                {showWebsiteAnalysis
-                  ? <WebsiteAnalysisBlock extraction={result.websiteExtraction ?? null} />
-                  : <LockedSection tier="pro" copy="Structured analysis of your site — offer, audience, and differentiators — on Pro.">
-                      <WebsiteAnalysisBlock extraction={GHOST_WEBSITE_EXTRACTION} />
-                    </LockedSection>}
+                {!hasWebsiteExtraction
+                  ? <div className="bg-ink-3 border border-ink-4 rounded-md p-4 text-center space-y-3">
+                      <p className="text-cream-1/80 font-source-serif text-xs leading-relaxed">
+                        Run Creator Radar again to include your website analysis in these results.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void runRadar(true)}
+                        disabled={running}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gold/50 text-gold hover:bg-gold/10 text-xs font-inter font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Refresh
+                      </button>
+                    </div>
+                  : showWebsiteAnalysis
+                    ? <WebsiteAnalysisBlock extraction={result.websiteExtraction ?? null} />
+                    : <LockedSection tier="pro" copy="Structured analysis of your site — offer, audience, and differentiators — on Pro.">
+                        <WebsiteAnalysisBlock extraction={GHOST_WEBSITE_EXTRACTION} />
+                      </LockedSection>}
               </Section>
             )}
 
@@ -509,6 +582,25 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
                     <RecsBlock recs={GHOST_RECS} />
                   </LockedSection>}
             </Section>
+
+            {/* Add-your-business-context link. Surfaced when the route's
+                relevance check decided the website is not relevant to
+                this book — the cluster above is hidden by default in
+                that case, but the user gets one click to override and
+                see whatever extraction data is on the result (or, when
+                the route stripped it entirely, a refresh prompt). */}
+            {showBusinessContextAddLink && (
+              <div className="border-t border-ink-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBusinessContext(true)}
+                  className="inline-flex items-center gap-1 text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add your business context to this analysis
+                </button>
+              </div>
+            )}
 
             {/* Sources */}
             {result.sources && result.sources.length > 0 && (
