@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Radar, Loader2, AlertTriangle } from 'lucide-react'
+import { Radar, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import type { Book } from '@/types/database'
 import { CreatorRadarPanel } from './CreatorRadarPanel'
 import type { CoauthorStage } from './CoauthorShell'
@@ -54,6 +54,13 @@ export function CreatorRadarStage({ book, plan, onStageChange }: Props) {
   const [emptyStateClicked, setEmptyStateClicked] = useState(false)
   const hasNeverRun = book.creator_radar_ran_at === null && book.creator_radar_data === null
 
+  // Page-level refresh nonce. Bumped by the header Refresh button; the
+  // panel watches it via the externalRefreshKey prop and fires a fresh
+  // runRadar(true) on each bump. Lives here so the affordance is on the
+  // page header (where the user expects it) rather than buried in the
+  // panel's own toolbar.
+  const [refreshNonce, setRefreshNonce] = useState(0)
+
   if (hasNeverRun && !emptyStateClicked) {
     return (
       <div className="bg-ink-1 min-h-screen">
@@ -99,22 +106,33 @@ export function CreatorRadarStage({ book, plan, onStageChange }: Props) {
   return (
     <div className="bg-ink-1 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
-            Market Intelligence
-          </p>
-          <h2 className="font-playfair text-3xl text-cream font-semibold">Your Creator Radar results</h2>
-          <p className="text-ink-subtle text-sm font-source-serif mt-1">
-            Review the market intelligence, refresh with new data, or re-apply to your book.
-          </p>
-          {appliedDate && (
-            <p className="text-cream/70 text-xs font-inter mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-2 border border-ink-3">
-              <Loader2 className="w-3 h-3 text-gold opacity-0" aria-hidden="true" />
-              {/* Loader2 hidden as a layout reservation so the badge height
-                  matches other badges that use it. Not visually rendered. */}
-              Creator Radar was applied to your book on {appliedDate}. Refresh to update with latest market data.
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
+              Market Intelligence
             </p>
-          )}
+            <h2 className="font-playfair text-3xl text-cream font-semibold">Your Creator Radar results</h2>
+            <p className="text-ink-subtle text-sm font-source-serif mt-1">
+              Review the market intelligence, refresh with new data, or re-apply to your book.
+            </p>
+            {appliedDate && (
+              <p className="text-cream/70 text-xs font-inter mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-2 border border-ink-3">
+                <Loader2 className="w-3 h-3 text-gold opacity-0" aria-hidden="true" />
+                {/* Loader2 hidden as a layout reservation so the badge height
+                    matches other badges that use it. Not visually rendered. */}
+                Creator Radar was applied to your book on {appliedDate}. Refresh to update with latest market data.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setRefreshNonce((n) => n + 1)}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 border border-gold/50 text-gold hover:bg-gold/10 text-sm font-inter font-medium rounded-md transition-colors"
+            title="Run a fresh market intelligence scan"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
         </div>
 
         <CreatorRadarPanel
@@ -128,6 +146,7 @@ export function CreatorRadarStage({ book, plan, onStageChange }: Props) {
           // Auto-start when the user clicked through the empty state — the
           // panel mounts with no data and immediately begins streaming.
           autoStart={emptyStateClicked && !book.creator_radar_data}
+          externalRefreshKey={refreshNonce}
         />
       </div>
     </div>

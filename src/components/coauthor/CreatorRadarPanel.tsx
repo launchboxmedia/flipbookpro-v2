@@ -49,6 +49,12 @@ interface Props {
    *  immediately on landing rather than making the user click. Default
    *  is false so the coauthor stage still requires an explicit click. */
   autoStart?: boolean
+  /** External refresh trigger. Increment from the parent to force a
+   *  cache-busting re-run from outside the panel — used by the
+   *  CreatorRadarStage page header so refresh is reachable without
+   *  scrolling to the in-panel button. Initial value is ignored;
+   *  subsequent changes trigger runRadar(true). */
+  externalRefreshKey?: number
 }
 
 // Best-effort partial-JSON extraction. Sonnet streams tokens, not complete
@@ -107,7 +113,7 @@ const SCRAPE_STEP_LABEL: Record<Props['persona'], string> = {
   storyteller: 'Reading reader reviews…',
 }
 
-export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, initialData, radarAppliedAt: initialAppliedAt, onNavigateStage, autoStart = false }: Props) {
+export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, initialData, radarAppliedAt: initialAppliedAt, onNavigateStage, autoStart = false, externalRefreshKey }: Props) {
   const [status, setStatus]   = useState<Status>('idle')
   const [result, setResult]   = useState<RadarResult | null>(initialData)
   const [ranAt, setRanAt]     = useState<string | null>(initialRanAt)
@@ -142,6 +148,22 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
     void runRadar(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // External refresh trigger from the parent. Skips the initial render
+  // (otherwise the panel would re-run on every mount) and fires runRadar
+  // with refresh=true on every subsequent change. The parent owns the
+  // counter — bumping it = refresh request.
+  const externalRefreshSeenRef = useRef<number | undefined>(externalRefreshKey)
+  useEffect(() => {
+    if (externalRefreshKey === undefined) return
+    if (externalRefreshSeenRef.current === externalRefreshKey) return
+    externalRefreshSeenRef.current = externalRefreshKey
+    if (running) return
+    void runRadar(true)
+    // runRadar is stable in this component — defining it inside makes
+    // the dep array misleading. Intentional skip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalRefreshKey])
 
   async function copyToClipboard(text: string) {
     try {
