@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
@@ -12,6 +12,25 @@ import { Step5StyleCover } from './Step5StyleCover'
 import { Step6Typography } from './Step6Typography'
 import { Check } from 'lucide-react'
 import type { RadarResult, CreatorRadarResult } from '@/types/database'
+
+// localStorage key per book — wizard state is component-local React state,
+// which means a stray remount (HMR, route change, parent re-render) would
+// reset everything to Step 1. Persisting per-step lets the wizard restore
+// where the user was on remount. DB-side persistProgress also runs but
+// only saves the subset of fields with column mappings; this keeps step
+// position + wizard-session-only fields (radarResults, ideaDescription,
+// deepRadarFired) recoverable too.
+const STORAGE_KEY = (bookId: string) => `wizard-progress-${bookId}`
+// Two hours. Long enough that the user can step away and come back; short
+// enough that we don't restore truly stale state (e.g. user moved on to
+// other work and is now on a different machine).
+const STORAGE_TTL_MS = 7_200_000
+
+interface PersistedProgress {
+  currentStep: number
+  wizardData:  WizardData
+  timestamp:   number
+}
 
 // Step order — 6 steps. Radar runs first, then persona triggers the
 // per-book deep radar in the background, then title / tone / look-and-
@@ -140,6 +159,56 @@ export function WizardShell({
     ...initialData,
   })
 
+  // Hydrate from localStorage on mount. Runs after the SSR render so we
+  // don't trip Next.js's hydration mismatch. The user may briefly see
+  // step 0 before the restored state lands — acceptable trade-off for
+  // not having a hydration warning.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY(bookId))
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Partial<PersistedProgress>
+      if (typeof parsed?.timestamp !== 'number') return
+      if (Date.now() - parsed.timestamp > STORAGE_TTL_MS) {
+        // Stale — drop it so we don't restore week-old state.
+        window.localStorage.removeItem(STORAGE_KEY(bookId))
+        return
+      }
+      if (parsed.wizardData && typeof parsed.wizardData === 'object') {
+        setData((prev) => ({ ...prev, ...parsed.wizardData }))
+      }
+      if (typeof parsed.currentStep === 'number') {
+        const clamped = Math.max(0, Math.min(STEPS.length - 1, parsed.currentStep))
+        setStep(clamped)
+      }
+    } catch {
+      // Corrupt JSON or storage unavailable — ignore and continue with
+      // server-provided initialData.
+    }
+    // Only run for this book. If bookId changes (rare), the restore re-runs.
+  }, [bookId])
+
+  // Save on every step or data change. The DB persistence inside next()
+  // covers schema-mapped fields, but localStorage covers step position
+  // and wizard-session-only fields (radarResults, ideaDescription,
+  // deepRadarFired) so a remount restores the full picture.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const payload: PersistedProgress = { currentStep: step, wizardData: data, timestamp: Date.now() }
+      window.localStorage.setItem(STORAGE_KEY(bookId), JSON.stringify(payload))
+    } catch {
+      // Storage unavailable / quota / JSON serialization failure — ignore.
+      // DB-side persistProgress is still running independently.
+    }
+  }, [bookId, step, data])
+
+  function clearStoredProgress() {
+    if (typeof window === 'undefined') return
+    try { window.localStorage.removeItem(STORAGE_KEY(bookId)) } catch { /* ignore */ }
+  }
+
   async function next(patch: Partial<WizardData>) {
     const merged: WizardData = { ...data, ...patch }
 
@@ -236,7 +305,13 @@ export function WizardShell({
           type="button"
           onClick={() => {
             if (step > 0) setStep((s) => s - 1)
-            else window.location.href = '/dashboard'
+            else {
+              // Leaving the wizard from step 0 — clear stored progress
+              // so we don't surprise the user by restoring this run on
+              // a future visit.
+              clearStoredProgress()
+              window.location.href = '/dashboard'
+            }
           }}
           aria-label={step > 0 ? 'Previous step' : 'Back to dashboard'}
           className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6"
@@ -332,7 +407,7 @@ export function WizardShell({
               {step === 2 && <Step2Meta        data={data} bookId={bookId} onNext={next} onBack={back} />}
               {step === 3 && <Step4ToneReader  data={data} onNext={next} onBack={back} />}
               {step === 4 && <Step5StyleCover  data={data} onNext={next} onBack={back} />}
-              {step === 5 && <Step6Typography  data={data} bookId={bookId} onBack={back} />}
+              {step === 5 && <Step6Typography  data={data} bookId={bookId} onBack={back} onComplete={clearStoredProgress} />}
             </motion.div>
           </AnimatePresence>
         </div>

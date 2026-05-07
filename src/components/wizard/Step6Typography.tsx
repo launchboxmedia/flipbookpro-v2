@@ -241,9 +241,14 @@ interface Props {
   data: WizardData
   bookId: string
   onBack: () => void
+  /** Fires after the setup call succeeds, before the navigation to
+   *  coauthor. Used by WizardShell to clear localStorage-persisted
+   *  progress so a future wizard run on this book doesn't restore the
+   *  now-completed flow. */
+  onComplete?: () => void
 }
 
-export function Step6Typography({ data, bookId, onBack }: Props) {
+export function Step6Typography({ data, bookId, onBack, onComplete }: Props) {
   const [selected, setSelected] = useState(data.typography)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -263,6 +268,7 @@ export function Step6Typography({ data, bookId, onBack }: Props) {
         const json = await res.json().catch(() => ({}))
         throw new Error(json.error ?? 'Failed to save')
       }
+      onComplete?.()
       router.push(`/book/${bookId}/coauthor`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed')
