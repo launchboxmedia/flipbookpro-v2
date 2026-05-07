@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import {
-  Sparkles, Radar, Loader2, Check, ArrowRight, ArrowLeft,
+  Sparkles, Radar, Loader2, Check, ArrowRight,
   Users, Layers, FileText, Lightbulb, Target, X,
 } from 'lucide-react'
 import type { Book, RadarResult, RadarAppliedSelections } from '@/types/database'
@@ -11,9 +10,14 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   book: Book
-  /** Called once the interstitial completes (apply or skip). The caller
-   *  re-fetches the book so downstream stages see the fresh radar_applied_at. */
+  /** Called once the interstitial completes (apply path). The caller
+   *  re-fetches the book so downstream stages see the fresh
+   *  radar_applied_at. */
   onComplete: () => void
+  /** Called when the user (or the polling timeout) skips. The parent
+   *  owns the apply-radar POST + re-fetch so the AppShell header's Skip
+   *  button can trigger the same code path the in-component flow does. */
+  onSkip: () => Promise<void> | void
 }
 
 const POLL_INTERVAL_MS = 2_000
@@ -40,7 +44,7 @@ const MONETIZATION_LABEL: Record<'free' | 'lead_magnet' | 'paid', string> = {
  *  arriving, the user gets the interstitial anyway with whatever the
  *  initial book payload had. If the payload is empty, the
  *  parent renders this component only when creator_radar_data exists. */
-export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
+export function RadarInterstitial({ book: initialBook, onComplete, onSkip }: Props) {
   const [book, setBook] = useState<Book>(initialBook)
   // Phase: 'waiting' if data is still coming in; 'ready' once we have it.
   const [phase, setPhase] = useState<'waiting' | 'ready' | 'applying' | 'done'>(
@@ -99,25 +103,14 @@ export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
   }, [phase])
 
   async function markSkipped() {
+    // The parent owns the actual skip work (POST apply-radar + re-fetch
+    // book); we just shift into 'applying' so the spinner shows while
+    // the parent's fetch is in flight, then 'done' to unmount.
     setPhase('applying')
     try {
-      // Skip = treat as "applied with all unchecked". Persist via the
-      // route so the same applied_selections schema lands on the book.
-      const all: RadarAppliedSelections = {
-        targetAudience: false, chapterStructure: false, backCover: false,
-        openingHook: false, monetization: false,
-      }
-      await fetch(`/api/books/${book.id}/apply-radar`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ selections: all }),
-      })
-    } catch {
-      // Fail silently — radar_applied_at gets set even on partial
-      // failure inside the route, so the interstitial won't reappear.
+      await onSkip()
     } finally {
       setPhase('done')
-      onComplete()
     }
   }
 
@@ -145,9 +138,14 @@ export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
   const radar: RadarResult | null = book.creator_radar_data ?? null
 
   // ── Waiting state — radar still running ──────────────────────────────
+  // Now lives inside AppShell, so we drop the full-screen wrapper and
+  // render as a centered card within the scrollable main area. min-h
+  // sized to a viewport-relative value so the spinner sits roughly
+  // centered without forcing the whole document to be exactly viewport
+  // height (which would clash with AppShell's own min-h-screen).
   if (phase === 'waiting') {
     return (
-      <div className="bg-ink-1 min-h-screen flex items-center justify-center px-6">
+      <div className="px-6 py-16 flex justify-center">
         <div className="bg-ink-2 border border-ink-3 rounded-2xl p-10 max-w-md w-full text-center space-y-4">
           <div className="flex justify-center">
             <Radar className="w-8 h-8 text-gold animate-pulse" />
@@ -167,7 +165,7 @@ export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
   // ── Applying state — selections being applied ────────────────────────
   if (phase === 'applying') {
     return (
-      <div className="bg-ink-1 min-h-screen flex items-center justify-center px-6">
+      <div className="px-6 py-16 flex justify-center">
         <div className="bg-ink-2 border border-ink-3 rounded-2xl p-10 max-w-md w-full text-center space-y-4">
           <div className="flex justify-center">
             <Loader2 className="w-8 h-8 text-gold animate-spin" />
@@ -194,35 +192,13 @@ export function RadarInterstitial({ book: initialBook, onComplete }: Props) {
   const monetization    = radar?.bookRecommendations?.monetization as 'free' | 'lead_magnet' | 'paid' | undefined
   const monReason       = radar?.bookRecommendations?.monetization_reason
 
+  // Component renders inside AppShell — no full-screen wrapper, no
+  // sticky top bar. Book title lives in AppShell's pageTitle slot, the
+  // Skip control lives in AppShell's headerRight slot, and the sidebar
+  // provides global nav (the old "Back to Dashboard" link is redundant
+  // with the sidebar's Library link).
   return (
-    <div className="bg-ink-1 min-h-screen">
-      {/* Top bar — gives the user an exit before they apply anything.
-          Sticky so it stays visible even on long mobile scrolls. */}
-      <div className="sticky top-0 z-20 bg-ink-1/90 backdrop-blur border-b border-ink-3">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
-          </Link>
-          <div className="flex-1 min-w-0 text-center">
-            <p className="font-inter text-xs text-cream-1 truncate">
-              {book.title || 'Untitled book'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void markSkipped()}
-            className="inline-flex items-center gap-1 text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors shrink-0"
-          >
-            Skip
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
+    <div>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
         {/* Header */}
         <div className="mb-8 text-center space-y-2">

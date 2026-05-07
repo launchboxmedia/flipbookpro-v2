@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { Book, BookPage } from '@/types/database'
+import { ArrowRight } from 'lucide-react'
+import type { Book, BookPage, RadarAppliedSelections } from '@/types/database'
+import { AppShell } from '@/components/layout/AppShell'
 import { CoauthorShell, type CoauthorStage } from './CoauthorShell'
 import { RadarInterstitial } from './RadarInterstitial'
 import { createClient } from '@/lib/supabase/client'
@@ -103,12 +105,53 @@ export function CoauthorEntry(props: Props) {
     }
   }
 
+  // Skip = mark all selections false and persist via apply-radar so the
+  // route still records radar_applied_at, dismissing the interstitial
+  // permanently. Lifted out of RadarInterstitial so the AppShell header
+  // Skip button (which lives outside the component) can trigger the
+  // same code path.
+  async function handleSkip() {
+    try {
+      const all: RadarAppliedSelections = {
+        targetAudience: false, chapterStructure: false, backCover: false,
+        openingHook: false, monetization: false,
+      }
+      await fetch(`/api/books/${book.id}/apply-radar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ selections: all }),
+      })
+    } catch {
+      // Fail silently — the route sets radar_applied_at on success, and
+      // even on partial failure the user proceeds via the re-fetch below.
+    }
+    await handleInterstitialComplete()
+  }
+
   if (showInterstitial) {
     return (
-      <RadarInterstitial
-        book={book}
-        onComplete={handleInterstitialComplete}
-      />
+      <AppShell
+        userEmail={props.userEmail}
+        isPremium={props.isPremium}
+        isAdmin={props.isAdmin}
+        pageTitle={book.title || 'Market Intelligence'}
+        headerRight={
+          <button
+            type="button"
+            onClick={() => void handleSkip()}
+            className="inline-flex items-center gap-1 text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors"
+          >
+            Skip
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        }
+      >
+        <RadarInterstitial
+          book={book}
+          onComplete={handleInterstitialComplete}
+          onSkip={handleSkip}
+        />
+      </AppShell>
     )
   }
 
