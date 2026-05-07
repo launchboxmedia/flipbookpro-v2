@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { CoauthorEntry } from '@/components/coauthor/CoauthorEntry'
-import type { CoauthorStage } from '@/components/coauthor/CoauthorShell'
+import { CoauthorShell, type CoauthorStage } from '@/components/coauthor/CoauthorShell'
 import { getEffectivePlan } from '@/lib/auth'
 
 const VALID_STAGES: CoauthorStage[] = ['outline', 'radar', 'chapter', 'back-matter', 'complete']
@@ -25,12 +24,21 @@ export default async function CoauthorPage({
 
   if (!book) redirect('/dashboard')
 
-  const initialStage = VALID_STAGES.includes(searchParams.stage as CoauthorStage)
+  // Default-stage resolution. The URL takes precedence — a user navigating
+  // directly to /coauthor?stage=outline gets the outline regardless of
+  // radar state. Without a URL stage, first-time entries (radar never
+  // applied) land on the Creator Radar stage so the user can review the
+  // market intelligence before writing; subsequent entries land on the
+  // Outline stage as the default writing surface. Replaces the old
+  // RadarInterstitial gating wrapper — one surface, one experience.
+  const urlStage = VALID_STAGES.includes(searchParams.stage as CoauthorStage)
     ? (searchParams.stage as CoauthorStage)
-    : 'outline'
+    : null
+  const initialStage: CoauthorStage =
+    urlStage ?? (book.radar_applied_at ? 'outline' : 'radar')
 
   return (
-    <CoauthorEntry
+    <CoauthorShell
       book={book}
       pages={pages ?? []}
       userEmail={user.email ?? ''}
