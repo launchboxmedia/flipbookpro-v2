@@ -175,27 +175,18 @@ export function Step1Scratch({ data, bookId, onNext, onBack, maxChapters = 6 }: 
     return null
   }
 
-  // Mount flow. If the Audience→Outline transition fired the deep radar,
-  // poll for it before generating chapters so the prompt has the richest
-  // possible context. If it lands inside POLL_MAX_MS, we use it; if it
-  // doesn't, we proceed with pre-book context only — the wizard never
-  // hangs on the radar.
+  // Mount flow. The deep Creator Radar now fires on coauthor entry, not
+  // in the wizard, so this step always proceeds straight to chapter
+  // generation with pre-book context only. Per-book radar context layers
+  // in later via the OutlineStage interstitial; we don't gate the wizard
+  // on it.
   const autoTriggeredRef = useRef(false)
   useEffect(() => {
     if (autoTriggeredRef.current) return
     if (chapters.length > 0) return
     if (!topic && !data.title) return
     autoTriggeredRef.current = true
-    void (async () => {
-      let deep: RadarResult | null = null
-      if (data.deepRadarFired) {
-        setWaitingForRadar(true)
-        deep = await pollForRadar()
-        setDeepRadarData(deep)
-        setWaitingForRadar(false)
-      }
-      await generateChapters(0, deep)
-    })()
+    void generateChapters(0, null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
