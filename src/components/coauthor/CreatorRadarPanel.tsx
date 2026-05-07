@@ -453,6 +453,21 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
               </Section>
             )}
 
+            {/* Boundary between market intelligence (above) and business
+                context (below). Synthesis runs as two phases — Phase 1 is
+                topic-driven market analysis, Phase 2 layers in the
+                author's actual business — and this divider mirrors that
+                separation in the UI so the user can read above and trust
+                it as objective market data, then read below as advice
+                tailored to their specific business. */}
+            {persona === 'business' && (
+              <div className="border-t border-ink-4 pt-6 mt-2">
+                <p className="text-xs font-inter tracking-widest uppercase text-ink-subtle mb-6">
+                  Your Business Context
+                </p>
+              </div>
+            )}
+
             {/* Website analysis — Business only, Pro tier. */}
             {persona === 'business' && (
               <Section icon={<Globe className="w-3.5 h-3.5" />} label="Website Analysis" tier="PRO">
