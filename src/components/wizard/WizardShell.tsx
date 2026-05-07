@@ -96,6 +96,11 @@ export interface WizardData {
    *  takes priority as the topic that flows into title generation and
    *  chapter generation; the radar still supplements with market signals. */
   ideaDescription?: string
+  /** True once the per-book deep Creator Radar has been fired in the
+   *  background by the Audience→Outline transition. Step 4 reads this
+   *  to decide whether to poll for radar results before generating
+   *  chapters. Wizard-session only; never persisted. */
+  deepRadarFired?: boolean
 }
 
 interface WizardShellProps {
@@ -186,8 +191,8 @@ export function WizardShell({
 
   // Save on every step or data change. The DB persistence inside next()
   // covers schema-mapped fields, but localStorage covers step position
-  // and wizard-session-only fields (radarResults, ideaDescription) so a
-  // remount restores the full picture.
+  // and wizard-session-only fields (radarResults, ideaDescription,
+  // deepRadarFired) so a remount restores the full picture.
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
@@ -204,19 +209,70 @@ export function WizardShell({
     try { window.localStorage.removeItem(STORAGE_KEY(bookId)) } catch { /* ignore */ }
   }
 
-  function next(patch: Partial<WizardData>) {
-    // All transitions are fire-and-forget: persistProgress saves the
-    // schema-mapped subset of WizardData to the books row, and the
-    // localStorage effect snapshots step + full data for restore-on-
-    // remount. The deep Creator Radar used to fire here on step 2→3,
-    // but that ran before niche/title/persona had fully landed in the
-    // DB — radar would key off stale columns and return generic
-    // results. Radar now fires on coauthor entry instead (see
-    // CoauthorEntry), where every wizard field is already saved.
+  async function next(patch: Partial<WizardData>) {
     const merged: WizardData = { ...data, ...patch }
-    setData(merged)
-    void persistProgress(merged)
+
+    // Details (index 2) → Tone (index 3) is the special case: by this
+    // transition the user has typed the niche (Step 1), persona +
+    // offerType (Step 2), and title + subtitle (Step 3). All of these
+    // feed the Creator Radar's intelligence_cache key, so firing here
+    // gives the cache meaningful entropy per-book — versus firing on
+    // step 1→2 (the old persona transition), where title/niche/etc.
+    // hadn't landed yet and every new book hashed to the same key.
+    //
+    // We AWAIT the wizard-progress save before firing so the radar
+    // route reads the freshly-persisted niche + title + persona off
+    // the books row. Then fire-and-forget; the coauthor interstitial
+    // polls books.creator_radar_data when the user lands there.
+    const isDetailsToTone = step === 2
+
+    if (isDetailsToTone) {
+      // Pre-set deepRadarFired so the interstitial knows a fire is in
+      // flight. Set it BEFORE setData/setStep so mount effects see it.
+      merged.deepRadarFired = true
+      setData(merged)
+      try {
+        await persistProgress(merged)
+      } catch {
+        // persistProgress already swallows errors; included here so even
+        // an unexpected throw doesn't block step advance.
+      }
+      // Fire and don't await. Stream the SSE to completion in the
+      // background so the result lands in books.creator_radar_data;
+      // the interstitial polls for that to appear.
+      void fireDeepRadar()
+    } else {
+      setData(merged)
+      void persistProgress(merged)
+    }
+
     setStep((s) => s + 1)
+  }
+
+  /** Background per-book radar trigger. The route streams results as SSE;
+   *  we drain the reader so the route's persistence side-effect runs to
+   *  completion. Errors are silent — radar enhances the outline step but
+   *  doesn't gate it. */
+  async function fireDeepRadar() {
+    try {
+      const res = await fetch(`/api/books/${bookId}/creator-radar`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ refresh: false }),
+      })
+      const reader = res.body?.getReader()
+      if (!reader) return
+      // Drain the stream — we don't read the deltas, we just need the
+      // server's persistence path (intelligence_cache + books.creator_
+      // radar_data update) to complete.
+      while (true) {
+        const { done } = await reader.read()
+        if (done) break
+      }
+    } catch {
+      // Silent — Step 4's poll will time out gracefully and proceed
+      // without per-book context.
+    }
   }
 
   function back() {
