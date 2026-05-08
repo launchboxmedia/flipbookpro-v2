@@ -25,7 +25,6 @@ import type {
   RadarAudienceInsights, RadarCompetitorLandscape, RadarBookRecommendations,
   RadarCompetitorEntry, RadarWebsiteExtraction,
 } from '@/types/database'
-import { RadarApplyModal, type RadarApplyResult } from './RadarApplyModal'
 
 type Plan = 'free' | 'standard' | 'pro'
 type Status = 'idle' | 'researching' | 'scraping' | 'synthesizing' | 'done' | 'error'
@@ -124,9 +123,7 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
   // Apply-Radar state. The button surfaces once a result is on screen.
   const [applying, setApplying]               = useState(false)
   const [applyError, setApplyError]           = useState<string | null>(null)
-  const [applyResult, setApplyResult]         = useState<RadarApplyResult | null>(null)
   const [appliedAt, setAppliedAt]             = useState<string | null>(initialAppliedAt ?? null)
-  const [modalOpen, setModalOpen]             = useState(false)
   // Business Context visibility overrides. Local-only — they reset every
   // panel mount so the relevance check verdict from the route is the
   // source of truth on each page load. `hideBusinessContext` lets a
@@ -182,10 +179,17 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
     }
   }
 
-  /** Triggers /apply-radar and opens the results modal. Idempotent on the
-   *  server — re-applying replaces the audience-context blocks rather
-   *  than appending duplicates, so this also serves as the "Re-apply"
-   *  affordance. */
+  /** Triggers /apply-radar then sends the user to the Outline stage to
+   *  review the chapters that get auto-generated there. Idempotent on
+   *  the server — re-applying replaces the audience-context blocks
+   *  rather than appending duplicates, so this also serves as the
+   *  "Re-apply" affordance.
+   *
+   *  Replaces the old results-modal flow: the user no longer sees a
+   *  one-shot "here's what we did" dialog. Instead they go straight to
+   *  the outline stage, where the chapter review banner surfaces the
+   *  pending suggestions and lets them accept / refresh / remove each
+   *  one in place. */
   async function applyRadar() {
     if (applying) return
     setApplying(true)
@@ -194,10 +198,13 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
       const res = await fetch(`/api/books/${bookId}/apply-radar`, { method: 'POST' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Apply failed (${res.status})`)
-      const r = json as RadarApplyResult
-      setApplyResult(r)
-      setAppliedAt(r.appliedAt)
-      setModalOpen(true)
+      const appliedAtServer = typeof json.appliedAt === 'string' ? json.appliedAt as string : new Date().toISOString()
+      setAppliedAt(appliedAtServer)
+      setToast('Intelligence applied')
+      // Hand off to the outline stage. The auto-generation effect there
+      // will fire when chapters are missing AND radar_applied_at is set,
+      // pulling the full radar context into the prompt.
+      if (onNavigateStage) onNavigateStage('outline')
     } catch (e) {
       setApplyError(e instanceof Error ? e.message : 'Apply failed')
     } finally {
@@ -630,7 +637,6 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
               applyError={applyError}
               appliedAt={appliedAt}
               onApply={applyRadar}
-              onReopenLastResult={applyResult ? () => setModalOpen(true) : undefined}
             />
           </div>
         )}
@@ -641,17 +647,6 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
           </p>
         )}
       </div>
-
-      {/* Apply-Radar results modal — opens after a successful /apply-radar.
-          Owns its own state for accept-outline; closes on overlay click,
-          escape, or footer navigation. */}
-      <RadarApplyModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        bookId={bookId}
-        result={applyResult}
-        onNavigateStage={onNavigateStage}
-      />
 
       {/* Copy toast — bottom-right, fades after 2s */}
       {toast && (
@@ -971,13 +966,12 @@ function daysSince(iso: string | null): number | null {
 }
 
 function ApplyToBookCard({
-  applying, applyError, appliedAt, onApply, onReopenLastResult,
+  applying, applyError, appliedAt, onApply,
 }: {
   applying: boolean
   applyError: string | null
   appliedAt: string | null
   onApply: () => void
-  onReopenLastResult?: () => void
 }) {
   const days = daysSince(appliedAt)
   const alreadyApplied = appliedAt !== null
@@ -1024,20 +1018,9 @@ function ApplyToBookCard({
       </button>
 
       {alreadyApplied && (
-        <div className="flex items-center justify-between gap-3 text-[11px] font-inter">
-          <p className="text-ink-subtle">
-            Applied {days === null ? 'recently' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`}.
-          </p>
-          {onReopenLastResult && (
-            <button
-              type="button"
-              onClick={onReopenLastResult}
-              className="text-gold hover:text-gold-soft underline underline-offset-2 transition-colors"
-            >
-              View last results
-            </button>
-          )}
-        </div>
+        <p className="text-ink-subtle text-[11px] font-inter">
+          Applied {days === null ? 'recently' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`}.
+        </p>
       )}
     </div>
   )

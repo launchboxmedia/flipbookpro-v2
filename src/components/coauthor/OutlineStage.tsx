@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { BookOpen, Loader2, X, Check, Wand2, ChevronRight, RefreshCw, AlertTriangle, GitMerge, Layout, GripVertical, Sparkles, Plus, ArrowRight, Megaphone } from 'lucide-react'
+import { BookOpen, Loader2, X, Check, Wand2, ChevronRight, RefreshCw, AlertTriangle, GitMerge, Layout, GripVertical, Sparkles, Plus, ArrowRight, Megaphone, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Book, BookPage } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -103,11 +103,38 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     }
   }
 
+  // Pending-review state for chapters auto-generated from radar.
+  // Local-only: not persisted, resets on remount. The DB-side signal is
+  // book.radar_applied_at + every chapter unapproved; once any chapter
+  // gets written and approved, pendingMode flips off and these fall away.
+  const [acceptedIds, setAcceptedIds]   = useState<Set<string>>(new Set())
+  const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const [removingId, setRemovingId]     = useState<string | null>(null)
+  const [editingId, setEditingId]       = useState<string | null>(null)
+  const [editTitle, setEditTitle]       = useState('')
+  const [editBrief, setEditBrief]       = useState('')
+  const [editSaving, setEditSaving]     = useState(false)
+
   // Split chapters into the regular sequence (0..N) and the CTA sentinel
   // chapter (index 99). Regular chapters render in the main list; the CTA
   // sits below in its own card.
   const regularPages = pages.filter((p) => p.chapter_index < 99)
   const ctaPage      = pages.find((p) => p.chapter_index === 99) ?? null
+
+  // Radar-suggested-chapters review mode. Active when the user has
+  // applied the radar (so chapters were auto-generated from radar
+  // context) AND none of those chapters has been approved yet (which
+  // happens when the user writes content in ChapterStage). The first
+  // approval flips this off and the per-card pending actions vanish.
+  const pendingMode = !!book.radar_applied_at
+    && regularPages.length > 0
+    && regularPages.every((p) => !p.approved)
+  // Banner visible until the user has either accepted or removed every
+  // pending chapter. Removed chapters drop out of regularPages, so the
+  // every() naturally narrows as the user works through the list.
+  const showPendingBanner = pendingMode
+    && regularPages.length > 0
+    && !regularPages.every((p) => acceptedIds.has(p.id))
 
   // Auto-outline state. Fires once when the user lands on the outline stage
   // with no chapters at all — radar context already on book.radar_context
@@ -347,6 +374,134 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     }
   }
 
+  // ── Pending-review handlers ────────────────────────────────────────────
+  // Accept/Refresh/Remove/Edit all act on a single chapter at a time. The
+  // banner's Accept All is a fan-out over the current regularPages array.
+
+  function handleAccept(pageId: string) {
+    setAcceptedIds((prev) => {
+      const next = new Set(prev)
+      next.add(pageId)
+      return next
+    })
+  }
+
+  function handleAcceptAll() {
+    setAcceptedIds(new Set(regularPages.map((p) => p.id)))
+  }
+
+  async function handleRemoveChapter(page: BookPage) {
+    if (removingId) return
+    setRemovingId(page.id)
+    const supabase = createClient()
+    try {
+      const { error: deleteErr } = await supabase
+        .from('book_pages')
+        .delete()
+        .eq('id', page.id)
+        .eq('book_id', book.id)
+      if (deleteErr) throw new Error(deleteErr.message)
+      // Optimistic local update — drop the row from the parent's list.
+      // We don't renumber surviving chapter_index values; the DB unique
+      // index allows gaps, and the next outline regeneration would
+      // re-pack them anyway. Removing during review is a "this chapter
+      // doesn't belong" action, not a reorder.
+      onPagesChange(pages.filter((p) => p.id !== page.id))
+      // Drop from acceptedIds too in case it was already accepted.
+      setAcceptedIds((prev) => {
+        if (!prev.has(page.id)) return prev
+        const next = new Set(prev)
+        next.delete(page.id)
+        return next
+      })
+      toast.success('Chapter removed.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Remove failed')
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
+  async function handleRefreshChapter(page: BookPage) {
+    if (refreshingId) return
+    setRefreshingId(page.id)
+    try {
+      const res = await fetch(`/api/books/${book.id}/suggest-chapter`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          chapter_index: page.chapter_index,
+          current_title: page.chapter_title,
+          current_brief: page.chapter_brief,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Suggest failed (${res.status})`)
+      const newTitle = typeof json.chapter_title === 'string' ? json.chapter_title : page.chapter_title
+      const newBrief = typeof json.chapter_brief === 'string' ? json.chapter_brief : page.chapter_brief
+      // Patch in place. The route already updated the DB row; we mirror
+      // the change into the local pages array so the card re-renders
+      // without a refetch.
+      onPagesChange(
+        pages.map((p) => p.id === page.id ? { ...p, chapter_title: newTitle, chapter_brief: newBrief } : p),
+      )
+      // A refreshed chapter resets to "needs another look" — drop the
+      // accepted flag if the user had previously accepted this card.
+      setAcceptedIds((prev) => {
+        if (!prev.has(page.id)) return prev
+        const next = new Set(prev)
+        next.delete(page.id)
+        return next
+      })
+      toast.success('Chapter refreshed.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Refresh failed')
+    } finally {
+      setRefreshingId(null)
+    }
+  }
+
+  function handleEditStart(page: BookPage) {
+    setEditingId(page.id)
+    setEditTitle(page.chapter_title)
+    setEditBrief(page.chapter_brief ?? '')
+  }
+
+  function handleEditCancel() {
+    setEditingId(null)
+    setEditTitle('')
+    setEditBrief('')
+  }
+
+  async function handleEditSave(page: BookPage) {
+    if (editSaving) return
+    const title = editTitle.trim()
+    const brief = editBrief.trim()
+    if (!title) {
+      toast.error('Title is required.')
+      return
+    }
+    setEditSaving(true)
+    const supabase = createClient()
+    try {
+      const { error: updateErr } = await supabase
+        .from('book_pages')
+        .update({ chapter_title: title, chapter_brief: brief, updated_at: new Date().toISOString() })
+        .eq('id', page.id)
+        .eq('book_id', book.id)
+      if (updateErr) throw new Error(updateErr.message)
+      onPagesChange(
+        pages.map((p) => p.id === page.id ? { ...p, chapter_title: title, chapter_brief: brief } : p),
+      )
+      handleEditCancel()
+      toast.success('Chapter updated.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   async function runCritique() {
     setCritiquing(true)
     setError('')
@@ -524,6 +679,33 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           </div>
         )}
 
+        {/* Pending-review banner. Surfaces only when the radar drove an
+            outline auto-generation (radar_applied_at set, no chapters
+            approved yet) AND the user hasn't reviewed every chapter
+            this session. The Accept All shortcut fans out over the
+            current chapter list. */}
+        {showPendingBanner && (
+          <div className="mb-4 rounded-lg border-l-4 border-gold bg-ink-3 px-4 py-3 flex items-start gap-3">
+            <Sparkles className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-inter text-sm font-semibold text-cream-1">
+                Creator Radar suggested these chapters
+              </p>
+              <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
+                Review each one before you start writing.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAcceptAll}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
+            >
+              <Check className="w-3 h-3" />
+              Accept All
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col">
           {/* Insert slot above the first chapter — new chapter takes index 0 */}
           {regularPages.length > 0 && (
@@ -545,10 +727,17 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
             </button>
           )}
 
-          {regularPages.map((page, i) => (
+          {regularPages.map((page, i) => {
+            const isEditing = editingId === page.id
+            const isAccepted = acceptedIds.has(page.id)
+            return (
             <Fragment key={page.id}>
             <div
-              className="flex items-start gap-3 p-4 bg-white border border-cream-3 rounded-xl group hover:border-gold/40 hover:shadow-[0_4px_18px_-6px_rgba(201,168,76,0.18)] transition-all cursor-default"
+              className={`flex items-start gap-3 p-4 bg-white border rounded-xl group transition-all cursor-default ${
+                isAccepted
+                  ? 'border-emerald-300/70 hover:border-emerald-400 hover:shadow-[0_4px_18px_-6px_rgba(16,185,129,0.22)]'
+                  : 'border-cream-3 hover:border-gold/40 hover:shadow-[0_4px_18px_-6px_rgba(201,168,76,0.18)]'
+              }`}
             >
               {/* Reorder handle — visible on hover, non-functional placeholder
                   for future drag/drop wiring. text-ink-1/30 keeps it visually
@@ -560,40 +749,146 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                 <GripVertical className="w-4 h-4" />
               </span>
 
-              {/* Number badge — gold pill instead of muted text so the index
-                  reads as deliberate metadata. */}
-              <span className="w-7 h-7 rounded-md bg-gold text-ink-1 font-inter font-bold text-sm flex items-center justify-center shrink-0">
-                {i + 1}
+              {/* Number badge — gold normally; emerald-tinted when locally
+                  accepted as a visual confirmation that the user has
+                  signed off on this card. */}
+              <span className={`w-7 h-7 rounded-md font-inter font-bold text-sm flex items-center justify-center shrink-0 ${
+                isAccepted ? 'bg-emerald-500 text-white' : 'bg-gold text-ink-1'
+              }`}>
+                {isAccepted ? <Check className="w-3.5 h-3.5" /> : i + 1}
               </span>
 
-              <div className="flex-1 min-w-0">
-                <p className="font-inter font-semibold text-ink-1 text-base leading-snug">
-                  {page.chapter_title}
-                </p>
-                {page.chapter_brief && (
-                  // Bumped from /70 to /85 — at /70 on pure white the brief
-                  // read as too muted. /85 keeps the visual hierarchy below
-                  // the title while staying clearly legible.
-                  <p className="text-ink-1/85 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
-                    {page.chapter_brief}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {page.approved && (
-                  <span
-                    className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"
-                    title="Approved"
+              {isEditing ? (
+                <div className="flex-1 min-w-0 space-y-2">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Chapter title"
+                    disabled={editSaving}
+                    className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-inter font-semibold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
                   />
-                )}
-                <button
-                  onClick={() => onNavigateChapter(i)}
-                  className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1 rounded-md bg-cream-2 hover:bg-gold/15 text-xs font-inter font-medium text-ink-1 transition-all"
-                >
-                  Write <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                  <textarea
+                    value={editBrief}
+                    onChange={(e) => setEditBrief(e.target.value)}
+                    placeholder="Chapter brief"
+                    rows={3}
+                    disabled={editSaving}
+                    className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-source-serif focus:outline-none focus:ring-2 focus:ring-gold/40 resize-y disabled:opacity-50"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={handleEditCancel}
+                      disabled={editSaving}
+                      className="px-3 py-1.5 text-ink-1/60 hover:text-ink-1 text-xs font-inter transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleEditSave(page)}
+                      disabled={editSaving || !editTitle.trim()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors disabled:opacity-50"
+                    >
+                      {editSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                      {editSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <p className="font-inter font-semibold text-ink-1 text-base leading-snug">
+                    {page.chapter_title}
+                  </p>
+                  {page.chapter_brief && (
+                    // Bumped from /70 to /85 — at /70 on pure white the brief
+                    // read as too muted. /85 keeps the visual hierarchy below
+                    // the title while staying clearly legible.
+                    <p className="text-ink-1/85 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
+                      {page.chapter_brief}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!isEditing && (
+                <div className="flex items-center gap-1 shrink-0">
+                  {pendingMode ? (
+                    <>
+                      {/* Accept (✓) — local-only confirmation. Disabled once
+                          accepted; the user clears it implicitly by clicking
+                          Refresh, which drops the accepted flag. */}
+                      <button
+                        type="button"
+                        onClick={() => handleAccept(page.id)}
+                        disabled={isAccepted}
+                        title={isAccepted ? 'Confirmed' : 'Accept this chapter'}
+                        aria-label={isAccepted ? 'Chapter accepted' : 'Accept this chapter'}
+                        className={`p-1.5 rounded-md transition-colors ${
+                          isAccepted
+                            ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                            : 'text-ink-1/50 hover:text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Refresh — calls /suggest-chapter to regenerate just
+                          this chapter's title+brief. */}
+                      <button
+                        type="button"
+                        onClick={() => void handleRefreshChapter(page)}
+                        disabled={refreshingId === page.id}
+                        title="Suggest a different angle"
+                        aria-label="Suggest a different angle"
+                        className="p-1.5 rounded-md text-ink-1/50 hover:text-gold-dim hover:bg-gold/10 transition-colors disabled:opacity-50"
+                      >
+                        {refreshingId === page.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <RefreshCw className="w-3.5 h-3.5" />}
+                      </button>
+                      {/* Edit — opens inline editor for title + brief. */}
+                      <button
+                        type="button"
+                        onClick={() => handleEditStart(page)}
+                        title="Edit title and brief"
+                        aria-label="Edit title and brief"
+                        className="p-1.5 rounded-md text-ink-1/50 hover:text-ink-1 hover:bg-cream-2 transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {/* Remove — deletes the row. Optimistic local update. */}
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveChapter(page)}
+                        disabled={removingId === page.id}
+                        title="Remove this chapter"
+                        aria-label="Remove this chapter"
+                        className="p-1.5 rounded-md text-ink-1/50 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                      >
+                        {removingId === page.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {page.approved && (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"
+                          title="Approved"
+                        />
+                      )}
+                      <button
+                        onClick={() => onNavigateChapter(i)}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1 rounded-md bg-cream-2 hover:bg-gold/15 text-xs font-inter font-medium text-ink-1 transition-all"
+                      >
+                        Write <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             {/* Insert slot after this chapter — new chapter takes index i+1 */}
             <button
@@ -613,7 +908,8 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               </span>
             </button>
             </Fragment>
-          ))}
+            )
+          })}
 
           {/* CTA chapter card — sentinel chapter at index 99. Renders below
               the regular chapter list so authors can opt into a closing
