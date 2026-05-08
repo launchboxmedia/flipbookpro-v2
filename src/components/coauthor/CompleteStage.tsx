@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Loader2, CheckCircle2, Image, Sparkles, FileText, Download, ShieldCheck, AlertCircle, Info, Zap, Upload, RefreshCw, ImageIcon } from 'lucide-react'
+import { Loader2, CheckCircle2, Sparkles, FileText, Download, ShieldCheck, AlertCircle, Info, Zap, Upload, RefreshCw, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import type { Book, BookPage } from '@/types/database'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
@@ -35,11 +35,6 @@ interface Props {
 }
 
 export function CompleteStage({ book, pages }: Props) {
-  const [generating, setGenerating] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [bulkDone, setBulkDone] = useState(book.status === 'ready')
-  const [error, setError] = useState('')
-
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null)
   const [checkError, setCheckError] = useState('')
@@ -90,10 +85,12 @@ export function CompleteStage({ book, pages }: Props) {
   const approvedCount = pages.filter((p) => p.approved).length
   // Treat the book as ready for export/publish whenever every chapter has an
   // image — the typical flow now generates images per-chapter from the
-  // ChapterStage, so book.status never gets flipped to 'ready'.
+  // ChapterStage, so book.status never gets flipped to 'ready'. Legacy books
+  // that DID get their status flipped (back when a bulk-generate route ran
+  // its job) still pass via that fallback.
   const allHaveImages = pages.length > 0 && pages.every((p) => !!p.image_url)
   const missingImageCount = pages.filter((p) => !p.image_url).length
-  const done = bulkDone || allHaveImages
+  const done = book.status === 'ready' || allHaveImages
 
   async function runPrePublishCheck() {
     if (checking) return
@@ -112,43 +109,6 @@ export function CompleteStage({ book, pages }: Props) {
       setCheckError(e instanceof Error ? e.message : 'Check failed')
     } finally {
       setChecking(false)
-    }
-  }
-
-  async function generateImages() {
-    setGenerating(true)
-    setError('')
-    setProgress(0)
-
-    try {
-      const res = await fetch(`/api/books/${book.id}/generate-images`, {
-        method: 'POST',
-      })
-
-      if (!res.ok) throw new Error('Image generation failed')
-
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error('Stream unavailable')
-      const decoder = new TextDecoder()
-
-      while (true) {
-        const { done: streamDone, value } = await reader.read()
-        if (streamDone) break
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.progress !== undefined) setProgress(data.progress)
-            if (data.done) { setBulkDone(true); setGenerating(false) }
-          } catch {
-            // partial JSON line, skip
-          }
-        }
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed')
-      setGenerating(false)
     }
   }
 
@@ -388,59 +348,32 @@ export function CompleteStage({ book, pages }: Props) {
       ) : (
         <div className="space-y-8">
           <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mx-auto">
-            <Sparkles className="w-8 h-8 text-gold" />
+            <ImageIcon className="w-8 h-8 text-gold" />
           </div>
           <div>
-            <h2 className="font-playfair text-3xl text-cream mb-2">All chapters approved.</h2>
+            <h2 className="font-playfair text-3xl text-cream mb-2">
+              {missingImageCount > 0 ? 'A few illustrations to go.' : 'All chapters approved.'}
+            </h2>
             <p className="text-muted-foreground font-source-serif text-sm max-w-sm mx-auto">
               {missingImageCount > 0
-                ? `${missingImageCount} chapter${missingImageCount !== 1 ? 's' : ''} still need illustrations. Generate them in bulk, or jump back into a chapter to generate or upload one manually.`
-                : 'Generate illustrations for every chapter to enable export and publishing.'}
+                ? `${missingImageCount} chapter${missingImageCount !== 1 ? 's' : ''} still need illustrations. Open each chapter from the sidebar to generate or upload its image, then come back here to publish.`
+                : 'Generate an illustration for every chapter to enable export and publishing.'}
             </p>
           </div>
 
           <div className="bg-[#222] border border-[#333] rounded-xl p-6 text-left space-y-3">
             <div className="flex items-center gap-2 text-sm font-inter text-cream/80">
-              <Image className="w-4 h-4 text-gold" />
+              <ImageIcon className="w-4 h-4 text-gold" />
               <span>
                 {missingImageCount > 0
-                  ? `${missingImageCount} chapter illustration${missingImageCount !== 1 ? 's' : ''} to generate`
-                  : `${approvedCount} chapter illustration${approvedCount !== 1 ? 's' : ''} to generate`}
+                  ? `${missingImageCount} of ${pages.length} chapter${pages.length !== 1 ? 's' : ''} still need an illustration`
+                  : `${approvedCount} chapter illustration${approvedCount !== 1 ? 's' : ''} ready`}
               </span>
             </div>
             <p className="text-xs font-source-serif text-muted-foreground">
               Style: {book.visual_style?.replace(/_/g, ' ')} · Persona: {book.persona}
             </p>
           </div>
-
-          {generating && (
-            <div className="space-y-2">
-              <div className="bg-[#2A2A2A] rounded-full h-2">
-                <div
-                  className="bg-gold h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-xs font-inter text-muted-foreground">
-                {progress}% — generating illustrations...
-              </p>
-            </div>
-          )}
-
-          {error && <p className="text-red-400 text-sm font-inter">{error}</p>}
-
-          <button
-            onClick={generateImages}
-            disabled={generating}
-            className="flex items-center gap-2 mx-auto px-8 py-3 bg-gold hover:bg-gold/90 text-canvas font-inter font-semibold rounded-md transition-colors disabled:opacity-60"
-          >
-            {generating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            {generating ? 'Generating...' : 'Generate Illustrations'}
-          </button>
         </div>
       )}
     </div>
