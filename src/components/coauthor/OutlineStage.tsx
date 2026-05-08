@@ -129,12 +129,15 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   const pendingMode = !!book.radar_applied_at
     && regularPages.length > 0
     && regularPages.every((p) => !p.approved)
-  // Banner visible until the user has either accepted or removed every
-  // pending chapter. Removed chapters drop out of regularPages, so the
-  // every() naturally narrows as the user works through the list.
-  const showPendingBanner = pendingMode
-    && regularPages.length > 0
-    && !regularPages.every((p) => acceptedIds.has(p.id))
+  // Banner visible whenever the user is in radar-review mode. It changes
+  // copy + CTA based on whether every chapter has been locally accepted:
+  // before that, it's a review prompt with Accept All; after, it's a
+  // launch prompt with Start Writing. Removed chapters drop out of
+  // regularPages, so the every() naturally narrows as the user works
+  // through the list.
+  const showPendingBanner = pendingMode && regularPages.length > 0
+  const allChaptersAccepted = regularPages.length > 0
+    && regularPages.every((p) => acceptedIds.has(p.id))
 
   // Auto-outline state. Fires once when the user lands on the outline stage
   // with no chapters at all — radar context already on book.radar_context
@@ -728,31 +731,59 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           </div>
         )}
 
-        {/* Pending-review banner. Surfaces only when the radar drove an
+        {/* Pending-review banner. Surfaces whenever the radar drove an
             outline auto-generation (radar_applied_at set, no chapters
-            approved yet) AND the user hasn't reviewed every chapter
-            this session. The Accept All shortcut fans out over the
-            current chapter list. */}
+            approved yet) AND there's at least one chapter on screen.
+            Two states:
+              - Review:  Accept All shortcut + "Review each one…" copy.
+              - Launch:  Start Writing CTA + "All chapters reviewed…"
+                         copy, fires once every regularPages row is in
+                         acceptedIds. The launch click navigates to the
+                         first chapter; pendingMode flips off once the
+                         user writes content there and approves it,
+                         which removes the banner naturally. */}
         {showPendingBanner && (
-          <div className="mb-4 rounded-lg border-l-4 border-gold bg-ink-3 px-4 py-3 flex items-start gap-3">
-            <Sparkles className="w-4 h-4 text-gold shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-inter text-sm font-semibold text-cream-1">
-                Creator Radar suggested these chapters
-              </p>
-              <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
-                Review each one before you start writing.
-              </p>
+          allChaptersAccepted ? (
+            <div className="mb-4 rounded-lg border-l-4 border-emerald-400 bg-ink-3 px-4 py-3 flex items-start gap-3">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-inter text-sm font-semibold text-cream-1">
+                  All chapters reviewed
+                </p>
+                <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
+                  Ready to start writing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigateChapter(0)}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
+              >
+                Start Writing
+                <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleAcceptAll}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
-            >
-              <Check className="w-3 h-3" />
-              Accept All
-            </button>
-          </div>
+          ) : (
+            <div className="mb-4 rounded-lg border-l-4 border-gold bg-ink-3 px-4 py-3 flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-inter text-sm font-semibold text-cream-1">
+                  Creator Radar suggested these chapters
+                </p>
+                <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
+                  Review each one before you start writing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAcceptAll}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
+              >
+                <Check className="w-3 h-3" />
+                Accept All
+              </button>
+            </div>
+          )
         )}
 
         <div className="flex flex-col">
