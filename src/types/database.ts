@@ -70,6 +70,14 @@ export interface Book {
   testimonials: string | null
   creator_radar_data: RadarResult | null
   creator_radar_ran_at: string | null
+  /** The radar's `audienceInsights.biggestPain` string, surfaced for UI
+   *  display only. Previously /apply-radar wrote this directly into
+   *  `target_audience`, which polluted the user's deliberate audience
+   *  field when the radar's inferred reader didn't match the book's
+   *  actual reader. Now it lives here so it can be referenced without
+   *  corrupting the user-owned `target_audience`. NULL until /apply-radar
+   *  runs with `targetAudience` selected. */
+  radar_audience_insight?: string | null
   /** Set by /apply-radar when the user accepts radar intelligence. The
    *  distilled context lives in radar_context; this column is the "we've
    *  applied at least once" signal the UI uses to show "Applied X days ago". */

@@ -70,6 +70,39 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   const [error, setError] = useState('')
   const [hasCritiqued, setHasCritiqued] = useState(false)
 
+  // Target audience editor — sits above the chapter list. The radar's
+  // inferred reader-pain string lives in book.radar_audience_insight (a
+  // separate column); this textarea writes to the user-owned
+  // target_audience column. Save fires on blur, only when the trimmed
+  // value differs from what's persisted, so editing without changing
+  // doesn't burn a network round-trip.
+  const [targetAudience, setTargetAudience] = useState(book.target_audience ?? '')
+  const [audienceSaving, setAudienceSaving] = useState(false)
+  const [audienceSaved, setAudienceSaved]   = useState(false)
+  const lastSavedAudience = useRef(book.target_audience ?? '')
+
+  async function saveAudienceOnBlur() {
+    const trimmed = targetAudience.trim()
+    if (trimmed === lastSavedAudience.current) return
+    setAudienceSaving(true)
+    try {
+      const supabase = createClient()
+      const { error: updateErr } = await supabase
+        .from('books')
+        .update({ target_audience: trimmed.length > 0 ? trimmed : null, updated_at: new Date().toISOString() })
+        .eq('id', book.id)
+      if (!updateErr) {
+        lastSavedAudience.current = trimmed
+        setAudienceSaved(true)
+        // Brief visual confirmation, then fade out. No persisted state —
+        // refreshing the page resets the indicator regardless of save.
+        window.setTimeout(() => setAudienceSaved(false), 1800)
+      }
+    } finally {
+      setAudienceSaving(false)
+    }
+  }
+
   // Split chapters into the regular sequence (0..N) and the CTA sentinel
   // chapter (index 99). Regular chapters render in the main list; the CTA
   // sits below in its own card.
@@ -380,6 +413,38 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           <p className="text-ink-1/70 text-sm font-source-serif mt-1">
             Review your chapter structure before writing.
           </p>
+        </div>
+
+        {/* Target audience editor — deliberate user input, separate from
+            the radar's inferred reader (which lives on
+            book.radar_audience_insight and never overwrites this field).
+            Save fires on blur only when the value actually changed. */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <label
+              htmlFor="outline-target-audience"
+              className="font-inter text-xs uppercase tracking-widest text-ink-subtle"
+            >
+              Who is this book for?
+            </label>
+            {audienceSaving && (
+              <Loader2 className="w-3 h-3 text-gold animate-spin" aria-hidden="true" />
+            )}
+            {audienceSaved && !audienceSaving && (
+              <span className="text-[10px] font-inter text-emerald-700 inline-flex items-center gap-1">
+                <Check className="w-3 h-3" /> Saved
+              </span>
+            )}
+          </div>
+          <textarea
+            id="outline-target-audience"
+            value={targetAudience}
+            onChange={(e) => setTargetAudience(e.target.value)}
+            onBlur={() => void saveAudienceOnBlur()}
+            rows={2}
+            placeholder="e.g. Funding brokers with 1-3 years experience who want to grow their client pipeline using social media"
+            className="w-full px-3 py-2.5 rounded-md bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-subtle font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
+          />
         </div>
 
         {autoGenerating && regularPages.length === 0 && (

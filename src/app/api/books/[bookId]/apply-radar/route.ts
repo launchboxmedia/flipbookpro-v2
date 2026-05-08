@@ -179,17 +179,23 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   }
 
   // ── targetAudience (new flow) ──────────────────────────────────────────
-  // Pre-fill book.target_audience from the radar's audience-biggest-pain
-  // when selected AND the user hasn't typed their own audience yet.
-  // Don't overwrite user input.
-  let targetAudienceWritten = false
-  if (effectiveSelections.targetAudience && !book.target_audience && ctx.audience_pain) {
+  // We used to copy the radar's biggest-pain string straight into
+  // book.target_audience, but that corrupted the field for any author
+  // whose business audience differs from their book audience (e.g. a
+  // funding-broker training book where the author's existing business
+  // serves "business owners seeking funding"). The radar's inferred
+  // reader is now stashed in `radar_audience_insight` for display only;
+  // book.target_audience is reserved for the user's deliberate input
+  // (set on the OutlineStage). Skip the write entirely when the user
+  // already filled in target_audience — their input always wins.
+  let radarAudienceInsightWritten = false
+  if (effectiveSelections.targetAudience && ctx.audience_pain) {
     const { error } = await supabase
       .from('books')
-      .update({ target_audience: ctx.audience_pain, updated_at: new Date().toISOString() })
+      .update({ radar_audience_insight: ctx.audience_pain, updated_at: new Date().toISOString() })
       .eq('id', book.id)
       .eq('user_id', user.id)
-    if (!error) targetAudienceWritten = true
+    if (!error) radarAudienceInsightWritten = true
   }
 
   // ── chapterStructure (flag-only) ───────────────────────────────────────
@@ -426,6 +432,6 @@ Write back cover copy that converts.`
     backCover,
     monetizationSet,
     hookOffered,
-    targetAudienceWritten,
+    radarAudienceInsightWritten,
   })
 }
