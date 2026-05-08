@@ -565,8 +565,10 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     // = 60%), right critique panel (col-span-2 = 40%). The critique panel
     // gets enough width to show flag cards with breathing room.
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-4 sm:px-6 py-8 bg-cream-1 min-h-screen">
-      {/* Left — chapter list (60%) */}
-      <div className="md:col-span-3 min-w-0">
+      {/* Left — chapter list. Spans 60% by default, full-width during
+          pendingMode since the AI Critique column is hidden until the
+          user has finished reviewing the radar-suggested chapters. */}
+      <div className={pendingMode ? 'md:col-span-5 min-w-0' : 'md:col-span-3 min-w-0'}>
         <div className="mb-6">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
             Manuscript
@@ -1039,7 +1041,12 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
 
       {/* Right — intelligence column (40%): AI Critique only. Creator Radar
           used to live above this; it's now its own coauthor stage so the
-          panel can render at full width and have a top-level sidebar entry. */}
+          panel can render at full width and have a top-level sidebar entry.
+          Hidden entirely during pendingMode — both the critique and the
+          "Proceed to Writing" button (which lives inside this panel)
+          should only resurface once the user has reviewed the radar-
+          suggested chapters and at least one has been approved. */}
+      {!pendingMode && (
       <div className="md:col-span-2 min-w-0 space-y-4">
         <div className="sticky top-20 space-y-4">
         <div className="bg-ink-2 border border-ink-3 rounded-2xl overflow-hidden flex flex-col">
@@ -1161,6 +1168,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
         </div>
         </div>
       </div>
+      )}
 
       {/* Insert chapter modal — fixed overlay, only mounted when insertAt is
           set. Pressing Escape or clicking the backdrop closes; the dialog
