@@ -8,11 +8,35 @@ import { createClient } from '@/lib/supabase/client'
 
 type FlagType = 'OVERLAP' | 'GAP' | 'STRUCTURE'
 
+/** Action data drives what the Apply button actually does. The route
+ *  asks Sonnet to emit one of these per flag; the OutlineStage
+ *  applyFlag handler switches on `action` and dispatches to the
+ *  appropriate Supabase RPC (or direct update for `update_brief`).
+ *  Each action carries the structured payload it needs — chapter
+ *  indices are 0-based and refer to book_pages.chapter_index. */
+type CritiqueAction = 'merge' | 'insert' | 'reorder' | 'update_brief'
+
 interface CritiqueFlag {
   type?: FlagType
   issue: string
   suggestion: string
   chapterIndex: number | null
+  /** Which mutation to perform on Apply. May be undefined on legacy
+   *  flags — the handler treats unknown/missing actions as a no-op
+   *  dismiss so old cached results can't crash. */
+  action?: CritiqueAction
+  // OVERLAP → action: 'merge'
+  source_indices?: number[]
+  merged_title?: string
+  merged_brief?: string
+  // GAP → action: 'insert'
+  insert_after_index?: number
+  new_title?: string
+  new_brief?: string
+  // STRUCTURE → action: 'reorder' (uses swap_chapters_at — two indices
+  // exchange positions; not a multi-position shift) OR 'update_brief'.
+  from_index?: number
+  to_index?: number
 }
 
 interface Props {
@@ -69,6 +93,11 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   const [dismissedFlags, setDismissedFlags] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
   const [hasCritiqued, setHasCritiqued] = useState(false)
+  // Per-flag Apply state. Holds the index of the flag currently being
+  // applied so its row can show a spinner; every other Apply button is
+  // disabled while a mutation is in flight to prevent racing two
+  // structural changes against the same outline.
+  const [applyingFlagIndex, setApplyingFlagIndex] = useState<number | null>(null)
 
   // Target audience editor — sits above the chapter list. The radar's
   // inferred reader-pain string lives in book.radar_audience_insight (a
@@ -535,27 +564,121 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   }
 
   async function applyFlag(flag: CritiqueFlag, flagIndex: number) {
-    if (flag.chapterIndex === null || flag.chapterIndex >= pages.length) {
-      dismissFlag(flagIndex)
-      return
-    }
-    const page = pages[flag.chapterIndex]
+    if (applyingFlagIndex !== null) return  // serialize Apply clicks
+    setApplyingFlagIndex(flagIndex)
+    setError('')
     const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('book_pages')
-      .update({ chapter_brief: flag.suggestion })
-      .eq('id', page.id)
+    try {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser()
+      if (authErr || !user) throw new Error('Not authenticated')
+      const userId = user.id
 
-    if (updateError) {
-      setError('Could not apply this suggestion. Try again.')
-      return
+      // Pull a fresh chapter list from the DB after structural changes
+      // (merge / insert / reorder) since the affected indices shift in
+      // ways the optimistic local update can't track precisely.
+      const refetchPages = async (): Promise<void> => {
+        const { data: refreshed, error: fetchErr } = await supabase
+          .from('book_pages')
+          .select('*')
+          .eq('book_id', book.id)
+          .order('chapter_index', { ascending: true })
+        if (fetchErr) throw new Error(fetchErr.message)
+        if (refreshed) onPagesChange(refreshed as BookPage[])
+      }
+
+      switch (flag.action) {
+        case 'merge': {
+          if (!flag.source_indices || flag.source_indices.length !== 2) break
+          const [a, b] = flag.source_indices
+          const keep   = Math.min(a, b)
+          const remove = Math.max(a, b)
+          const { error: rpcErr } = await supabase.rpc('merge_chapters_at', {
+            p_book_id:      book.id,
+            p_user_id:      userId,
+            p_keep_index:   keep,
+            p_delete_index: remove,
+            p_merged_title: flag.merged_title ?? 'Merged Chapter',
+            p_merged_brief: flag.merged_brief ?? '',
+          })
+          if (rpcErr) throw new Error(rpcErr.message)
+          await refetchPages()
+          toast.success('Chapters merged.')
+          break
+        }
+
+        case 'insert': {
+          // insert_after_index = -1 means "insert at the very top".
+          // insert_chapter_at takes the insertion position as the new
+          // chapter's chapter_index, so add 1 to the after-index.
+          const after = flag.insert_after_index
+          if (after === undefined || after < -1) break
+          const insertAt = after + 1
+          const { error: rpcErr } = await supabase.rpc('insert_chapter_at', {
+            p_book_id:    book.id,
+            p_user_id:    userId,
+            p_insert_at:  insertAt,
+            p_title:      flag.new_title ?? 'New Chapter',
+            p_brief:      flag.new_brief ?? '',
+          })
+          if (rpcErr) throw new Error(rpcErr.message)
+          await refetchPages()
+          toast.success('Chapter inserted.')
+          break
+        }
+
+        case 'reorder': {
+          if (flag.from_index === undefined || flag.to_index === undefined) break
+          if (flag.from_index === flag.to_index) break
+          const { error: rpcErr } = await supabase.rpc('swap_chapters_at', {
+            p_book_id:    book.id,
+            p_user_id:    userId,
+            p_from_index: flag.from_index,
+            p_to_index:   flag.to_index,
+          })
+          if (rpcErr) throw new Error(rpcErr.message)
+          await refetchPages()
+          toast.success('Chapters reordered.')
+          break
+        }
+
+        case 'update_brief': {
+          if (flag.chapterIndex === null || flag.chapterIndex === undefined) break
+          if (!flag.new_brief) break
+          const page = pages.find((p) => p.chapter_index === flag.chapterIndex)
+          if (!page) break
+          const newBrief = flag.new_brief
+          const { error: updateErr } = await supabase
+            .from('book_pages')
+            .update({ chapter_brief: newBrief, updated_at: new Date().toISOString() })
+            .eq('id', page.id)
+            .eq('book_id', book.id)
+          if (updateErr) throw new Error(updateErr.message)
+          // Optimistic — single row update, no index shift, safe to
+          // patch in place rather than refetch.
+          onPagesChange(pages.map((p) =>
+            p.id === page.id ? { ...p, chapter_brief: newBrief } : p,
+          ))
+          toast.success('Chapter brief updated.')
+          break
+        }
+
+        default: {
+          // Unknown / missing action — dismiss only, no DB change. The
+          // route's normaliser strips invalid actions, so this branch
+          // mostly catches legacy cached results from the old shape.
+          break
+        }
+      }
+
+      dismissFlag(flagIndex)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Apply failed'
+      console.error('[outline] applyFlag error:', msg)
+      setError(msg)
+      toast.error('Could not apply this change. Try again.')
+    } finally {
+      setApplyingFlagIndex(null)
     }
-
-    const updatedPages = pages.map((p, i) =>
-      i === flag.chapterIndex ? { ...p, chapter_brief: flag.suggestion } : p,
-    )
-    onPagesChange(updatedPages)
-    dismissFlag(flagIndex)
   }
 
   function dismissFlag(i: number) {
@@ -1169,14 +1292,17 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                       <div className="flex gap-2">
                         <button
                           onClick={() => applyFlag(flag, originalIndex)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-inter font-medium rounded-md transition-colors press-scale"
+                          disabled={applyingFlagIndex !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-inter font-medium rounded-md transition-colors press-scale disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                          <Check className="w-3 h-3" />
-                          Apply
+                          {applyingFlagIndex === originalIndex
+                            ? <><Loader2 className="w-3 h-3 animate-spin" /> Applying…</>
+                            : <><Check className="w-3 h-3" /> Apply</>}
                         </button>
                         <button
                           onClick={() => dismissFlag(originalIndex)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-ink-4 hover:bg-ink-3 text-ink-subtle hover:text-cream text-xs font-inter rounded-md transition-colors press-scale"
+                          disabled={applyingFlagIndex !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-ink-4 hover:bg-ink-3 text-ink-subtle hover:text-cream text-xs font-inter rounded-md transition-colors press-scale disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X className="w-3 h-3" />
                           Dismiss
