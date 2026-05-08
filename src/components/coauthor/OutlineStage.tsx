@@ -114,6 +114,11 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   const [editTitle, setEditTitle]       = useState('')
   const [editBrief, setEditBrief]       = useState('')
   const [editSaving, setEditSaving]     = useState(false)
+  // When true, the AI Critique column renders even during pendingMode.
+  // Set by the launch-banner's "Critique Outline" CTA so the user can
+  // pull the critique up alongside the banner without leaving the
+  // review state. Local-only; resets on remount.
+  const [skipPendingGate, setSkipPendingGate] = useState(false)
 
   // Split chapters into the regular sequence (0..N) and the CTA sentinel
   // chapter (index 99). Regular chapters render in the main list; the CTA
@@ -570,8 +575,11 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6 px-4 sm:px-6 py-8 bg-cream-1 min-h-screen">
       {/* Left — chapter list. Spans 60% by default, full-width during
           pendingMode since the AI Critique column is hidden until the
-          user has finished reviewing the radar-suggested chapters. */}
-      <div className={pendingMode ? 'md:col-span-5 min-w-0' : 'md:col-span-3 min-w-0'}>
+          user has finished reviewing the radar-suggested chapters. The
+          launch-banner's "Critique Outline" CTA can re-reveal the right
+          column mid-review (skipPendingGate); when that fires the left
+          column collapses back to its 60% slot. */}
+      <div className={(pendingMode && !skipPendingGate) ? 'md:col-span-5 min-w-0' : 'md:col-span-3 min-w-0'}>
         <div className="mb-6">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-2">
             Manuscript
@@ -744,24 +752,39 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                          which removes the banner naturally. */}
         {showPendingBanner && (
           allChaptersAccepted ? (
-            <div className="mb-4 rounded-lg border-l-4 border-emerald-400 bg-ink-3 px-4 py-3 flex items-start gap-3">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-inter text-sm font-semibold text-cream-1">
-                  All chapters reviewed
-                </p>
-                <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
-                  Ready to start writing.
+            <div className="mb-4 rounded-lg border-l-4 border-emerald-400 bg-ink-3 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <p className="font-source-serif text-sm text-cream-1">
+                  All chapters reviewed. Ready to start.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigateChapter(0)}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
-              >
-                Start Writing
-                <ArrowRight className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Reveal the right column (overrides the pendingMode
+                    // hide) AND fire the same critique handler the panel's
+                    // own button uses. One click → critique runs and its
+                    // results render alongside the banner.
+                    setSkipPendingGate(true)
+                    void runCritique()
+                  }}
+                  disabled={critiquing}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gold/60 hover:border-gold text-gold hover:bg-gold/10 text-xs font-inter font-semibold rounded-md transition-colors disabled:opacity-50"
+                >
+                  {critiquing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                  Critique Outline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigateChapter(0)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors"
+                >
+                  Start Writing
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mb-4 rounded-lg border-l-4 border-gold bg-ink-3 px-4 py-3 flex items-start gap-3">
@@ -1076,8 +1099,11 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           Hidden entirely during pendingMode — both the critique and the
           "Proceed to Writing" button (which lives inside this panel)
           should only resurface once the user has reviewed the radar-
-          suggested chapters and at least one has been approved. */}
-      {!pendingMode && (
+          suggested chapters and at least one has been approved. The
+          launch-banner's "Critique Outline" CTA overrides this gate via
+          skipPendingGate so the user can run the critique at the moment
+          they finish review without first having to write a chapter. */}
+      {(!pendingMode || skipPendingGate) && (
       <div className="md:col-span-2 min-w-0 space-y-4">
         <div className="sticky top-20 space-y-4">
         <div className="bg-ink-2 border border-ink-3 rounded-2xl overflow-hidden flex flex-col">
