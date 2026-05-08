@@ -145,10 +145,13 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   // stop spinning and show the manual-build empty state. Also the
   // escape hatch from the loading panel.
   const [manualMode, setManualMode] = useState(false)
-  // Hard ceiling on generation. The server route has maxDuration=60 so
-  // the model normally finishes in 15-30s — 20s here aborts and shows
-  // the error panel so the user can retry or build manually.
-  const GENERATION_TIMEOUT_MS = 20_000
+  // Hard ceiling on generation. The server route's maxDuration is 60s and
+  // Sonnet at 4000 tokens routinely takes 15-30s, occasionally longer on
+  // cold starts. 55s here gives the server room to actually finish before
+  // the client gives up — previously we were aborting at 20s while the
+  // route was still mid-Sonnet, dropping perfectly good responses on the
+  // floor.
+  const GENERATION_TIMEOUT_MS = 55_000
   // Tracks whether a fetch is currently in flight. Replaces the old
   // ref-based "autoFiredRef" gate which interacted badly with React 18
   // strict-mode double-invoke (the ref persisted across the second
@@ -209,14 +212,18 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           if (data && !cancelled) onPagesChange(data as BookPage[])
         }
       } catch (e) {
-        if (cancelled) return
+        // Always surface a recoverable error state — including when
+        // `cancelled` is true (effect cleanup ran). Silently bailing
+        // here used to drop the user into an empty outline column with
+        // no spinner, no error, no recovery button. Better to land on
+        // a clear "try again" panel even if the cause was a re-mount.
         const aborted = e instanceof DOMException && e.name === 'AbortError'
         if (aborted) {
           // eslint-disable-next-line no-console
-          console.log('[outline] aborted', Date.now())
+          console.log('[outline] aborted', Date.now(), 'cancelled:', cancelled)
         }
         const msg = aborted
-          ? 'Taking longer than expected.'
+          ? 'Generation interrupted — try again.'
           : (e instanceof Error ? e.message : 'Generation failed')
         // eslint-disable-next-line no-console
         console.warn('[outline] generate-outline failed:', msg)
@@ -650,6 +657,46 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-ink-3 hover:bg-cream-2 text-ink-1 text-xs font-inter font-medium rounded-md transition-colors"
               >
                 <Plus className="w-3 h-3" />
+                Build Manually
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!autoGenerating && !autoError && !manualMode && regularPages.length === 0 && (
+          // Recovery empty state — fires when the page lands with zero
+          // chapters AND nothing's been kicked off (auto-gen idle, no
+          // error, no manual override). Without this branch, the user
+          // would see an empty column with no recoverable next step;
+          // the auto-gen useEffect already ran but didn't fire (e.g.
+          // the run completed without persisting, or this is a fresh
+          // mount where regularPages.length started at 0 but no effect
+          // was queued for some reason). Generate Outline calls the
+          // same runAutoGeneration the effect would have, so a click
+          // here is the deliberate retry.
+          <div className="flex flex-col items-center justify-center text-center bg-white border border-cream-3 rounded-2xl p-12 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)]">
+            <BookOpen className="w-12 h-12 text-gold mb-5" strokeWidth={1.5} />
+            <p className="font-playfair text-xl text-ink-1 font-semibold mb-1">
+              Ready to build your outline
+            </p>
+            <p className="text-ink-1/70 text-sm font-source-serif max-w-sm leading-relaxed mb-6">
+              Your chapter structure will be generated using your market intelligence and book context.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => runAutoGeneration()}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 text-sm font-inter font-semibold rounded-md transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Generate Outline
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={buildManually}
+                className="text-ink-subtle hover:text-ink-1 font-inter text-xs underline underline-offset-4 transition-colors"
+              >
                 Build Manually
               </button>
             </div>
