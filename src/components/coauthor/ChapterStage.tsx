@@ -122,7 +122,8 @@ export function ChapterStage({
     setResearchCitations(page?.research_citations ?? [])
     setResearchOpen(false)
     setResearchError('')
-  }, [page?.id, page?.research_facts, page?.research_citations])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page?.id])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
