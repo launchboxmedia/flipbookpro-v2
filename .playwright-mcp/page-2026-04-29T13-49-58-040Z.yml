@@ -1,0 +1,182 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "FlipBookPro" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e7]
+          - generic [ref=e9]: FlipBookPro
+        - button "Collapse sidebar" [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - link "Upgrade to Premium" [ref=e14] [cursor=pointer]:
+        - /url: /settings/billing
+        - img [ref=e15]
+        - text: Upgrade to Premium
+      - navigation [ref=e17]:
+        - link "Dashboard" [ref=e19] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e21]
+          - generic [ref=e26]: Dashboard
+        - button "Library" [ref=e27] [cursor=pointer]:
+          - generic [ref=e28]:
+            - img [ref=e29]
+            - text: Library
+          - img [ref=e31]
+        - generic [ref=e33]:
+          - link "Books" [ref=e35] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e37]
+            - generic [ref=e39]: Books
+          - link "Media" [ref=e41] [cursor=pointer]:
+            - /url: /media
+            - img [ref=e43]
+            - generic [ref=e47]: Media
+        - button "Build" [ref=e48] [cursor=pointer]:
+          - generic [ref=e49]:
+            - img [ref=e50]
+            - text: Build
+          - img [ref=e53]
+        - generic [ref=e55]:
+          - button "Outline" [ref=e57] [cursor=pointer]:
+            - img [ref=e60]
+            - generic [ref=e61]: Outline
+          - paragraph [ref=e62]: Setup
+          - button "Details" [ref=e64] [cursor=pointer]:
+            - img [ref=e66]
+            - generic [ref=e69]: Details
+          - button "Audience" [ref=e71] [cursor=pointer]:
+            - img [ref=e73]
+            - generic [ref=e78]: Audience
+          - button "Tone" [ref=e80] [cursor=pointer]:
+            - img [ref=e82]
+            - generic [ref=e84]: Tone
+          - button "Reader" [ref=e86] [cursor=pointer]:
+            - img [ref=e88]
+            - generic [ref=e91]: Reader
+          - paragraph [ref=e92]: Theme
+          - button "Illustrations" [ref=e94] [cursor=pointer]:
+            - img [ref=e96]
+            - generic [ref=e102]: Illustrations
+          - button "Cover" [ref=e104] [cursor=pointer]:
+            - img [ref=e106]
+            - generic [ref=e109]: Cover
+          - button "Typography" [ref=e111] [cursor=pointer]:
+            - img [ref=e113]
+            - generic [ref=e115]: Typography
+          - paragraph [ref=e116]: Content
+          - button "Chapters" [ref=e118] [cursor=pointer]:
+            - img [ref=e120]
+            - generic [ref=e124]: Chapters
+          - button "Review & Export" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e131]: Review & Export
+        - button "Account" [ref=e132] [cursor=pointer]:
+          - generic [ref=e133]:
+            - img [ref=e134]
+            - text: Account
+          - img [ref=e137]
+        - generic [ref=e139]:
+          - link "Profile" [ref=e141] [cursor=pointer]:
+            - /url: /settings/profile
+            - img [ref=e143]
+            - generic [ref=e146]: Profile
+          - link "Brand Profile" [ref=e148] [cursor=pointer]:
+            - /url: /settings/brand
+            - img [ref=e150]
+            - generic [ref=e154]: Brand Profile
+          - link "Billing" [ref=e156] [cursor=pointer]:
+            - /url: /settings/billing
+            - img [ref=e158]
+            - generic [ref=e160]: Billing
+        - button "Support" [ref=e161] [cursor=pointer]:
+          - generic [ref=e162]:
+            - img [ref=e163]
+            - text: Support
+          - img [ref=e165]
+        - generic [ref=e167]:
+          - link "Chat" [ref=e169] [cursor=pointer]:
+            - /url: /support/chat
+            - img [ref=e171]
+            - generic [ref=e173]: Chat
+          - link "Feedback" [ref=e175] [cursor=pointer]:
+            - /url: /support/feedback
+            - img [ref=e177]
+            - generic [ref=e179]: Feedback
+          - link "FAQ" [ref=e181] [cursor=pointer]:
+            - /url: /support/faq
+            - img [ref=e183]
+            - generic [ref=e186]: FAQ
+      - generic [ref=e187]:
+        - paragraph [ref=e188]: Cover
+        - generic [ref=e189]:
+          - img "Cover" [ref=e190]
+          - generic [ref=e191]:
+            - button "Regenerate" [ref=e192] [cursor=pointer]:
+              - img [ref=e193]
+            - button "Upload" [ref=e198] [cursor=pointer]:
+              - img [ref=e199]
+        - generic [ref=e205]: 3/3
+      - button "User menu" [ref=e207] [cursor=pointer]:
+        - generic [ref=e209]: CE
+        - generic [ref=e210]:
+          - paragraph [ref=e211]: claude-e2e-2026
+          - paragraph [ref=e212]: Free
+        - img [ref=e213]
+    - generic [ref=e215]:
+      - banner [ref=e216]:
+        - generic [ref=e218]: "First Week: The New Dog Owner's Survival Guide"
+      - main [ref=e219]:
+        - generic [ref=e222]:
+          - generic [ref=e223]:
+            - generic [ref=e224]:
+              - paragraph [ref=e225]: Manuscript
+              - heading "Outline" [level=2] [ref=e226]
+              - paragraph [ref=e227]: Review your chapter structure before writing.
+            - generic [ref=e228]:
+              - generic [ref=e229]:
+                - img [ref=e231]
+                - generic [ref=e238]: "1"
+                - generic [ref=e239]:
+                  - paragraph [ref=e240]: The First 24 Hours
+                  - paragraph [ref=e241]: What to do the moment you bring a new dog home.
+                - generic [ref=e242]:
+                  - generic "Approved" [ref=e243]
+                  - button "Write" [ref=e244] [cursor=pointer]:
+                    - text: Write
+                    - img [ref=e245]
+              - generic [ref=e247]:
+                - img [ref=e249]
+                - generic [ref=e256]: "2"
+                - generic [ref=e257]:
+                  - paragraph [ref=e258]: The Three Rules
+                  - paragraph [ref=e259]: The only three rules a new dog owner needs in the first week.
+                - generic [ref=e260]:
+                  - generic "Approved" [ref=e261]
+                  - button "Write" [ref=e262] [cursor=pointer]:
+                    - text: Write
+                    - img [ref=e263]
+              - generic [ref=e265]:
+                - img [ref=e267]
+                - generic [ref=e274]: "3"
+                - generic [ref=e275]:
+                  - paragraph [ref=e276]: Your First Routine
+                  - paragraph [ref=e277]: How to build a simple daily routine in week one.
+                - generic [ref=e278]:
+                  - generic "Approved" [ref=e279]
+                  - button "Write" [ref=e280] [cursor=pointer]:
+                    - text: Write
+                    - img [ref=e281]
+          - generic [ref=e284]:
+            - generic [ref=e285]:
+              - img [ref=e286]
+              - heading "AI Critique" [level=3] [ref=e289]
+            - generic [ref=e290]:
+              - paragraph [ref=e291]: Run an AI structural critique to surface chapter overlap, gaps, and reordering opportunities before you start writing.
+              - generic [ref=e292]:
+                - button "Critique Outline" [ref=e293] [cursor=pointer]:
+                  - img [ref=e294]
+                  - text: Critique Outline
+                - button "Proceed to Writing" [ref=e297] [cursor=pointer]:
+                  - text: Proceed to Writing
+                  - img [ref=e298]
+  - region "Notifications alt+T"
