@@ -38,6 +38,7 @@ interface PageForResearch {
   id: string
   chapter_index: number
   chapter_title: string
+  chapter_brief: string | null
 }
 
 function stripFences(s: string): string {
@@ -224,7 +225,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const { data: page } = await supabase
     .from('book_pages')
-    .select('id, chapter_index, chapter_title')
+    .select('id, chapter_index, chapter_title, chapter_brief')
     .eq('book_id', params.bookId)
     .eq('chapter_index', chapterIndex)
     .single<PageForResearch>()
@@ -242,16 +243,29 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   // far more reliably than structured output. We capture both the prose
   // body and Sonar's top-level `citations` URL list (used as a fallback
   // when Sonnet's structured extraction misses citations).
-  const sonarUserPrompt = `Research this topic thoroughly:
+  // The chapter brief is the strongest topic signal — it spells out the
+  // specific claims and arguments the chapter makes. Anchoring the
+  // research on it (rather than the title alone) prevents Sonar from
+  // drifting into generic facts about the book's broader subject. For
+  // a chapter on "Why TikTok works for high-ticket funding brokerage",
+  // titling-only research returns TikTok Shop GMV stats; brief-anchored
+  // research returns the algorithm + organic-reach evidence the
+  // chapter actually argues from.
+  const chapterFocus = (page.chapter_brief ?? '').trim()
+  const sonarUserPrompt = `Research this specific chapter topic:
 Book: ${book.title}
-Chapter: ${page.chapter_title}
-Chapter ${chapterIndex + 1} of ${totalChapters ?? '?'}
+Chapter title: ${page.chapter_title}
+Chapter focus: ${chapterFocus || '(no brief set — use the title only)'}
 Target reader: ${book.target_audience ?? 'general'}
+Chapter ${chapterIndex + 1} of ${totalChapters ?? '?'}
 
-Find:
-- 7 specific, verified facts with data points
-- Current 2025-2026 statistics where available
-- 3 credible source citations with URLs
+Find 7 verified facts and statistics that DIRECTLY support the specific claims and arguments in this chapter's focus description.
+
+Do NOT return general facts about the book's broader topic — only facts that would be cited as evidence for the specific points this chapter makes.
+
+Facts must be relevant to: ${chapterFocus || page.chapter_title}
+
+Also include 3 credible source citations with URLs.
 
 Write in plain prose — no JSON needed.`
 
