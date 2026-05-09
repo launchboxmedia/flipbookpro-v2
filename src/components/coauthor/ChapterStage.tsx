@@ -281,11 +281,16 @@ export function ChapterStage({
     setResearching(true)
     setResearchError('')
     try {
-      const res = await fetch(`/api/books/${book.id}/research-chapter`, {
+      const reqInit = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chapterIndex: page.chapter_index }),
-      })
+      }
+      let res = await fetch(`/api/books/${book.id}/research-chapter`, reqInit)
+      if (res.status === 502) {
+        await new Promise((r) => setTimeout(r, 2000))
+        res = await fetch(`/api/books/${book.id}/research-chapter`, reqInit)
+      }
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Research failed (${res.status})`)
       const facts = Array.isArray(json.facts) ? (json.facts as string[]) : []
