@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateTextStream } from '@/lib/textGeneration'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { WRITING_STANDARDS, HUMANIZATION_PROMPT } from '@/lib/writing-standards'
 import type { FrameworkData } from '@/types/database'
 
 /**
@@ -144,6 +145,12 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     educational:   'Adopt an educational style — clear explanations, structured thinking, informative prose that teaches.',
     inspirational: 'Adopt an inspirational style — uplifting language, hopeful tone, motivational examples that move the reader.',
     research_mode: 'Adopt a research-driven style — fact-based, analytical, well-substantiated claims with depth and rigor.',
+    persuasive:    'Write to convince, not just inform. Every paragraph should advance an argument. Use evidence to prove claims, not just illustrate them. The reader should feel compelled to act by the end of every chapter.',
+    // Alias for `persuasive` — same intent, slightly different naming
+    // surface in the wizard. Kept as a separate map entry instead of a
+    // computed lookup so a future divergence between the two stays
+    // straightforward.
+    argumentative: 'Write to convince, not just inform. Every paragraph should advance an argument. Use evidence to prove claims, not just illustrate them.',
   }
 
   const toneInstructions: Record<string, string> = {
@@ -257,6 +264,14 @@ Usage rules:
       try {
         fullContent = await generateTextStream(
           {
+            // Rules go in the system message; the task lives in the user
+            // message. Previously WRITING_STANDARDS and HUMANIZATION_PROMPT
+            // were prepended to the user prompt via humanize: true, which
+            // mixed rules and task and let Claude weight them as roughly
+            // equal. Lifting them to system separates "how to write" from
+            // "what to write" and gives the chapter brief room to be the
+            // authoritative spec for the task.
+            systemPrompt: `${WRITING_STANDARDS}\n\n${HUMANIZATION_PROMPT}`,
             userPrompt: `Write a flipbook chapter. This chapter will be displayed on a single page spread alongside an illustration.
 
 ${personaNote}
@@ -269,11 +284,21 @@ ${businessContextNote}
 
 Book title: ${book.title}
 Chapter ${page.chapter_index + 1}: ${page.chapter_title}
-Chapter brief: ${page.chapter_brief ?? 'No brief provided'}
+
+<chapter_brief>
+${page.chapter_brief ?? 'No brief provided'}
+</chapter_brief>
+
+CRITICAL: The chapter brief above is the authoritative specification for this chapter. It defines exactly what argument this chapter must make and what the reader must understand by the end. Follow it precisely. Every paragraph must serve the brief's stated purpose. Do not add content not implied by the brief. Do not omit anything the brief promises.
+
+The brief above defines the chapter's argument. Your job is to make that argument compellingly — not to explain the topic generally. Ask yourself before each paragraph: "Does this prove the brief's claim or distract from it?" If it distracts, cut it.
 ${frameworkCtx ? `\n${frameworkCtx}\n` : ''}${researchBlock ? `\n${researchBlock}\n` : ''}${radarBlock ? `\n${radarBlock}\n` : ''}
 Write 250-350 words. No heading — the chapter title is displayed separately. Start with a strong opening sentence directed at the reader. End with a sentence that transitions naturally to the next idea.`,
             maxTokens: 3000,
-            humanize: true,
+            // humanize: false because the standards are already in the
+            // system prompt above; flipping this on would prepend them a
+            // second time at the head of the user prompt.
+            humanize: false,
           },
           (chunk) => {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: chunk })}\n\n`))
