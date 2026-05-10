@@ -173,6 +173,12 @@ async function extractStructured(prose: string, retry: boolean): Promise<{ facts
       maxTokens: 1500,
       humanize: false,
     })
+    // TEMP DIAGNOSTIC — capture Sonnet's raw extraction output so we can
+    // tell whether fabricated stats were already in the Perplexity prose
+    // or whether Sonnet introduced them during structuring. Remove once
+    // the source of fabrication is confirmed.
+    // eslint-disable-next-line no-console
+    console.log('[research] sonnet extraction:', text.slice(0, 1000))
     const parsed = extractJsonObject(text)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
     const obj = parsed as Record<string, unknown>
@@ -296,6 +302,13 @@ Write in plain prose — no JSON needed.`
 
   const prose     = perplexityJson.choices?.[0]?.message?.content?.trim() ?? ''
   const sonarUrls = Array.isArray(perplexityJson.citations) ? perplexityJson.citations : []
+
+  // TEMP DIAGNOSTIC — capture Perplexity's raw prose so we can tell
+  // whether fabricated stats originate at the search step or get
+  // introduced later by Sonnet's structured extraction. Remove once
+  // the source of fabrication is confirmed.
+  // eslint-disable-next-line no-console
+  console.log('[research] raw perplexity prose:', prose.slice(0, 1000))
 
   // If Sonar genuinely returned nothing, there's no data to extract.
   // This is the only path that returns the original "no facts" error;
