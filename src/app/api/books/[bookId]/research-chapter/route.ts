@@ -129,14 +129,23 @@ function bulletsFromProse(text: string): string[] {
 }
 
 const SONAR_SYSTEM_PROMPT =
-  'You are a research assistant. Find verified facts, current data, and credible sources. Be specific — include statistics, percentages, named studies, and expert findings. No vague generalities.'
+  `You are a research assistant. Find verified facts, current data, and credible sources. Be specific — include statistics, percentages, named studies, and expert findings. No vague generalities.
+
+If no verified data exists for the specific topic, say so explicitly rather than providing estimates or inferred statistics.`
+
+const ANTI_FABRICATION_RULES = `CRITICAL: Extract ONLY facts that appear verbatim in the research text provided.
+Do NOT invent, infer, or extrapolate statistics.
+Do NOT create percentages or numbers that are not explicitly stated in the source text.
+If the research text does not contain 7 facts, return fewer facts — never pad with invented data.
+If a statistic seems too specific or convenient, omit it.
+Return empty arrays if no reliable facts exist.`
 
 const SONNET_EXTRACT_SYSTEM_PROMPT = `Extract structured data from research text.
 Return ONLY valid JSON, no preamble, no fences:
 {
   "facts": [
     "specific fact with data point",
-    "...7 items"
+    "...up to 7 items"
   ],
   "citations": [
     {"title": "source name", "url": "https://..."},
@@ -144,7 +153,9 @@ Return ONLY valid JSON, no preamble, no fences:
   ]
 }
 If a URL is not available, omit that citation.
-Never fabricate URLs.`
+Never fabricate URLs.
+
+${ANTI_FABRICATION_RULES}`
 
 const SONNET_EXTRACT_RETRY_PROMPT = `Extract structured data from research text.
 You MUST return ONLY a JSON object — no markdown, no prose, no code fences, no comments.
@@ -158,10 +169,84 @@ Schema:
 }
 
 Rules:
-- 5-7 facts. Each is a single string with concrete data.
+- Up to 7 facts. Each is a single string with concrete data.
 - 0-3 citations. Each must have a real http(s) URL — never fabricate.
 - If you cannot find a real URL for a citation, omit that citation entirely.
-- Output the JSON and nothing else.`
+- Output the JSON and nothing else.
+
+${ANTI_FABRICATION_RULES}`
+
+// ── Hallucination filter ────────────────────────────────────────────────────
+// Real statistics anchor on at least one named entity: an institution,
+// a publication, or a titled study. Fabricated stats follow a recognisable
+// signature — a confident specific percentage with no source name attached
+// ("42% of CEOs say…" with no Gartner, no Pew, no SEC). We drop facts that
+// match the signature and keep ones with any anchor.
+
+const STAT_REGEX = /\b\d+(?:\.\d+)?\s?%/
+
+// Acronyms that read as institutions (SEC, IRS, OECD, FBI, FDA, BLS, WHO,
+// …) anchor a stat; common business / tech / geography acronyms (CEO, API,
+// ROI, USA, …) do not.
+const ACRONYM_BLACKLIST = new Set([
+  'CEO', 'CFO', 'CTO', 'COO', 'CMO', 'CIO', 'CISO', 'CDO', 'CRO',
+  'VP', 'MD', 'PR', 'HR', 'IT', 'OK', 'TV', 'PC', 'FAQ',
+  'API', 'URL', 'PDF', 'HTML', 'CSS', 'XML', 'JSON', 'JS', 'SQL', 'UX', 'UI',
+  'AI', 'ML', 'LLM', 'AR', 'VR', 'IoT', 'NFT', 'DAO',
+  'ROI', 'KPI', 'B2B', 'B2C', 'D2C', 'P2P', 'SaaS', 'PaaS', 'IaaS',
+  'MRR', 'ARR', 'LTV', 'CAC', 'CLV', 'GMV',
+  'USA', 'US', 'UK', 'EU', 'UAE',
+  'USD', 'EUR', 'GBP', 'JPY', 'CNY',
+  'COVID', 'AIDS', 'HIV',
+  'FM', 'AM', 'GPS', 'GPU', 'CPU', 'RAM',
+])
+
+// Capitalised English words that turn up mid-sentence without being a
+// named entity (months, days, demonyms, common nouns/pronouns).
+const COMMON_CAPS = new Set([
+  'The', 'A', 'An', 'In', 'On', 'At', 'For', 'But', 'And', 'Or', 'If', 'Of', 'To', 'I',
+  'This', 'That', 'These', 'Those', 'Many', 'Some', 'Most', 'Few', 'All', 'Every',
+  'It', 'Its', 'They', 'Their', 'He', 'She', 'We', 'You', 'Our', 'My',
+  'Yes', 'No', 'Today', 'Yesterday', 'Tomorrow',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+  'American', 'British', 'European', 'Asian', 'African', 'Western', 'Eastern',
+  'Chinese', 'Japanese', 'German', 'French', 'Spanish', 'Italian', 'Russian', 'Indian',
+])
+
+function hasNamedAnchor(fact: string): boolean {
+  // Institutional acronym (SEC, IRS, OECD, IMF, FBI, FDA, FTC, BLS, …)
+  const acronyms = fact.match(/\b[A-Z]{2,}[A-Z0-9]*\b/g) ?? []
+  if (acronyms.some((a) => !ACRONYM_BLACKLIST.has(a))) return true
+
+  // Multi-word capitalised proper noun — "Wall Street Journal", "Federal
+  // Reserve", "Pew Research Center", "Harvard Business Review".
+  if (/\b[A-Z][a-z]+(?:\s+(?:of\s+|the\s+|de\s+|and\s+)?[A-Z][a-z]+)+\b/.test(fact)) return true
+
+  // Single capitalised entity mid-sentence — "Gartner", "Forrester",
+  // "McKinsey", "Bloomberg". Skip the first word of each sentence
+  // (which is capitalised by orthography) and a stoplist of common
+  // capitalised English words.
+  const sentences = fact.split(/(?<=[.!?])\s+/)
+  for (const sent of sentences) {
+    const words = sent.split(/\s+/)
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i].replace(/[^A-Za-z]/g, '')
+      if (/^[A-Z][a-z]+$/.test(word) && !COMMON_CAPS.has(word)) return true
+    }
+  }
+  return false
+}
+
+/** A fact looks hallucinated when it cites a specific percentage but
+ *  attaches no named institution, publication, or study. */
+function looksHallucinated(fact: string): boolean {
+  return STAT_REGEX.test(fact) && !hasNamedAnchor(fact)
+}
+
+const LOW_CONFIDENCE_NOTICE =
+  'Limited verified data available for this specific topic. These are the most reliable facts found.'
 
 /** Phase 2 wrapper: one Sonnet attempt at structured extraction.
  *  Returns parsed { facts, citations } or null on parse failure. */
@@ -169,16 +254,10 @@ async function extractStructured(prose: string, retry: boolean): Promise<{ facts
   try {
     const text = await generateText({
       systemPrompt: retry ? SONNET_EXTRACT_RETRY_PROMPT : SONNET_EXTRACT_SYSTEM_PROMPT,
-      userPrompt: `Extract 7 facts and up to 3 citations from this research:\n\n${prose}\n\nReturn only the JSON object.`,
+      userPrompt: `Extract up to 7 facts and up to 3 citations from this research. Return fewer than 7 if the source does not support 7 verified claims.\n\n${prose}\n\nReturn only the JSON object.`,
       maxTokens: 1500,
       humanize: false,
     })
-    // TEMP DIAGNOSTIC — capture Sonnet's raw extraction output so we can
-    // tell whether fabricated stats were already in the Perplexity prose
-    // or whether Sonnet introduced them during structuring. Remove once
-    // the source of fabrication is confirmed.
-    // eslint-disable-next-line no-console
-    console.log('[research] sonnet extraction:', text.slice(0, 1000))
     const parsed = extractJsonObject(text)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
     const obj = parsed as Record<string, unknown>
@@ -303,13 +382,6 @@ Write in plain prose — no JSON needed.`
   const prose     = perplexityJson.choices?.[0]?.message?.content?.trim() ?? ''
   const sonarUrls = Array.isArray(perplexityJson.citations) ? perplexityJson.citations : []
 
-  // TEMP DIAGNOSTIC — capture Perplexity's raw prose so we can tell
-  // whether fabricated stats originate at the search step or get
-  // introduced later by Sonnet's structured extraction. Remove once
-  // the source of fabrication is confirmed.
-  // eslint-disable-next-line no-console
-  console.log('[research] raw perplexity prose:', prose.slice(0, 1000))
-
   // If Sonar genuinely returned nothing, there's no data to extract.
   // This is the only path that returns the original "no facts" error;
   // every other failure mode now produces a usable best-effort result.
@@ -353,6 +425,19 @@ Write in plain prose — no JSON needed.`
     console.warn('[research-chapter] structured extraction failed; fell back to prose bullets, count:', facts.length)
   }
 
+  // Drop facts that match the hallucination signature — a specific
+  // percentage with no named institution, publication, or study to anchor
+  // it. Sonnet sometimes fabricates plausible-looking stats during the
+  // structuring step; the anti-fabrication prompt above curbs most of
+  // them, this catches the rest.
+  const beforeFilter = facts.length
+  facts = facts.filter((f) => !looksHallucinated(f))
+  if (facts.length < beforeFilter) {
+    console.warn('[research-chapter] dropped %d unanchored stat(s)', beforeFilter - facts.length)
+  }
+
+  const notice = facts.length < 3 ? LOW_CONFIDENCE_NOTICE : null
+
   const factsString = facts.join('\n')
 
   const { error: updateError } = await supabase
@@ -370,5 +455,5 @@ Write in plain prose — no JSON needed.`
     return NextResponse.json({ error: 'Save failed' }, { status: 500 })
   }
 
-  return NextResponse.json({ facts, citations, chapterIndex })
+  return NextResponse.json({ facts, citations, chapterIndex, notice })
 }

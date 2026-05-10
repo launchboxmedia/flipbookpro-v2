@@ -105,6 +105,10 @@ export function ChapterStage({
   const [researchOpen,    setResearchOpen]    = useState(false)
   const [researching,     setResearching]     = useState(false)
   const [researchError,   setResearchError]   = useState('')
+  // Low-confidence notice from the route — set when post-extraction
+  // filtering left fewer than 3 anchored facts. Session-only; not
+  // persisted to the page row, so navigating away clears it.
+  const [researchNotice,  setResearchNotice]  = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -122,6 +126,7 @@ export function ChapterStage({
     setResearchCitations(page?.research_citations ?? [])
     setResearchOpen(false)
     setResearchError('')
+    setResearchNotice('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id])
 
@@ -281,6 +286,7 @@ export function ChapterStage({
     if (researching) return
     setResearching(true)
     setResearchError('')
+    setResearchNotice('')
     try {
       const reqInit = {
         method: 'POST',
@@ -298,6 +304,7 @@ export function ChapterStage({
       const cits  = Array.isArray(json.citations) ? (json.citations as ResearchCitation[]) : []
       setResearchFacts(facts)
       setResearchCitations(cits)
+      setResearchNotice(typeof json.notice === 'string' ? json.notice : '')
       setResearchOpen(true)
       // Reflect saved research locally so the next page edit doesn't wipe
       // the panel state during a re-render.
@@ -568,6 +575,12 @@ export function ChapterStage({
 
               {researchError && (
                 <p className="text-rose-300 text-xs font-inter mb-3">{researchError}</p>
+              )}
+
+              {researchNotice && (
+                <p className="mb-3 px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/40 text-amber-200 text-xs font-inter leading-relaxed">
+                  {researchNotice}
+                </p>
               )}
 
               {researchFacts.length > 0 && (
