@@ -83,6 +83,30 @@ export interface Book {
    *  applied at least once" signal the UI uses to show "Applied X days ago". */
   radar_applied_at?: string | null
   radar_context?: RadarContext | null
+  /** Per-chapter downloadable resources (checklists, templates, scripts,
+   *  matrices, workflows, swipe files) referenced from chapter drafts via
+   *  [[RESOURCE: Name | type]] markers. Populated server-side when a route
+   *  needs them — left undefined when not loaded. */
+  resources?: BookResource[]
+}
+
+export type BookResourceType =
+  | 'checklist'
+  | 'template'
+  | 'script'
+  | 'matrix'
+  | 'workflow'
+  | 'swipe-file'
+
+export interface BookResource {
+  id: string
+  book_id: string
+  chapter_index: number
+  resource_name: string
+  resource_type: BookResourceType
+  content: string
+  created_at: string
+  updated_at: string
 }
 
 // ── Creator Radar ───────────────────────────────────────────────────────────

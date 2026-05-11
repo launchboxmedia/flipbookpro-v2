@@ -6,8 +6,9 @@ import { deriveTheme } from '@/lib/bookTheme'
 import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
 import { EmailGate } from '@/components/read/EmailGate'
 import { BuyGate } from '@/components/read/BuyGate'
+import { BookResourcesPanel } from '@/components/read/BookResourcesPanel'
 import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
-import type { Book, BookPage, Profile } from '@/types/database'
+import type { Book, BookPage, BookResource, Profile } from '@/types/database'
 
 interface Props {
   params: { slug: string }
@@ -72,10 +73,11 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   if (!pub) notFound()
 
-  const [{ data: book }, { data: allPages }, { data: authorProfile }] = await Promise.all([
+  const [{ data: book }, { data: allPages }, { data: authorProfile }, { data: resources }] = await Promise.all([
     supabase.from('books').select('*').eq('id', pub.book_id).single(),
     supabase.from('book_pages').select('*').eq('book_id', pub.book_id).order('chapter_index'),
     supabase.from('profiles').select('*').eq('id', pub.user_id).single(),
+    supabase.from('book_resources').select('*').eq('book_id', pub.book_id).order('chapter_index'),
   ])
 
   if (!book) notFound()
@@ -83,6 +85,14 @@ export default async function ReadPage({ params, searchParams }: Props) {
   const chapters   = (allPages ?? []).filter((p: BookPage) => p.chapter_index >= 0)
   const backMatter = (allPages ?? []).filter((p: BookPage) => p.chapter_index < 0)
   const theme      = deriveTheme(book as Book, (authorProfile as Profile) ?? null)
+
+  // Chapter titles for the resources panel — labels each chapter's resource
+  // group with the real chapter name instead of a bare index.
+  const chapterTitles = chapters.map((c: BookPage) => ({
+    chapter_index: c.chapter_index,
+    chapter_title: c.chapter_title,
+  }))
+  const bookResources = (resources ?? []) as BookResource[]
 
   // JSON-LD Book structured data — helps Google Book Search and rich
   // social-card renderers identify the page as a book.
@@ -111,15 +121,26 @@ export default async function ReadPage({ params, searchParams }: Props) {
     ?? (pub.gate_type === 'none'    ? 'free' :
         pub.gate_type === 'payment' ? 'paid' : 'email')
 
-  const flipbook = (
-    <FlipbookViewer
-      book={book as Book}
-      chapters={chapters as BookPage[]}
-      backMatter={backMatter as BookPage[]}
-      theme={theme}
-      profile={(authorProfile as Profile) ?? null}
-      isPublicView
+  const resourcesPanel = (
+    <BookResourcesPanel
+      slug={params.slug}
+      resources={bookResources}
+      chapterTitles={chapterTitles}
     />
+  )
+
+  const flipbook = (
+    <>
+      <FlipbookViewer
+        book={book as Book}
+        chapters={chapters as BookPage[]}
+        backMatter={backMatter as BookPage[]}
+        theme={theme}
+        profile={(authorProfile as Profile) ?? null}
+        isPublicView
+      />
+      {resourcesPanel}
+    </>
   )
 
   // Paid books: show the buy gate unless the visitor has a valid signed

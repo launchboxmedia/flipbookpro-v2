@@ -5,6 +5,45 @@ import { consumeRateLimit } from '@/lib/rateLimit'
 import { WRITING_STANDARDS, HUMANIZATION_PROMPT } from '@/lib/writing-standards'
 import type { FrameworkData } from '@/types/database'
 
+// Tells the writer model to spot content that should live as a standalone
+// downloadable artifact (checklists, templates, scripts, matrices,
+// workflows, swipe files) and reference it via a `[[RESOURCE: Name | type]]`
+// marker instead of dumping the resource body inline. The marker is parsed
+// later by ChapterStage and rendered as a "Chapter Resources" card the
+// author can generate on demand, and the actual resource content is built
+// by /api/books/[bookId]/generate-resource.
+const RESOURCE_RULES = `RESOURCE MARKERS — READ CAREFULLY:
+
+When writing chapter content, identify content that belongs as a standalone downloadable resource rather than inline text. These types MUST be extracted as resources:
+
+- Checklists with 4+ actionable items the reader uses repeatedly (compliance checks, pre-flight lists, audit steps)
+- Templates (fill-in documents, communication profiles, one-pagers)
+- Scripts (word-for-word conversation examples, DM sequences, call frameworks)
+- Matrices or comparison tables with 3+ rows
+- Step-by-step workflows with branching logic
+- Swipe files (hook libraries, headline formulas, caption templates)
+
+When you identify one of these in your chapter:
+1. Reference it naturally in prose:
+   "Use the [Resource Name] in your chapter resources to..."
+   OR "Download the [Resource Name] and complete it before moving to the next chapter."
+   OR "The [Resource Name] in your resources section walks through this step by step."
+
+2. Place this marker immediately after the reference (on its own line):
+   [[RESOURCE: Resource Name | resource-type]]
+
+   Where resource-type is exactly one of:
+   checklist | template | script | matrix | workflow | swipe-file
+
+3. Do NOT write the full resource content inline. The marker is enough — the resource is generated separately.
+
+CORRECT example:
+"Before every post, run through the Pre-Post Compliance Checklist in your chapter resources.
+[[RESOURCE: Pre-Post Compliance Checklist | checklist]]"
+
+WRONG — do not do this:
+Writing out all 5 checklist items inline in the chapter text.`
+
 /**
  * For acronym-driven books (e.g. C.R.E.D.I.T.), inject the full framework
  * definition into the prompt so the writer model knows which letter this
@@ -271,7 +310,7 @@ Usage rules:
             // equal. Lifting them to system separates "how to write" from
             // "what to write" and gives the chapter brief room to be the
             // authoritative spec for the task.
-            systemPrompt: `${WRITING_STANDARDS}\n\n${HUMANIZATION_PROMPT}`,
+            systemPrompt: `${WRITING_STANDARDS}\n\n${HUMANIZATION_PROMPT}\n\n${RESOURCE_RULES}`,
             userPrompt: `Write a flipbook chapter. This chapter will be displayed on a single page spread alongside an illustration.
 
 ${personaNote}

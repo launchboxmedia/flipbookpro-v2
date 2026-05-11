@@ -8,7 +8,7 @@ import { ChapterStage } from './ChapterStage'
 import { BackMatterStage } from './BackMatterStage'
 import { CompleteStage } from './CompleteStage'
 import { CreatorRadarStage } from './CreatorRadarStage'
-import type { Book, BookPage } from '@/types/database'
+import type { Book, BookPage, BookResource } from '@/types/database'
 
 export type CoauthorStage = 'outline' | 'radar' | 'chapter' | 'back-matter' | 'complete'
 export type ImageStatus = 'idle' | 'generating' | 'done' | 'error'
@@ -16,6 +16,10 @@ export type ImageStatus = 'idle' | 'generating' | 'done' | 'error'
 interface Props {
   book: Book
   pages: BookPage[]
+  /** Resources for this book, hydrated server-side. ChapterStage uses
+   *  them to mark already-generated `[[RESOURCE]]` markers as "view-only"
+   *  rather than offering Generate again. */
+  initialResources?: BookResource[]
   userEmail: string
   isPremium?: boolean
   isAdmin?: boolean
@@ -24,8 +28,9 @@ interface Props {
   initialStage?: CoauthorStage
 }
 
-export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium, isAdmin, radarPlan = 'free', initialStage = 'outline' }: Props) {
+export function CoauthorShell({ book, pages: initialPages, initialResources = [], userEmail, isPremium, isAdmin, radarPlan = 'free', initialStage = 'outline' }: Props) {
   const [pages, setPages] = useState<BookPage[]>(initialPages)
+  const [resources, setResources] = useState<BookResource[]>(initialResources)
   const [stage, setStage] = useState<CoauthorStage>(initialStage)
   const [activeChapterIndex, setActiveChapterIndex] = useState(0)
   const [imageStatuses, setImageStatuses] = useState<Record<string, ImageStatus>>({})
@@ -60,6 +65,16 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
       if (!changes.image_url && p.image_url) merged.image_url = p.image_url
       return merged
     }))
+  }
+
+  function upsertResource(resource: BookResource) {
+    setResources((prev) => {
+      const idx = prev.findIndex((r) => r.id === resource.id)
+      if (idx === -1) return [...prev, resource]
+      const next = prev.slice()
+      next[idx] = resource
+      return next
+    })
   }
 
   function navigateChapter(index: number) {
@@ -319,6 +334,8 @@ export function CoauthorShell({ book, pages: initialPages, userEmail, isPremium,
                 onPageUpdate={(changes) => updatePage(changes)}
                 onGenerateImage={(customPrompt) => generateChapterImage(currentPage.id, customPrompt)}
                 onUploadImage={(file) => uploadChapterImage(currentPage.id, file)}
+                resources={resources}
+                onResourceUpserted={upsertResource}
                 onNext={() => {
                   if (activeChapterIndex < chapterPages.length - 1) {
                     navigateChapter(activeChapterIndex + 1)

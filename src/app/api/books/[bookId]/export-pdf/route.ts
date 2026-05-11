@@ -3,7 +3,17 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectivePlan, planAtLeast } from '@/lib/auth'
 import { paginateText } from '@/lib/paginateText'
 import { detectAcronymBlock } from '@/lib/acronymBlock'
-import type { FrameworkData } from '@/types/database'
+import { renderResourceMarkdown, stripLeadingTitle } from '@/lib/resources'
+import type { BookResource, FrameworkData } from '@/types/database'
+
+const RESOURCE_TYPE_LABEL: Record<BookResource['resource_type'], string> = {
+  'checklist':  'Checklist',
+  'template':   'Template',
+  'script':     'Script',
+  'matrix':     'Matrix',
+  'workflow':   'Workflow',
+  'swipe-file': 'Swipe File',
+}
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -39,6 +49,13 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
     .select('logo_url, brand_color, full_name, author_bio, social_links')
     .eq('id', user.id)
     .single()
+
+  const { data: resources } = await supabase
+    .from('book_resources')
+    .select('*')
+    .eq('book_id', params.bookId)
+    .order('chapter_index', { ascending: true })
+    .order('resource_name', { ascending: true })
 
   const accent = profile?.brand_color ?? '#C9A84C'
   const allChapters = (pages ?? []).filter((p) => p.chapter_index >= 0)
@@ -227,6 +244,44 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
       <div class="body">${paragraphs(bm.content ?? '')}</div>
     </section>
   `).join('')
+
+  // Resources appendix — one printed section per chapter that owns any
+  // resources. Each resource gets its own card with a Playfair title +
+  // small gold type badge + the rendered markdown body. The leading "#
+  // Title" line is stripped from the body to avoid duplicating the title.
+  const allResources = (resources ?? []) as BookResource[]
+  const resourcesByChapter = new Map<number, BookResource[]>()
+  for (const r of allResources) {
+    const arr = resourcesByChapter.get(r.chapter_index) ?? []
+    arr.push(r)
+    resourcesByChapter.set(r.chapter_index, arr)
+  }
+  const chapterIndexToNumber = new Map<number, number>()
+  chapters.forEach((ch, i) => { chapterIndexToNumber.set(ch.chapter_index, i + 1) })
+
+  const appendixHtml = resourcesByChapter.size > 0 ? `
+    <section class="page appendix">
+      <div class="appendix-title">Resources &amp; Downloads</div>
+      ${Array.from(resourcesByChapter.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([chapterIndex, items]) => {
+          const chapterNum = chapterIndexToNumber.get(chapterIndex)
+          const label = chapterNum
+            ? `Chapter ${chapterNum} Resources`
+            : 'Resources'
+          return `
+            <div class="appendix-chapter">${esc(label)}</div>
+            ${items.map((r) => `
+              <div class="resource-block">
+                <h3 class="resource-title">${esc(r.resource_name)}</h3>
+                <div class="resource-type-badge">${esc(RESOURCE_TYPE_LABEL[r.resource_type] ?? r.resource_type)}</div>
+                <div class="resource-body">${renderResourceMarkdown(stripLeadingTitle(r.content))}</div>
+              </div>
+            `).join('')}
+          `
+        }).join('')}
+    </section>
+  ` : ''
 
   const backCoverHtml = (book.back_cover_tagline || book.back_cover_description || book.back_cover_image_url) ? `
     <section class="page back-cover${book.back_cover_image_url ? ' back-cover-with-image' : ''}">
@@ -508,6 +563,67 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Resources appendix ───────────────────────────────────────────────── */
+.appendix { padding-top: 3rem; }
+.appendix-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.5rem;
+  color: #C9A84C;
+  border-bottom: 2px solid #C9A84C;
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+.appendix-chapter {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(26,26,26,0.65);
+  margin: 1.4rem 0 0.85rem;
+}
+.resource-block {
+  page-break-inside: avoid;
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.resource-block:last-child { border-bottom: 0; }
+.resource-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+  color: #1A1A1A;
+}
+.resource-type-badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #C9A84C;
+  margin-bottom: 12px;
+}
+.resource-body { font-size: 10.5pt; line-height: 1.6; color: #1A1A1A; }
+.resource-body h1, .resource-body h2, .resource-body h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  color: #1A1A1A;
+}
+.resource-body h1 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.resource-body h2 { font-size: 0.95rem; margin: 0.9rem 0 0.35rem; }
+.resource-body h3 { font-size: 0.88rem; margin: 0.75rem 0 0.3rem; }
+.resource-body p  { margin: 0 0 0.6rem; }
+.resource-body ul, .resource-body ol { margin: 0 0 0.7rem 1rem; padding: 0; }
+.resource-body li { margin: 0.22rem 0; }
+.resource-body .resource-list { list-style: none; padding-left: 0; }
+.resource-body .resource-checkitem { display: flex; align-items: flex-start; gap: 0.45rem; margin: 0.25rem 0; }
+.resource-body .resource-checkbox { display: inline-block; width: 0.75rem; height: 0.75rem; border: 1.5px solid #1A1A1A; border-radius: 2px; margin-top: 0.22rem; flex-shrink: 0; }
+.resource-body .resource-checkbox.checked { background: #C9A84C; border-color: #C9A84C; }
+.resource-body .resource-fill { display: inline-block; min-width: 7rem; border-bottom: 1px solid #C9A84C; }
+.resource-body .resource-table { width: 100%; border-collapse: collapse; margin: 0.6rem 0 0.9rem; font-size: 9.5pt; }
+.resource-body .resource-table th, .resource-body .resource-table td { border: 1px solid rgba(0,0,0,0.15); padding: 0.35rem 0.5rem; text-align: left; }
+.resource-body .resource-table th { background: rgba(201,168,76,0.1); color: #1A1A1A; font-weight: 600; }
+.resource-body strong { font-weight: 600; }
+.resource-body em { font-style: italic; }
+.resource-body hr { border: 0; border-top: 1px solid rgba(0,0,0,0.15); margin: 0.9rem 0; }
+
 /* Back cover */
 .back-cover {
   min-height: 100vh;
@@ -633,6 +749,7 @@ ${introductionHtml}
 ${tocHtml}
 ${chaptersHtml}
 ${backMatterHtml}
+${appendixHtml}
 ${backCoverHtml}
 
 <script>

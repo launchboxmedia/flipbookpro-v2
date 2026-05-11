@@ -16,9 +16,10 @@ export default async function CoauthorPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: book }, { data: pages }, planInfo] = await Promise.all([
+  const [{ data: book }, { data: pages }, { data: resources }, planInfo] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
     supabase.from('book_pages').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
+    supabase.from('book_resources').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
     getEffectivePlan(supabase, user.id),
   ])
 
@@ -41,6 +42,7 @@ export default async function CoauthorPage({
     <CoauthorShell
       book={book}
       pages={pages ?? []}
+      initialResources={resources ?? []}
       userEmail={user.email ?? ''}
       isPremium={planInfo.plan !== 'free'}
       isAdmin={planInfo.isAdmin}

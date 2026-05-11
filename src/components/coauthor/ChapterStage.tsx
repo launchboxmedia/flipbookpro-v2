@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload, FlaskConical, ExternalLink } from 'lucide-react'
-import type { Book, BookPage, ResearchCitation } from '@/types/database'
+import type { Book, BookPage, BookResource, ResearchCitation } from '@/types/database'
 import type { ImageStatus } from './CoauthorShell'
 import { STYLE_OPTIONS } from '@/lib/imageStyles'
 import { PALETTES } from '@/lib/palettes'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { ChapterResources } from './ChapterResources'
+import { hasInlineResourceSignals, parseResourceMarkers } from '@/lib/resources'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -66,6 +68,13 @@ interface Props {
   onPageUpdate: (changes: { id: string } & Partial<BookPage>) => void
   onGenerateImage: (customPrompt?: string) => void
   onUploadImage: (file: File) => void
+  /** All resources known for this book (every chapter). ChapterResources
+   *  filters to the current chapter; passing the full list keeps the
+   *  upsert flow simple for the parent. */
+  resources: BookResource[]
+  /** Upsert a generated/regenerated resource back into the parent's state
+   *  so the marker card flips from "Generate" to "View" without a refetch. */
+  onResourceUpserted: (resource: BookResource) => void
   onNext: () => void
   onPrev: () => void
 }
@@ -76,6 +85,7 @@ export function ChapterStage({
   imageStatus, imageError, visualStyle, onChangeStyle,
   palette, onChangePalette,
   onPageUpdate, onGenerateImage, onUploadImage,
+  resources, onResourceUpserted,
   onNext, onPrev,
 }: Props) {
   const [draft, setDraft] = useState(page?.content ?? '')
@@ -109,6 +119,12 @@ export function ChapterStage({
   // filtering left fewer than 3 anchored facts. Session-only; not
   // persisted to the page row, so navigating away clears it.
   const [researchNotice,  setResearchNotice]  = useState('')
+  // Retroactive resource extraction state — only used when the chapter is
+  // approved, has no [[RESOURCE]] markers, and looks like it contains
+  // inline checklists/templates/tables/scripts.
+  const [extracting,     setExtracting]     = useState(false)
+  const [extractError,   setExtractError]   = useState('')
+  const [extractDismissed, setExtractDismissed] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -127,6 +143,8 @@ export function ChapterStage({
     setResearchOpen(false)
     setResearchError('')
     setResearchNotice('')
+    setExtractError('')
+    setExtractDismissed(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id])
 
@@ -318,6 +336,37 @@ export function ChapterStage({
       setResearchOpen(true)
     } finally {
       setResearching(false)
+    }
+  }
+
+  async function runExtraction() {
+    if (extracting) return
+    setExtracting(true)
+    setExtractError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/extract-resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageId: page.id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Extraction failed (${res.status})`)
+
+      const newContent = typeof json.newContent === 'string' ? json.newContent : draft
+      const extracted: BookResource[] = Array.isArray(json.resources) ? json.resources : []
+
+      if (newContent !== draft) {
+        setDraft(newContent)
+        onPageUpdate({ id: page.id, content: newContent })
+      }
+      for (const r of extracted) {
+        onResourceUpserted(r)
+      }
+      setExtractDismissed(true)
+    } catch (e) {
+      setExtractError(e instanceof Error ? e.message : 'Extraction failed')
+    } finally {
+      setExtracting(false)
     }
   }
 
@@ -551,6 +600,47 @@ export function ChapterStage({
             </div>
           )}
 
+          {/* Retroactive resource banner — only for approved chapters that
+              already shipped with inline checklists/templates/tables before
+              the Resources system existed. We hide it once: a) the user
+              clicks Extract (extractDismissed), b) [[RESOURCE]] markers
+              appear in the draft, or c) the inline signals go away. */}
+          {approved
+            && !extractDismissed
+            && parseResourceMarkers(draft).markers.length === 0
+            && hasInlineResourceSignals(draft) && (
+            <div className="mb-4 flex items-start gap-3 px-3 py-2.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 text-xs font-inter">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-700" />
+              <div className="flex-1 min-w-0">
+                <p className="leading-relaxed">
+                  This chapter may contain content that works better as a downloadable resource.
+                </p>
+                {extractError && (
+                  <p className="mt-1 text-rose-700">{extractError}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={runExtraction}
+                disabled={extracting}
+                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-inter font-semibold transition-colors disabled:opacity-60"
+              >
+                {extracting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : null}
+                {extracting ? 'Extracting…' : 'Extract Resources →'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExtractDismissed(true)}
+                aria-label="Dismiss"
+                className="shrink-0 text-amber-700 hover:text-amber-900 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Research panel — shows when researchOpen OR when there's an error
               to surface. Hidden by default after navigation; user expands it
               by clicking Research. The "Generate Draft with Research" button
@@ -710,6 +800,17 @@ export function ChapterStage({
             readOnly={approved}
             placeholder="Click 'Generate Draft' to create the chapter, or type directly…"
             className="w-full min-h-[500px] bg-transparent text-ink-1 font-source-serif text-base leading-relaxed resize-none focus:outline-none placeholder:text-ink-1/30 disabled:opacity-60"
+          />
+
+          {/* Chapter resources — renders only when the draft references any
+              [[RESOURCE: Name | type]] markers. Generate / View / Regenerate
+              flows live inside the component. */}
+          <ChapterResources
+            bookId={book.id}
+            chapterIndex={page.chapter_index}
+            draft={draft}
+            existingResources={resources.filter((r) => r.chapter_index === page.chapter_index)}
+            onResourceUpserted={onResourceUpserted}
           />
         </div>
 
