@@ -192,8 +192,16 @@ Return the JSON object only.`,
     return NextResponse.json({ error: 'Extraction failed' }, { status: 502 })
   }
 
+  // TEMP DIAGNOSTIC — capture Sonnet's raw output when validation fails so
+  // we can tell whether the model is returning malformed JSON, the wrong
+  // shape, or something else. Remove once the failure mode is confirmed.
+  // eslint-disable-next-line no-console
+  console.log('[extract-resources] sonnet raw output (len=' + raw.length + '):', raw.slice(0, 500))
+
   const parsed = validate(parseJson(raw), originalContent)
   if (!parsed) {
+    // eslint-disable-next-line no-console
+    console.log('[extract-resources] validation rejected output — full raw:', raw)
     return NextResponse.json({ error: 'Extraction returned invalid output' }, { status: 502 })
   }
 
