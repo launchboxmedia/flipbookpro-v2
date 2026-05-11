@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload, FlaskConical, ExternalLink } from 'lucide-react'
+import { Loader2, Wand2, Check, ChevronLeft, ChevronRight, Send, Lock, ImageIcon, RefreshCw, X, Sparkles, AlertTriangle, Eye, MessageSquareWarning, FileText, Lightbulb, Upload, FlaskConical, ExternalLink, Paperclip } from 'lucide-react'
 import type { Book, BookPage, BookResource, ResearchCitation } from '@/types/database'
 import type { ImageStatus } from './CoauthorShell'
 import { STYLE_OPTIONS } from '@/lib/imageStyles'
@@ -597,6 +597,22 @@ export function ChapterStage({
           {analyzeError && (
             <div className="mb-4 px-3 py-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-inter">
               {analyzeError}
+            </div>
+          )}
+
+          {/* Resources-detected info note — unapproved chapters that already
+              reference resources via [[RESOURCE]] markers. The cards below
+              the textarea still let the author generate/view; this just
+              tells them the resources only become visible to readers once
+              the chapter is approved. Mutually exclusive with the amber
+              banner below (which fires only when there are NO markers). */}
+          {!approved && parseResourceMarkers(draft).markers.length > 0 && (
+            <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-cream-2 border border-cream-3 text-ink-1/80 text-xs font-inter">
+              <Paperclip className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gold-dim" />
+              <p className="leading-relaxed">
+                <span className="font-semibold text-ink-1">Resources detected.</span>{' '}
+                They&rsquo;ll be downloadable in your published book once you approve this chapter.
+              </p>
             </div>
           )}
 

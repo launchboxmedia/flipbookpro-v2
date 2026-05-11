@@ -215,8 +215,21 @@ export function renderResourceMarkdown(md: string): string {
 
 const CHECKBOX_LINE_REGEX = /^\s*[-*+]?\s*\[[\sxX]\]\s/m
 const TABLE_LINE_REGEX    = /^\s*\|.+\|.*\n\s*\|?\s*:?-{3,}/m
-const LABEL_REGEX         = /\b(CHECKLIST|TEMPLATE|SCRIPT|MATRIX|WORKFLOW|SWIPE\s*FILE)\b/i
+// Case-sensitive — the signal is "a deliberate ALL-CAPS section heading",
+// not the prose words "checklist" / "workflow" / "template" used in normal
+// sentences. The `/i` form fired on ordinary writing and was unreliable.
+const LABEL_REGEX         = /\b(CHECKLIST|TEMPLATE|SCRIPT|MATRIX|WORKFLOW|SWIPE\s*FILE)\b/
 const BULLET_BLOCK_REGEX  = /(?:^|\n)\s*[-*+]\s+.+(?:\n\s*[-*+]\s+.+){3,}/m
+// Imperative-question cluster — catches checklist-style prose where the
+// author wrote the items as flowing questions instead of bullets. Example
+// from the TikTok book compliance chapter:
+//   "Does the video name a specific loan amount…? Does anything in the
+//    script imply approval odds…?"
+// Picks up at least two consecutive sentences that start with a yes/no
+// auxiliary and end in "?". Real bullet-formatted checklists are caught
+// by CHECKBOX_LINE / BULLET_BLOCK; this fills in the gap when the author
+// wrote the same content as prose.
+const IMPERATIVE_QUESTION_REGEX = /(Does|Is|Are|Have|Can|Did)[^.!]*\?[^.!]*\n.*?(Does|Is|Are|Have|Can|Did)/
 
 /** Heuristic for "this approved chapter probably has inline resource
  *  content". Returns true when the body has any of:
@@ -224,12 +237,14 @@ const BULLET_BLOCK_REGEX  = /(?:^|\n)\s*[-*+]\s+.+(?:\n\s*[-*+]\s+.+){3,}/m
  *   - a pipe table
  *   - an ALL-CAPS section label naming a resource type
  *   - a 4+ item bullet run that looks like a checklist
+ *   - a cluster of imperative questions (prose-style checklist)
  *  Cheap to compute; runs on every approved chapter render. */
 export function hasInlineResourceSignals(content: string | null | undefined): boolean {
   if (!content) return false
-  if (CHECKBOX_LINE_REGEX.test(content)) return true
-  if (TABLE_LINE_REGEX.test(content))    return true
-  if (LABEL_REGEX.test(content))         return true
-  if (BULLET_BLOCK_REGEX.test(content))  return true
+  if (CHECKBOX_LINE_REGEX.test(content))       return true
+  if (TABLE_LINE_REGEX.test(content))          return true
+  if (LABEL_REGEX.test(content))               return true
+  if (BULLET_BLOCK_REGEX.test(content))        return true
+  if (IMPERATIVE_QUESTION_REGEX.test(content)) return true
   return false
 }
