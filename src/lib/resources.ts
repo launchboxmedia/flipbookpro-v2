@@ -214,7 +214,12 @@ export function renderResourceMarkdown(md: string): string {
 // banner doesn't appear.
 
 const CHECKBOX_LINE_REGEX = /^\s*[-*+]?\s*\[[\sxX]\]\s/m
-const TABLE_LINE_REGEX    = /^\s*\|.+\|.*\n\s*\|?\s*:?-{3,}/m
+// Pipe table detection — header row with at least two `|` separators
+// somewhere on the line, followed (any-distance, lazy) by a dash/colon
+// separator row that may or may not lead with `|`. Permissive on the
+// header so tables that omit the leading pipe (e.g. "Date | Topic |
+// Pillar" → "------|------|------") still trigger.
+const TABLE_LINE_REGEX    = /\|.+\|[\s\S]*?\n\s*\|?\s*[-:]+[-|\s:]+/
 // Case-sensitive — the signal is "a deliberate ALL-CAPS section heading",
 // not the prose words "checklist" / "workflow" / "template" used in normal
 // sentences. The `/i` form fired on ordinary writing and was unreliable.
