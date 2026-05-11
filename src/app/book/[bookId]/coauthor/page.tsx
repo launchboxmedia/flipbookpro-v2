@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { CoauthorShell, type CoauthorStage } from '@/components/coauthor/CoauthorShell'
 import { getEffectivePlan } from '@/lib/auth'
 
-const VALID_STAGES: CoauthorStage[] = ['outline', 'radar', 'chapter', 'back-matter', 'complete']
+const VALID_STAGES: CoauthorStage[] = ['outline', 'radar', 'chapter', 'book-design', 'pre-publish', 'publish']
 
 export default async function CoauthorPage({
   params,
@@ -16,10 +16,25 @@ export default async function CoauthorPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: book }, { data: pages }, { data: resources }, planInfo] = await Promise.all([
+  const [
+    { data: book },
+    { data: pages },
+    { data: resources },
+    { data: publishedBook },
+    { data: profile },
+    { count: ctaCount },
+    planInfo,
+  ] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
     supabase.from('book_pages').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
     supabase.from('book_resources').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
+    supabase.from('published_books').select('*').eq('book_id', params.bookId).maybeSingle(),
+    supabase.from('profiles').select('stripe_connect_id').eq('id', user.id).maybeSingle(),
+    supabase
+      .from('book_pages')
+      .select('id', { count: 'exact', head: true })
+      .eq('book_id', params.bookId)
+      .eq('chapter_index', 99),
     getEffectivePlan(supabase, user.id),
   ])
 
@@ -43,6 +58,9 @@ export default async function CoauthorPage({
       book={book}
       pages={pages ?? []}
       initialResources={resources ?? []}
+      publishedBook={publishedBook ?? null}
+      hasStripeConnect={!!profile?.stripe_connect_id}
+      hasCtaChapter={(ctaCount ?? 0) > 0}
       userEmail={user.email ?? ''}
       isPremium={planInfo.plan !== 'free'}
       isAdmin={planInfo.isAdmin}

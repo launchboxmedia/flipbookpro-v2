@@ -5,12 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { AppShell } from '@/components/layout/AppShell'
 import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
-import { BackMatterStage } from './BackMatterStage'
-import { CompleteStage } from './CompleteStage'
+import { BookDesignStage } from './BookDesignStage'
+import { PrePublishStage } from './PrePublishStage'
+import { PublishStage } from './PublishStage'
 import { CreatorRadarStage } from './CreatorRadarStage'
-import type { Book, BookPage, BookResource } from '@/types/database'
+import type { Book, BookPage, BookResource, PublishedBook } from '@/types/database'
 
-export type CoauthorStage = 'outline' | 'radar' | 'chapter' | 'back-matter' | 'complete'
+export type CoauthorStage =
+  | 'outline'
+  | 'radar'
+  | 'chapter'
+  | 'book-design'
+  | 'pre-publish'
+  | 'publish'
 export type ImageStatus = 'idle' | 'generating' | 'done' | 'error'
 
 interface Props {
@@ -20,6 +27,17 @@ interface Props {
    *  them to mark already-generated `[[RESOURCE]]` markers as "view-only"
    *  rather than offering Generate again. */
   initialResources?: BookResource[]
+  /** Published row from public.published_books, or null if the book has
+   *  never been published. Drives the PublishStage's "Your book is live"
+   *  state and the access-type defaults. */
+  publishedBook?: PublishedBook | null
+  /** Whether the author has a Stripe Connect account — gates the paid
+   *  publish path with a warning when missing. */
+  hasStripeConnect?: boolean
+  /** True when book_pages contains a chapter at index 99 (the closing CTA
+   *  sentinel). Drives the publish-time warning about a CTA chapter with
+   *  no destination URL. */
+  hasCtaChapter?: boolean
   userEmail: string
   isPremium?: boolean
   isAdmin?: boolean
@@ -28,7 +46,19 @@ interface Props {
   initialStage?: CoauthorStage
 }
 
-export function CoauthorShell({ book, pages: initialPages, initialResources = [], userEmail, isPremium, isAdmin, radarPlan = 'free', initialStage = 'outline' }: Props) {
+export function CoauthorShell({
+  book,
+  pages: initialPages,
+  initialResources = [],
+  publishedBook = null,
+  hasStripeConnect = false,
+  hasCtaChapter = false,
+  userEmail,
+  isPremium,
+  isAdmin,
+  radarPlan = 'free',
+  initialStage = 'outline',
+}: Props) {
   const [pages, setPages] = useState<BookPage[]>(initialPages)
   const [resources, setResources] = useState<BookResource[]>(initialResources)
   const [stage, setStage] = useState<CoauthorStage>(initialStage)
@@ -340,11 +370,11 @@ export function CoauthorShell({ book, pages: initialPages, initialResources = []
                   if (activeChapterIndex < chapterPages.length - 1) {
                     navigateChapter(activeChapterIndex + 1)
                   } else {
-                    // New stage order: Chapters → Complete → Back Matter.
-                    // After the last chapter we go to Review & Export so
-                    // the author can run the pre-publish check before the
-                    // back-cover polish step.
-                    setStage('complete')
+                    // New stage order: Chapters → Book Design → Pre-Publish
+                    // → Publish. After the last chapter we drop into the
+                    // visual-layer stage (cover, chapter images, back
+                    // cover) before the pre-publish review.
+                    setStage('book-design')
                   }
                 }}
                 onPrev={() => {
@@ -363,20 +393,43 @@ export function CoauthorShell({ book, pages: initialPages, initialResources = []
                 onStageChange={setStage}
               />
             )}
-            {stage === 'back-matter' && (
-              <BackMatterStage
+            {stage === 'book-design' && (
+              <BookDesignStage
                 book={book}
-                // Back Matter is now the terminal step. The continue button
-                // hops back to Review & Export so the author can re-run the
-                // pre-publish check after polishing the back cover.
-                onComplete={() => setStage('complete')}
+                chapters={chapterPages}
+                coverImageUrl={coverImageUrl}
+                coverImageStatus={coverImageStatus}
+                coverImageError={coverImageError}
+                onGenerateCover={() => generateCoverImage()}
+                onUploadCover={handleCoverUpload}
+                imageStatuses={imageStatuses}
+                imageErrors={imageErrors}
+                onGenerateChapterImage={(pageId) => generateChapterImage(pageId)}
+                onUploadChapterImage={(pageId, file) => uploadChapterImage(pageId, file)}
+                onContinue={() => setStage('pre-publish')}
               />
             )}
-            {stage === 'complete' && (
-              <CompleteStage
+            {stage === 'pre-publish' && (
+              <PrePublishStage
                 book={book}
-                pages={chapterPages}
-                onContinueToBackMatter={() => setStage('back-matter')}
+                onPublish={() => setStage('publish')}
+                onNavigate={(target, chapterIndex) => {
+                  // When the Fix-It link points at a specific chapter, jump
+                  // straight there. Otherwise just switch stage.
+                  if (target === 'chapter' && typeof chapterIndex === 'number') {
+                    navigateChapter(chapterIndex)
+                  } else {
+                    setStage(target)
+                  }
+                }}
+              />
+            )}
+            {stage === 'publish' && (
+              <PublishStage
+                book={book}
+                publishedBook={publishedBook}
+                hasStripeConnect={hasStripeConnect}
+                hasCtaChapter={hasCtaChapter}
               />
             )}
           </motion.div>

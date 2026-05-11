@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, ImageIcon, Compass, AlignLeft, Radar,
-  Layers, Download, User, Building2, CreditCard, MessageCircle,
-  Star, HelpCircle, Shield, X, BarChart3, Lock,
+  Layers, User, Building2, CreditCard, MessageCircle,
+  Star, HelpCircle, Shield, X, BarChart3, Lock, Wand2, ShieldCheck, Globe, Eye, ExternalLink,
 } from 'lucide-react'
 import type { BookContext } from './AppSidebar'
+import type { CoauthorStage } from '@/components/coauthor/CoauthorShell'
 
 interface Props {
   open: boolean
@@ -63,7 +64,7 @@ export function MobileDrawer({ open, onClose, isAdmin = false, bookContext }: Pr
     return pathname === href || pathname.startsWith(href + '/')
   }
 
-  function handleStageNav(stage: 'outline' | 'radar' | 'chapter' | 'complete') {
+  function handleStageNav(stage: CoauthorStage) {
     if (bookContext?.onStageChange && onCoauthorPath) {
       bookContext.onStageChange(stage)
       onClose()
@@ -94,7 +95,7 @@ export function MobileDrawer({ open, onClose, isAdmin = false, bookContext }: Pr
   function stageRow(
     label: string,
     icon: React.ReactNode,
-    stage: 'outline' | 'radar' | 'chapter' | 'complete',
+    stage: CoauthorStage,
     options: { disabled?: boolean; lockedReason?: string } = {},
   ) {
     const active = onCoauthorPath && buildStage === stage
@@ -198,19 +199,30 @@ export function MobileDrawer({ open, onClose, isAdmin = false, bookContext }: Pr
                     'outline', // discover doesn't have its own stage; placeholder
                     { disabled: true, lockedReason: 'Open in Outline stage' },
                   )}
-                  {stageRow('Outline',        <AlignLeft className="w-4 h-4" />, 'outline')}
-                  {stageRow('Creator Radar',  <Radar className="w-4 h-4" />,     'radar')}
-                  {stageRow('Chapters',       <Layers className="w-4 h-4" />,    'chapter')}
-                  {stageRow(
-                    'Review & Export',
-                    <Download className="w-4 h-4" />,
-                    'complete',
-                    {
-                      disabled: !bookContext.allApproved,
-                      lockedReason: !bookContext.allApproved ? 'Approve every chapter to unlock' : undefined,
-                    },
-                  )}
+                  {stageRow('Outline',           <AlignLeft className="w-4 h-4" />,   'outline')}
+                  {stageRow('Creator Radar',     <Radar className="w-4 h-4" />,       'radar')}
+                  {stageRow('Chapters',          <Layers className="w-4 h-4" />,      'chapter')}
+                  {stageRow('Book Design',       <Wand2 className="w-4 h-4" />,       'book-design')}
+                  {stageRow('Pre-Publish Check', <ShieldCheck className="w-4 h-4" />, 'pre-publish')}
+                  {stageRow('Publish',           <Globe className="w-4 h-4" />,       'publish')}
                 </>
+              )}
+
+              {/* Persistent preview link — visible whenever a book is open
+                  in this drawer, regardless of stage. Opens in a new tab
+                  so the drawer can close behind it. */}
+              {bookId && (
+                <a
+                  href={`/book/${bookId}/preview`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onClose}
+                  className="flex items-center gap-3 px-3 py-2.5 mt-1 rounded-md text-sm font-inter text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors"
+                >
+                  <Eye className="w-4 h-4 text-ink-muted" />
+                  <span className="flex-1 truncate">Preview Book</span>
+                  <ExternalLink className="w-3 h-3 text-ink-muted" />
+                </a>
               )}
 
               {sectionLabel('Account')}

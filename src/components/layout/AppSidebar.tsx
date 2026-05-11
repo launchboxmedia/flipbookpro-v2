@@ -7,11 +7,11 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, Compass, AlignLeft, Palette,
-  Layers, Download, User, Building2, CreditCard, MessageCircle,
+  Layers, User, Building2, CreditCard, MessageCircle,
   Star, HelpCircle, Shield, ChevronDown, ChevronUp,
   Crown, BarChart3, Loader2, RefreshCw, Upload, X, Wand2,
   ImageIcon, FileText, Users, MessageSquare, Gauge, BookMarked, Type, Lock,
-  Radar,
+  Radar, ShieldCheck, Globe, Eye, ExternalLink,
 } from 'lucide-react'
 import type { BookPage } from '@/types/database'
 import type { CoauthorStage, ImageStatus } from '@/components/coauthor/CoauthorShell'
@@ -235,25 +235,28 @@ export function AppSidebar({
     return <div key={label}>{withTooltip(link, collapsed ? label : null)}</div>
   }
 
-  const chapterList = bookContext && bookContext.pages.length > 0 && buildStage === 'chapter' && (
-    <div className="ml-7 mt-0.5 space-y-0.5 pb-1">
-      {bookContext.pages.map((page, i) => (
-        <button
-          key={page.id}
-          onClick={() => bookContext.onChapterSelect(i)}
-          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-inter transition-colors text-left truncate ${
-            bookContext.activeChapterIndex === i ? 'text-gold' : 'text-[#5A6478] hover:text-cream'
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-            page.approved ? 'bg-accent' : bookContext.activeChapterIndex === i ? 'bg-gold' : 'bg-[#3A4150]'
-          }`} />
-          <span className="truncate">{page.chapter_title}</span>
-          {(bookContext.imageStatuses[page.id] ?? (page.image_url ? 'done' : 'idle')) === 'generating' && (
-            <Loader2 className="w-2.5 h-2.5 animate-spin text-accent shrink-0" />
-          )}
-        </button>
-      ))}
+  const chapterList = bookContext && bookContext.pages.length > 0 && !collapsed && (
+    <div className="mt-0.5 space-y-0.5 pb-1">
+      {bookContext.pages.map((page, i) => {
+        const isActive = onCoauthorPath && buildStage === 'chapter' && bookContext.activeChapterIndex === i
+        return (
+          <button
+            key={page.id}
+            onClick={() => bookContext.onChapterSelect(i)}
+            className={`w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs font-inter transition-colors text-left truncate ${
+              isActive ? 'text-gold' : 'text-[#5A6478] hover:text-cream'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              page.approved ? 'bg-accent' : isActive ? 'bg-gold' : 'bg-[#3A4150]'
+            }`} />
+            <span className="truncate">{page.chapter_title}</span>
+            {(bookContext.imageStatuses[page.id] ?? (page.image_url ? 'done' : 'idle')) === 'generating' && (
+              <Loader2 className="w-2.5 h-2.5 animate-spin text-accent shrink-0" />
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -373,45 +376,74 @@ export function AppSidebar({
             {navItem('Cover',         <BookMarked className="w-4 h-4" />, () => gotoWizardStep(6), onWizardPath && activeWizardStep === 6, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
             {navItem('Typography',    <Type className="w-4 h-4" />,       () => gotoWizardStep(7), onWizardPath && activeWizardStep === 7, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
 
+            {/* Chapters subsection — collapsed mode falls back to a single
+                Chapters nav item; full mode renders the label + the
+                per-chapter sub-list as flat items at the same indent as
+                Setup / Theme. */}
+            {!collapsed ? (
+              <>
+                <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
+                  Chapters
+                </p>
+                {!bookContext || bookContext.pages.length === 0
+                  ? navItem(
+                      'No chapters yet',
+                      <Layers className="w-4 h-4" />,
+                      () => {},
+                      false,
+                      true,
+                      undefined,
+                      !bookId ? 'Open a book to access' : 'Add chapters in the outline',
+                    )
+                  : chapterList}
+              </>
+            ) : (
+              navItem(
+                'Chapters',
+                <Layers className="w-4 h-4" />,
+                () => gotoCoauthorStage('chapter'),
+                onCoauthorPath && buildStage === 'chapter',
+                !bookId,
+                undefined,
+                !bookId ? 'Open a book to access' : undefined,
+              )
+            )}
+
+            {/* Finish — the three terminal stages replacing the old Review &
+                Export / Back Matter pair. Locked when no book is open; the
+                pre-publish check itself surfaces missing-coverage blockers,
+                so we no longer hard-gate on every chapter being approved. */}
             {!collapsed && (
               <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
-                Content
+                Finish
               </p>
             )}
             {navItem(
-              'Chapters',
-              <Layers className="w-4 h-4" />,
-              () => gotoCoauthorStage('chapter'),
-              onCoauthorPath && buildStage === 'chapter',
+              'Book Design',
+              <Wand2 className="w-4 h-4" />,
+              () => gotoCoauthorStage('book-design'),
+              onCoauthorPath && buildStage === 'book-design',
               !bookId,
-              chapterList,
+              undefined,
               !bookId ? 'Open a book to access' : undefined,
             )}
             {navItem(
-              'Review & Export',
-              <Download className="w-4 h-4" />,
-              () => gotoCoauthorStage('complete'),
-              onCoauthorPath && buildStage === 'complete',
-              !bookId || (!!bookContext && !bookContext.allApproved),
+              'Pre-Publish Check',
+              <ShieldCheck className="w-4 h-4" />,
+              () => gotoCoauthorStage('pre-publish'),
+              onCoauthorPath && buildStage === 'pre-publish',
+              !bookId,
               undefined,
-              !bookId
-                ? 'Open a book to access'
-                : (!!bookContext && !bookContext.allApproved) ? 'Approve every chapter to unlock' : undefined,
+              !bookId ? 'Open a book to access' : undefined,
             )}
-            {/* Back Matter is the final polish step in the new order
-                (Chapters → Review & Export → Back Matter). Same gating as
-                Review & Export — needs every chapter approved before the
-                back-cover blurb + optional pages step is meaningful. */}
             {navItem(
-              'Back Matter',
-              <BookMarked className="w-4 h-4" />,
-              () => gotoCoauthorStage('back-matter'),
-              onCoauthorPath && buildStage === 'back-matter',
-              !bookId || (!!bookContext && !bookContext.allApproved),
+              'Publish',
+              <Globe className="w-4 h-4" />,
+              () => gotoCoauthorStage('publish'),
+              onCoauthorPath && buildStage === 'publish',
+              !bookId,
               undefined,
-              !bookId
-                ? 'Open a book to access'
-                : (!!bookContext && !bookContext.allApproved) ? 'Approve every chapter to unlock' : undefined,
+              !bookId ? 'Open a book to access' : undefined,
             )}
           </div>
         )}
@@ -551,6 +583,34 @@ export function AppSidebar({
                 {bookContext.pages.filter((p) => p.approved).length}/{bookContext.pages.length}
               </span>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Preview link — persistent, always visible when a book is open
+          (book context OR wizard URL). Opens the private preview in a new
+          tab so the author can sanity-check the flipbook without losing
+          their place in coauthor. Not a stage — never highlighted, never
+          changes the URL of the current tab. */}
+      {bookId && (
+        <div className="px-2 py-1 border-t border-ink-3">
+          {withTooltip(
+            <a
+              href={`/book/${bookId}/preview`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Preview Book"
+              className={`flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2 rounded-md text-sm font-inter text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors`}
+            >
+              <Eye className={`w-4 h-4 ${collapsed ? '' : 'text-ink-muted'}`} />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 truncate">Preview Book</span>
+                  <ExternalLink className="w-3 h-3 text-ink-muted" />
+                </>
+              )}
+            </a>,
+            collapsed ? 'Preview Book — opens in new tab' : null,
           )}
         </div>
       )}
