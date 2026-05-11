@@ -223,13 +223,18 @@ const BULLET_BLOCK_REGEX  = /(?:^|\n)\s*[-*+]\s+.+(?:\n\s*[-*+]\s+.+){3,}/m
 // Imperative-question cluster — catches checklist-style prose where the
 // author wrote the items as flowing questions instead of bullets. Example
 // from the TikTok book compliance chapter:
-//   "Does the video name a specific loan amount…? Does anything in the
-//    script imply approval odds…?"
-// Picks up at least two consecutive sentences that start with a yes/no
-// auxiliary and end in "?". Real bullet-formatted checklists are caught
-// by CHECKBOX_LINE / BULLET_BLOCK; this fills in the gap when the author
-// wrote the same content as prose.
-const IMPERATIVE_QUESTION_REGEX = /(Does|Is|Are|Have|Can|Did)[^.!]*\?[^.!]*\n.*?(Does|Is|Are|Have|Can|Did)/
+//   "Does the video name a specific loan amount…? If yes, reframe it.
+//    Does anything in the script imply approval odds…? If yes, remove it.
+//    Does the content feature a client story…?"
+// Picks up THREE OR MORE yes/no questions starting with one of the listed
+// auxiliaries, each up to ~200 chars long, within ~400 chars of each
+// other. `[\s\S]` is used instead of `.` so the cluster can span line
+// breaks and intervening sentences (the prose between questions in this
+// style routinely contains periods + newlines). Real bullet-formatted
+// checklists are caught by CHECKBOX_LINE / BULLET_BLOCK; this fills the
+// gap when the author wrote the same content as prose.
+const IMPERATIVE_QUESTION_REGEX =
+  /(?:Does|Is|Are|Have|Can|Did)[^?\n]{3,200}\?(?:[\s\S]{0,400}?(?:Does|Is|Are|Have|Can|Did)[^?\n]{3,200}\?){2,}/i
 
 /** Heuristic for "this approved chapter probably has inline resource
  *  content". Returns true when the body has any of:
