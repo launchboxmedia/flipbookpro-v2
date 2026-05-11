@@ -839,7 +839,7 @@ export function ChapterStage({
             {draft ? `${draft.split(/\s+/).filter(Boolean).length} words` : ''}
           </span>
           <button onClick={onNext} className="flex items-center gap-1.5 text-sm font-inter text-ink-1/70 hover:text-ink-1 transition-colors press-scale">
-            {pageIndex === totalPages - 1 ? 'Back Matter' : `Chapter ${pageIndex + 2}`}
+            {pageIndex === totalPages - 1 ? 'Review & Export' : `Chapter ${pageIndex + 2}`}
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
