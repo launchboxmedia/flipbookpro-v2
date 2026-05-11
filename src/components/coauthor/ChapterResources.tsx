@@ -41,6 +41,14 @@ const TYPE_LABEL: Record<ResourceMarker['type'], string> = {
 
 const PREVIEW_CHAR_LIMIT = 200
 
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export function ChapterResources({
   bookId, chapterIndex, draft, existingResources, onResourceUpserted,
 }: Props) {
@@ -269,42 +277,115 @@ function ResourceModal({
   }
 
   function downloadPdf() {
-    const win = window.open('', '_blank', 'noopener,noreferrer')
-    if (!win) return
-    const titleEsc = resource.resource_name
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-    const css = `
-      @page { size: A4; margin: 2.2cm 2.4cm; }
-      :root { --accent: #C9A84C; }
-      * { box-sizing: border-box; }
-      body { font-family: 'Source Serif 4', Georgia, serif; color: #1A1A1A; line-height: 1.65; font-size: 11.5pt; margin: 0; padding: 0; background: white; }
-      h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.8rem; margin: 0 0 0.4rem; }
-      h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.3rem; margin: 1.4rem 0 0.4rem; }
-      h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.05rem; margin: 1.1rem 0 0.3rem; }
-      .badge { display: inline-block; font-family: 'Inter', system-ui, sans-serif; font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin: 0 0 1.2rem; }
-      p { margin: 0 0 0.8rem; }
-      ul, ol { margin: 0 0 1rem 1.2rem; padding: 0; }
-      li { margin: 0.25rem 0; }
-      .resource-list { list-style: none; padding-left: 0; }
-      .resource-checkitem { display: flex; align-items: flex-start; gap: 0.5rem; }
-      .resource-checkbox { display: inline-block; width: 0.8rem; height: 0.8rem; border: 1.5px solid #1A1A1A; border-radius: 2px; margin-top: 0.3rem; }
-      .resource-checkbox.checked { background: var(--accent); border-color: var(--accent); }
-      .resource-fill { display: inline-block; min-width: 9rem; border-bottom: 1px solid var(--accent); }
-      .resource-table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 1.2rem; }
-      .resource-table th, .resource-table td { border: 1px solid rgba(0,0,0,0.18); padding: 0.4rem 0.55rem; text-align: left; font-size: 10.5pt; }
-      .resource-table th { background: rgba(201,168,76,0.12); color: #111; }
-      hr { border: 0; border-top: 1px solid rgba(0,0,0,0.18); margin: 1.2rem 0; }
-      .print-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #F5F0E8; padding: 10px 14px; border-radius: 6px; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; display: flex; align-items: center; gap: 10px; }
-      .print-banner button { background: #C9A84C; color: #111; border: 0; padding: 5px 10px; border-radius: 4px; font: inherit; font-weight: 600; cursor: pointer; }
-      @media print { .print-banner { display: none; } }
-    `
-    const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>${titleEsc}</title><link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet" /><style>${css}</style></head><body><div class="print-banner"><span>Use the print dialog and choose Save as PDF.</span><button onclick="window.print()">Print</button></div><div class="badge">${titleEsc.toUpperCase()}</div><h1>${titleEsc}</h1>${html}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})</script></body></html>`
-    win.document.open()
-    win.document.write(doc)
-    win.document.close()
+    // IMPORTANT: do NOT pass `noopener` / `noreferrer` in the features
+    // string here. Chrome returns null for window.open() whenever the
+    // features include `noopener`, which made the old version silently
+    // open about:blank with nothing in it. We need a usable window
+    // reference so we can write the document and trigger print().
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const titleEsc = esc(resource.resource_name)
+    const typeEsc  = esc(TYPE_LABEL[resource.resource_type as ResourceMarker['type']] ?? resource.resource_type)
+    // Reuse the modal's already-rendered markdown body — same renderer the
+    // editor and public PDF appendix use, so the printable output stays
+    // visually consistent with what the author sees in the modal.
+    const bodyHtml = html
+
+    const doc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>${titleEsc}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+:root { --accent: #C9A84C; }
+@page { size: A4; margin: 2.2cm 2.4cm; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: 'Source Serif 4', Georgia, serif;
+  color: #1C2333;
+  line-height: 1.65;
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 20px 24px;
+  background: white;
+}
+.badge {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+h1.title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.6rem;
+  color: #1C2333;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 8px;
+  margin: 0 0 24px;
+}
+h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; color: #1C2333; }
+h1 { font-size: 1.45rem; margin: 1.2rem 0 0.45rem; }
+h2 { font-size: 1.18rem; margin: 1.1rem 0 0.4rem; }
+h3 { font-size: 1.02rem; margin: 0.95rem 0 0.3rem; }
+p { margin: 0 0 0.8rem; }
+ul, ol { margin: 0 0 0.95rem 1.2rem; padding: 0; }
+li { margin: 0.28rem 0; }
+.resource-list { list-style: none; padding-left: 0; }
+.resource-checkitem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0.4rem 0;
+  padding: 10px 12px;
+  background: #FAF7F2;
+  border-radius: 6px;
+}
+.resource-checkbox {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.resource-checkbox.checked { background: var(--accent); }
+.resource-fill { display: inline-block; min-width: 8rem; border-bottom: 1px solid var(--accent); }
+.resource-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10.5pt; }
+.resource-table th { background: #FAF7F2; padding: 8px; text-align: left; border: 1px solid #EDE6D8; font-weight: 600; color: #1C2333; }
+.resource-table td { padding: 8px; border: 1px solid #EDE6D8; }
+strong { font-weight: 600; }
+em { font-style: italic; }
+hr { border: 0; border-top: 1px solid #EDE6D8; margin: 1.1rem 0; }
+@media print {
+  body { max-width: none; margin: 0; padding: 0; }
+  *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="badge">${typeEsc}</div>
+<h1 class="title">${titleEsc}</h1>
+${bodyHtml}
+</body>
+</html>`
+
+    printWindow.document.open()
+    printWindow.document.write(doc)
+    printWindow.document.close()
+    // Focus + delayed print from THIS window. Inline <script> inside the
+    // document.write payload is unreliable across browsers (sometimes
+    // stripped, sometimes deferred). Calling print() on the child window
+    // reference here is the stable pattern.
+    printWindow.focus()
+    setTimeout(() => {
+      try { printWindow.print() } catch { /* tab may have been closed */ }
+    }, 500)
   }
 
   return (
