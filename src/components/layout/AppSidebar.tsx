@@ -134,7 +134,7 @@ export function AppSidebar({
     window.location.href = `/book/${bookId}/wizard?step=${n}`
   }
 
-  function gotoCoauthorStage(stage: 'outline' | 'radar' | 'chapter' | 'complete') {
+  function gotoCoauthorStage(stage: CoauthorStage) {
     if (bookContext?.onStageChange && onCoauthorPath) {
       bookContext.onStageChange(stage)
       return
@@ -391,7 +391,22 @@ export function AppSidebar({
               'Review & Export',
               <Download className="w-4 h-4" />,
               () => gotoCoauthorStage('complete'),
-              onCoauthorPath && (buildStage === 'complete' || buildStage === 'back-matter'),
+              onCoauthorPath && buildStage === 'complete',
+              !bookId || (!!bookContext && !bookContext.allApproved),
+              undefined,
+              !bookId
+                ? 'Open a book to access'
+                : (!!bookContext && !bookContext.allApproved) ? 'Approve every chapter to unlock' : undefined,
+            )}
+            {/* Back Matter is the final polish step in the new order
+                (Chapters → Review & Export → Back Matter). Same gating as
+                Review & Export — needs every chapter approved before the
+                back-cover blurb + optional pages step is meaningful. */}
+            {navItem(
+              'Back Matter',
+              <BookMarked className="w-4 h-4" />,
+              () => gotoCoauthorStage('back-matter'),
+              onCoauthorPath && buildStage === 'back-matter',
               !bookId || (!!bookContext && !bookContext.allApproved),
               undefined,
               !bookId

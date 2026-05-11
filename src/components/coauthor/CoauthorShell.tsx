@@ -340,7 +340,11 @@ export function CoauthorShell({ book, pages: initialPages, initialResources = []
                   if (activeChapterIndex < chapterPages.length - 1) {
                     navigateChapter(activeChapterIndex + 1)
                   } else {
-                    setStage('back-matter')
+                    // New stage order: Chapters → Complete → Back Matter.
+                    // After the last chapter we go to Review & Export so
+                    // the author can run the pre-publish check before the
+                    // back-cover polish step.
+                    setStage('complete')
                   }
                 }}
                 onPrev={() => {
@@ -362,11 +366,18 @@ export function CoauthorShell({ book, pages: initialPages, initialResources = []
             {stage === 'back-matter' && (
               <BackMatterStage
                 book={book}
-                onComplete={() => setStage(allApproved ? 'complete' : 'outline')}
+                // Back Matter is now the terminal step. The continue button
+                // hops back to Review & Export so the author can re-run the
+                // pre-publish check after polishing the back cover.
+                onComplete={() => setStage('complete')}
               />
             )}
             {stage === 'complete' && (
-              <CompleteStage book={book} pages={chapterPages} />
+              <CompleteStage
+                book={book}
+                pages={chapterPages}
+                onContinueToBackMatter={() => setStage('back-matter')}
+              />
             )}
           </motion.div>
         </AnimatePresence>

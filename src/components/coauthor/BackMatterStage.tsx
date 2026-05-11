@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Loader2, ShoppingBag, Link2, FileText, BookOpen, Check, Sparkles, RefreshCw, X, Upload, ImageIcon } from 'lucide-react'
+import { Loader2, ShoppingBag, Link2, FileText, BookOpen, Check, Sparkles, RefreshCw, X, Upload, ImageIcon, Wand2 } from 'lucide-react'
 import type { Book } from '@/types/database'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
 
 type BackMatterField = 'tagline' | 'description' | 'ctaText' | 'ctaUrl' | 'optional'
 type BackMatterFlagType = 'HOOK' | 'CLARITY' | 'CTA' | 'VALUE' | 'TONE' | 'LENGTH'
@@ -48,6 +49,7 @@ export function BackMatterStage({ book, onComplete }: Props) {
   // Back-cover image
   const [backImageUrl, setBackImageUrl] = useState<string | null>(book.back_cover_image_url)
   const [uploadingBackImage, setUploadingBackImage] = useState(false)
+  const [generatingBackImage, setGeneratingBackImage] = useState(false)
   const [backImageError, setBackImageError] = useState('')
   const backImageInputRef = useRef<HTMLInputElement>(null)
 
@@ -168,6 +170,24 @@ export function BackMatterStage({ book, onComplete }: Props) {
       next.add(i)
       return next
     })
+  }
+
+  async function generateBackImage() {
+    if (generatingBackImage || uploadingBackImage) return
+    setGeneratingBackImage(true)
+    setBackImageError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/generate-back-cover-image`, {
+        method: 'POST',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Generation failed (${res.status})`)
+      if (typeof json.imageUrl === 'string') setBackImageUrl(json.imageUrl)
+    } catch (e) {
+      setBackImageError(e instanceof Error ? e.message : 'Generation failed')
+    } finally {
+      setGeneratingBackImage(false)
+    }
   }
 
   async function uploadBackImage(file: File) {
@@ -344,16 +364,26 @@ export function BackMatterStage({ book, onComplete }: Props) {
           <div className="space-y-2">
             <label className="text-xs font-inter text-muted-foreground">Back cover image <span className="text-cream/30">(optional)</span></label>
             <div className="flex items-start gap-3">
-              {backImageUrl ? (
+              {generatingBackImage ? (
+                <div className="w-24 h-32 bg-[#1A1A1A] border border-dashed border-gold/40 rounded-md flex flex-col items-center justify-center gap-1.5">
+                  <Loader2 className="w-4 h-4 animate-spin text-gold" />
+                  <span className="text-[10px] font-inter text-gold/80 text-center px-1 leading-tight">
+                    Generating back cover…
+                  </span>
+                </div>
+              ) : backImageUrl ? (
                 <div className="relative">
-                  <img
-                    src={backImageUrl}
-                    alt="Back cover"
-                    className="w-24 h-32 object-cover rounded-md border border-[#333]"
-                  />
+                  <ImageLightbox src={backImageUrl} alt="Back cover">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={backImageUrl}
+                      alt="Back cover"
+                      className="w-24 h-32 object-cover rounded-md border border-[#333]"
+                    />
+                  </ImageLightbox>
                   <button
                     onClick={removeBackImage}
-                    disabled={uploadingBackImage}
+                    disabled={uploadingBackImage || generatingBackImage}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#1A1A1A] border border-[#333] rounded-full flex items-center justify-center text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
                     title="Remove image"
                     aria-label="Remove back cover image"
@@ -368,16 +398,30 @@ export function BackMatterStage({ book, onComplete }: Props) {
                 </div>
               )}
               <div className="flex-1 space-y-2">
-                <button
-                  onClick={() => backImageInputRef.current?.click()}
-                  disabled={uploadingBackImage}
-                  className="flex items-center gap-2 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-40"
-                >
-                  {uploadingBackImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  {backImageUrl ? 'Replace' : 'Upload'} image
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={generateBackImage}
+                    disabled={uploadingBackImage || generatingBackImage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter text-xs font-semibold rounded-md transition-colors disabled:opacity-40"
+                  >
+                    {generatingBackImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    {generatingBackImage
+                      ? 'Generating…'
+                      : backImageUrl
+                        ? 'Regenerate ✨'
+                        : 'Generate ✨'}
+                  </button>
+                  <button
+                    onClick={() => backImageInputRef.current?.click()}
+                    disabled={uploadingBackImage || generatingBackImage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-40"
+                  >
+                    {uploadingBackImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {backImageUrl ? 'Replace' : 'Upload'} image
+                  </button>
+                </div>
                 <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
-                  PNG, JPEG, or WebP. Up to 5 MB. Recommended: 3:4 portrait for the back-cover spread.
+                  Generate an atmospheric companion to the front cover, or upload your own. PNG, JPEG, or WebP. Up to 5 MB. Recommended: 3:4 portrait.
                 </p>
                 {backImageError && <p className="text-[10px] text-red-400 font-inter">{backImageError}</p>}
               </div>
@@ -531,7 +575,7 @@ export function BackMatterStage({ book, onComplete }: Props) {
           onClick={onComplete}
           className="px-6 py-2.5 bg-gold hover:bg-gold/90 text-canvas font-inter text-sm font-semibold rounded-md transition-colors"
         >
-          Continue to Complete →
+          Back to Review &amp; Export →
         </button>
       </div>
     </div>

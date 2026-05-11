@@ -32,9 +32,15 @@ const SEVERITY_META: Record<CheckSeverity, { icon: React.ReactNode; color: strin
 interface Props {
   book: Book
   pages: BookPage[]
+  /** Forward nav in the new stage order — clicked after the pre-publish
+   *  check passes so the author can finalise the back-cover blurb +
+   *  optional pages. Provided by CoauthorShell; never invoked here
+   *  directly because the user can always reach Back Matter from the
+   *  sidebar too. */
+  onContinueToBackMatter?: () => void
 }
 
-export function CompleteStage({ book, pages }: Props) {
+export function CompleteStage({ book, pages, onContinueToBackMatter }: Props) {
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null)
   const [checkError, setCheckError] = useState('')
@@ -344,6 +350,22 @@ export function CompleteStage({ book, pages }: Props) {
               Export HTML
             </a>
           </div>
+
+          {/* Forward step in the new stage order — Back Matter is the
+              final polish after the pre-publish review. Surfaced as a
+              quiet outlined button under the primary export/publish row
+              so it doesn't compete with Publish for attention. */}
+          {onContinueToBackMatter && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onContinueToBackMatter}
+                className="text-xs font-inter text-cream/70 hover:text-cream transition-colors underline underline-offset-4 decoration-cream/30 hover:decoration-cream/60"
+              >
+                Continue to Back Matter →
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
