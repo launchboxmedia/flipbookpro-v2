@@ -1346,7 +1346,11 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   // font/size so a 3-line title doesn't smuggle ~50px of extra header
   // chrome past a static budget.
   const BODY_WIDTH       = PW - 62
-  const CONT_BODY_HEIGHT = 415
+  // Down from 415 by 10px. The paginator's measurer now renders drop caps
+  // and acronym blocks with the same decorations the page actually shows,
+  // so its predicted heights are tighter — we don't need as much safety
+  // margin on continuation pages as before.
+  const CONT_BODY_HEIGHT = 405
 
   // Re-measure whenever chapters, framework data, or the active theme
   // changes. useLayoutEffect runs synchronously after DOM commit but

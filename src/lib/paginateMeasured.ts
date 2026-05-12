@@ -19,6 +19,8 @@
  * heuristic paginator for SSR and re-paginates after mount.
  */
 
+import { detectAcronymBlock } from '@/lib/acronymBlock'
+
 interface PaginateMeasuredOptions {
   /** Inner content width in CSS pixels (page width minus side padding). */
   bodyWidth: number
@@ -98,16 +100,54 @@ export function paginateMeasured(
   ].join('; ')
   document.body.appendChild(measurer)
 
-  // Paint paragraphs into the measurer with the same paragraph-bottom
-  // margin the renderer uses (0.8em). We also strip the last paragraph's
-  // bottom margin to match the renderer's "last child" zero-margin rule —
-  // otherwise the final page would be reported 0.8em too tall.
+  // Accumulator for completed page chunks. Declared up here (instead of
+  // inside the try block) so renderInto's closure can read its length —
+  // chunks.length === 0 is how we know the current measurement is for
+  // the FIRST chunk of the chapter and should include the drop cap.
+  const chunks: string[] = []
+
+  // Paint paragraphs into the measurer with the SAME decorations the
+  // renderer adds, so measured height matches rendered height:
+  //   - Acronym paragraphs render as the flex block ChapterTextPage's
+  //     <AcronymBlock> emits (rows with 26px letters + 1.45 line-height
+  //     definitions, gap:6 between rows, margin 0.4em / 1.1em). The
+  //     previous version rendered these as plain <p>, which is several
+  //     line-heights shorter than the real rendering.
+  //   - First paragraph of the FIRST chunk gets a floated drop cap span
+  //     (font-size 3.5em, line-height 0.78). Floats push the first 2-3
+  //     lines of the paragraph around them; measuring without it
+  //     under-counted the visible height of the chapter opener.
+  // Last paragraph's bottom-margin still gets zeroed to mirror the
+  // renderer's "last-child" rule.
   function renderInto(paragraphs: string[]): void {
+    const isFirstChunk = chunks.length === 0
     measurer.innerHTML = paragraphs
-      .map((p) => `<p style="margin: 0 0 0.8em;">${escapeHtml(p)}</p>`)
+      .map((p, i) => {
+        const acronym = detectAcronymBlock(p)
+        if (acronym) {
+          const rows = acronym.map((entry) => (
+            `<div style="display:flex; align-items:baseline; gap:14px;">` +
+              `<span style="font-family:'Playfair Display', Georgia, serif; font-weight:700; font-size:26px; line-height:1; width:1.15em; flex-shrink:0; text-align:center;">${escapeHtml(entry.letter)}</span>` +
+              `<span style="line-height:1.45;">${escapeHtml(entry.definition)}</span>` +
+            `</div>`
+          )).join('')
+          return `<div style="margin:0.4em 0 1.1em; display:flex; flex-direction:column; gap:6px;">${rows}</div>`
+        }
+        if (i === 0 && isFirstChunk && p.length > 0) {
+          const firstChar = p[0]!
+          const rest      = p.slice(1)
+          return (
+            `<p style="margin: 0 0 0.8em;">` +
+              `<span style="float:left; font-family:'Playfair Display', Georgia, serif; font-weight:700; font-size:3.5em; line-height:0.78; margin-right:0.05em; margin-top:0.1em;">${escapeHtml(firstChar)}</span>` +
+              `${escapeHtml(rest)}` +
+            `</p>`
+          )
+        }
+        return `<p style="margin: 0 0 0.8em;">${escapeHtml(p)}</p>`
+      })
       .join('')
     const last = measurer.lastElementChild as HTMLElement | null
-    if (last) last.style.marginBottom = '0'
+    if (last) (last as HTMLElement).style.marginBottom = '0'
   }
 
   function fits(paragraphs: string[], targetHeight: number): boolean {
@@ -119,7 +159,6 @@ export function paginateMeasured(
   try {
     const paragraphs = text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
 
-    const chunks: string[] = []
     // Paragraphs already committed to the current page.
     let pageParas: string[] = []
     // Sentence buffer for the paragraph currently being built into the page.
