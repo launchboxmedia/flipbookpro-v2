@@ -9,8 +9,13 @@ const haiku = new Anthropic({
   maxRetries: 2,
 })
 
+// 180s SDK timeout pairs with the cover-route maxDuration of 180. The
+// earlier 120s exactly matched OpenAI's stated upper bound for
+// gpt-image-2 at quality:'high', so a worst-case generation hit the
+// SDK timeout right as the model would have returned. Bumping past the
+// model's upper bound gives the request a real chance to complete.
 const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 })
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 180_000, maxRetries: 1 })
   : null
 
 function extractText(content: Anthropic.ContentBlock[]): string {

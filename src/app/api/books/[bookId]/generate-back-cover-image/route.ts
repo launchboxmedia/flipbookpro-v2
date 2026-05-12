@@ -24,7 +24,14 @@ import { consumeRateLimit } from '@/lib/rateLimit'
 // Result lands on books.back_cover_image_url; storage path lives under
 // back-covers/ for tidy bucket organisation.
 
-export const maxDuration = 120
+// gpt-image-2 at quality:'high' on a portrait canvas can take ~120s for
+// complex prompts (per OpenAI's stated upper bound). A route budget of
+// exactly 120s collides with that upper bound — the route was being
+// killed precisely as the model would have returned. 180s gives a real
+// buffer past the model's worst case without crossing into Enterprise-
+// only territory. Pair this with the SDK timeout in imageGeneration.ts
+// (also bumped to 180_000ms) so the OpenAI client doesn't abort first.
+export const maxDuration = 180
 
 type BackCoverMode = 'ai' | 'mascot' | 'photo'
 
@@ -35,12 +42,31 @@ interface ProfileForBackCover {
   mascot_url:   string | null
 }
 
+// 30s ceiling on the Supabase storage hop. Brand assets are at most
+// 5 MB and live on Supabase's CDN — a healthy fetch resolves in
+// hundreds of ms. Anything past 30s is a hung connection and burns
+// the route's openai-call budget for no payoff. Throwing here surfaces
+// a clear error instead of letting the route's maxDuration timer
+// silently kill the whole request.
+const ASSET_FETCH_TIMEOUT_MS = 30_000
+
 async function fetchAssetBuffer(url: string): Promise<{ buffer: Buffer; contentType: string }> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`asset fetch failed (${res.status})`)
-  const contentType = res.headers.get('content-type') ?? 'image/png'
-  const buffer = Buffer.from(await res.arrayBuffer())
-  return { buffer, contentType }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ASSET_FETCH_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`asset fetch failed (${res.status})`)
+    const contentType = res.headers.get('content-type') ?? 'image/png'
+    const buffer = Buffer.from(await res.arrayBuffer())
+    return { buffer, contentType }
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(`asset fetch timed out after ${ASSET_FETCH_TIMEOUT_MS / 1000}s`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 function extFromContentType(ct: string): string {
