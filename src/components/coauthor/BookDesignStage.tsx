@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import type { Book, BookPage } from '@/types/database'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { createClient } from '@/lib/supabase/client'
 import type { ImageStatus } from './CoauthorShell'
 
 // ── AI back-cover critique flag shape ──────────────────────────────────────
@@ -87,6 +88,11 @@ interface Props {
   onGenerateChapterImage: (pageId: string) => void
   onUploadChapterImage: (pageId: string, file: File) => void
 
+  /** Profile-derived placeholder for the author-name input — shows in the
+   *  field when book.author_name is null, hinting at the value the user
+   *  could fall back to without forcing it. Empty string = no hint. */
+  authorNamePlaceholder?: string
+
   // ── Forward nav ────────────────────────────────────────────────────────
   onContinue: () => void
 }
@@ -107,6 +113,7 @@ export function BookDesignStage({
   imageErrors,
   onGenerateChapterImage,
   onUploadChapterImage,
+  authorNamePlaceholder = '',
   onContinue,
 }: Props) {
   // ── Front cover wiring ────────────────────────────────────────────────
@@ -175,6 +182,38 @@ export function BookDesignStage({
       setBackImageError(e instanceof Error ? e.message : 'Remove failed')
     } finally {
       setBackUploading(false)
+    }
+  }
+
+  // ── Author name ───────────────────────────────────────────────────────
+  // Per-book identifier shown on the cover + share card. Saves on blur via
+  // the client supabase (RLS protects us), only when the value actually
+  // changed — mirrors the target_audience pattern in OutlineStage.
+  const [authorName,        setAuthorName]        = useState(book.author_name ?? '')
+  const [authorNameSaving,  setAuthorNameSaving]  = useState(false)
+  const [authorNameSaved,   setAuthorNameSaved]   = useState(false)
+  const lastSavedAuthorName = useRef(book.author_name ?? '')
+
+  async function saveAuthorNameOnBlur() {
+    const trimmed = authorName.trim()
+    if (trimmed === lastSavedAuthorName.current) return
+    setAuthorNameSaving(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('books')
+        .update({
+          author_name: trimmed.length > 0 ? trimmed : null,
+          updated_at:  new Date().toISOString(),
+        })
+        .eq('id', book.id)
+      if (!error) {
+        lastSavedAuthorName.current = trimmed
+        setAuthorNameSaved(true)
+        setTimeout(() => setAuthorNameSaved(false), 1800)
+      }
+    } finally {
+      setAuthorNameSaving(false)
     }
   }
 
@@ -717,6 +756,32 @@ export function BookDesignStage({
         )}
 
         <div className="space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <label htmlFor="book-author-name" className="text-xs font-inter text-muted-foreground">
+                Author name
+              </label>
+              {authorNameSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+              {authorNameSaved  && !authorNameSaving && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-inter text-accent">
+                  <Check className="w-3 h-3" />
+                  Saved
+                </span>
+              )}
+            </div>
+            <input
+              id="book-author-name"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              onBlur={() => void saveAuthorNameOnBlur()}
+              placeholder={authorNamePlaceholder || 'Your pen name'}
+              className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+            <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+              Appears on the cover and in search results. Can differ from your profile name.
+            </p>
+          </div>
+
           <div className="space-y-1">
             <label className="text-xs font-inter text-muted-foreground">Tagline / subtitle</label>
             <input

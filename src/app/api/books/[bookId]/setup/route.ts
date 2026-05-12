@@ -97,12 +97,31 @@ export async function POST(
   const readerLevelRaw = typeof body.readerLevel === 'number' ? body.readerLevel : 5
   const readerLevel = Math.max(1, Math.min(10, Math.round(readerLevelRaw)))
 
+  // Resolve author name with a profile fallback: wizard input wins; if the
+  // wizard didn't supply one, default to the profile's display_name or
+  // full_name so first publish doesn't ship without an author byline. The
+  // BookDesignStage author-name field lets users edit / clear this later
+  // — that path writes books.author_name directly via the client, so a
+  // user clear there is preserved across re-setup runs only because the
+  // wizard isn't typically re-run after the book leaves draft state.
+  let authorName = clampString(body.authorName, MAX_AUTHOR)
+  if (!authorName) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, full_name')
+      .eq('id', user.id)
+      .maybeSingle()
+    authorName =
+      clampString(profile?.display_name, MAX_AUTHOR) ??
+      clampString(profile?.full_name,    MAX_AUTHOR)
+  }
+
   const { error: bookError } = await supabase
     .from('books')
     .update({
       title,
       subtitle:        clampString(body.subtitle, MAX_SUBTITLE),
-      author_name:     clampString(body.authorName, MAX_AUTHOR),
+      author_name:     authorName,
       persona,
       vibe:            clampString(body.vibe, 50),
       writing_tone:    clampString(body.writingTone, 50),

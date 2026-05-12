@@ -38,6 +38,10 @@ interface Props {
    *  sentinel). Drives the publish-time warning about a CTA chapter with
    *  no destination URL. */
   hasCtaChapter?: boolean
+  /** Profile's display_name (preferred) or full_name, used as a
+   *  placeholder hint on the BookDesignStage author-name input. Empty
+   *  string when the profile has neither. */
+  authorNamePlaceholder?: string
   userEmail: string
   isPremium?: boolean
   isAdmin?: boolean
@@ -53,6 +57,7 @@ export function CoauthorShell({
   publishedBook = null,
   hasStripeConnect = false,
   hasCtaChapter = false,
+  authorNamePlaceholder = '',
   userEmail,
   isPremium,
   isAdmin,
@@ -406,6 +411,7 @@ export function CoauthorShell({
                 imageErrors={imageErrors}
                 onGenerateChapterImage={(pageId) => generateChapterImage(pageId)}
                 onUploadChapterImage={(pageId, file) => uploadChapterImage(pageId, file)}
+                authorNamePlaceholder={authorNamePlaceholder}
                 onContinue={() => setStage('pre-publish')}
               />
             )}

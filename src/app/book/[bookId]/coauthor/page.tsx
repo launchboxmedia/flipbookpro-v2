@@ -29,7 +29,7 @@ export default async function CoauthorPage({
     supabase.from('book_pages').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
     supabase.from('book_resources').select('*').eq('book_id', params.bookId).order('chapter_index', { ascending: true }),
     supabase.from('published_books').select('*').eq('book_id', params.bookId).maybeSingle(),
-    supabase.from('profiles').select('stripe_connect_id').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('stripe_connect_id, full_name, display_name').eq('id', user.id).maybeSingle(),
     supabase
       .from('book_pages')
       .select('id', { count: 'exact', head: true })
@@ -61,6 +61,9 @@ export default async function CoauthorPage({
       publishedBook={publishedBook ?? null}
       hasStripeConnect={!!profile?.stripe_connect_id}
       hasCtaChapter={(ctaCount ?? 0) > 0}
+      // Profile name surfaces in BookDesignStage as a placeholder hint
+      // for the author-name field when the book hasn't set one yet.
+      authorNamePlaceholder={profile?.display_name?.trim() || profile?.full_name?.trim() || ''}
       userEmail={user.email ?? ''}
       isPremium={planInfo.plan !== 'free'}
       isAdmin={planInfo.isAdmin}
