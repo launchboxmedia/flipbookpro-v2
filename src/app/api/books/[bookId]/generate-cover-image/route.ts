@@ -109,7 +109,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
         { buffer: sourceBuf, filename, contentType },
         finalPrompt,
         '1024x1536',
-        'high',
+        'medium',
       )
     } else {
       // AI Generated (Phase 1 path). Unchanged.
@@ -137,10 +137,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
         aspectRatio: '2:3',
         personGeneration: personGenerationFor(book),
         // Covers render typography directly into the image (title +
-        // subtitle + author). 'high' costs more but is noticeably
-        // sharper on the rendered letterforms — worth it for the one
-        // image readers see first.
-        quality: 'high',
+        // subtitle + author). 'medium' keeps letterforms readable while
+        // staying well inside the route's time budget — 'high' was
+        // pushing generations toward the timeout ceiling.
+        quality: 'medium',
       })
       imageBuffer = generated.buffer
     }

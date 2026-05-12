@@ -146,7 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
         { buffer: sourceBuf, filename, contentType },
         finalPrompt,
         '1024x1536',
-        'high',
+        'medium',
       )
     } else {
       // AI Generated path — subtle atmospheric companion to the front
