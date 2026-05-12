@@ -22,7 +22,17 @@ if (!stripeSecretKey && process.env.NODE_ENV === 'production') {
   console.error('[stripe] No Stripe secret key configured.')
 }
 
-export const stripe = new Stripe(stripeSecretKey, {
+// The Stripe SDK throws "Neither apiKey nor config.authenticator
+// provided" at construction time when apiKey is empty. Next.js imports
+// every route module during the build's page-data collection step, so
+// an empty key crashes the build even though no route handler is
+// actually executing. Pass a clearly-fake placeholder when the env var
+// isn't set — construction succeeds, but the placeholder never reaches
+// a real API call: callers gate billing routes with isStripeConfigured()
+// or run in environments where STRIPE_SECRET_KEY is set. If a billing
+// route runs without the env var, the API call returns 401 and the
+// route's catch block returns a 500 to the client.
+export const stripe = new Stripe(stripeSecretKey || 'sk_test_placeholder_unconfigured', {
   apiVersion: '2026-03-25.dahlia',
 })
 
