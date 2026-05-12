@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const [{ data: book }, { data: page }, { data: profile }] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
-    supabase.from('book_pages').select('id, chapter_title, chapter_brief, content, image_url').eq('id', pageId).eq('book_id', params.bookId).single(),
+    supabase.from('book_pages').select('id, chapter_title, chapter_brief, content, image_url, image_scene').eq('id', pageId).eq('book_id', params.bookId).single(),
     supabase.from('profiles').select('brand_color, accent_color').eq('id', user.id).single(),
   ])
 
@@ -45,8 +45,30 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     if (trimmed) {
       finalPrompt = buildCustomPrompt(trimmed, book, paletteColors)
     } else {
-      scene = await extractChapterScene(page, book, paletteColors.primaryName, paletteColors.secondaryName)
+      // Pass the previously-saved scene (if any) so Sonnet can take a
+      // visually different approach when this is a regenerate. First-time
+      // generations have image_scene = null and produce a fresh brief
+      // without the regen-context block.
+      scene = await extractChapterScene(
+        page,
+        book,
+        paletteColors.primaryName,
+        paletteColors.secondaryName,
+        page.image_scene ?? null,
+      )
       finalPrompt = buildChapterPrompt(scene, book, paletteColors)
+
+      // Persist the new scene BEFORE generateImage() runs. If image
+      // generation fails (gpt-image-2 timeout / 5xx / content policy),
+      // we still want the latest brief saved so the next regenerate
+      // diverges from THIS attempt instead of the older stale one. The
+      // image_url update happens later, after upload — losing the image
+      // step doesn't lose the scene step.
+      await supabase
+        .from('book_pages')
+        .update({ image_scene: scene })
+        .eq('id', pageId)
+        .eq('user_id', user.id)
     }
 
     if (process.env.DEBUG_PROMPTS === '1') {
@@ -77,15 +99,16 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
 
     const oldPath = storagePathFromPublicUrl(page.image_url, 'book-images')
-    // Persist the Haiku-generated scene alongside the new image URL so the
-    // author can see WHAT got drawn and re-roll with a custom prompt when
-    // the auto-extracted scene misses the chapter. When the request used
-    // a custom prompt (no Haiku call), scene is null and we leave the
-    // image_scene column unset — defensive, in case a later regen wants
-    // to surface the prior auto-scene as a starting point.
-    const update: Record<string, string | null> = { image_url: publicUrl }
-    if (scene) update.image_scene = scene
-    await supabase.from('book_pages').update(update).eq('id', pageId)
+    // Only the image_url update happens here — image_scene was already
+    // persisted right after extractChapterScene() returned, before
+    // generateImage(). Custom-prompt regenerations leave image_scene
+    // untouched (scene is null in that branch), so a future auto-regen
+    // can still surface the last auto-scene as a starting point.
+    await supabase
+      .from('book_pages')
+      .update({ image_url: publicUrl })
+      .eq('id', pageId)
+      .eq('user_id', user.id)
     // Best-effort cleanup of the previous image. Don't block on errors.
     if (oldPath && oldPath !== filename) {
       void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {

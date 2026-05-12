@@ -568,6 +568,12 @@ export async function extractChapterScene(
   book: Pick<Book, 'persona' | 'title' | 'target_audience' | 'visual_style'>,
   primaryColorName: string,
   secondaryColorName: string,
+  /** The prior scene brief saved on this page, if any. When present,
+   *  this is a regeneration — Sonnet is instructed to take a visually
+   *  different approach (different concept / data point / structure)
+   *  so the user gets meaningful variety instead of a re-roll on the
+   *  same dice. */
+  previousScene?: string | null,
 ): Promise<string> {
   // Key statistics and specific data points usually live past the
   // opening paragraphs — 300 words landed before the meat of most
@@ -589,6 +595,28 @@ export async function extractChapterScene(
   const bucket = styleBucket(book.visual_style)
   const styleNote = STYLE_TREATMENT_NOTES[bucket]
 
+  // Regeneration context — when previousScene is present, the user
+  // clicked Regenerate, meaning the prior brief produced something they
+  // wanted to improve. Lands BETWEEN the chapter content and the final
+  // write instruction so Sonnet reads "here's what was tried, now do
+  // something different" right before generating. The prior brief is
+  // model-authored (server-side from a previous run of this same
+  // function), so it doesn't need <user_content> wrapping.
+  const regenContext = previousScene && previousScene.trim()
+    ? `
+
+IMPORTANT — REGENERATION CONTEXT:
+A previous image was generated using this brief:
+
+${previousScene.trim()}
+
+The author chose to regenerate, meaning this approach needs improvement. You MUST take a completely different visual approach:
+- Choose a different concept, data point, or scenario from the chapter
+- Use a different visual structure (if the previous was a bar chart comparison, try a flow diagram or process visualization)
+- Focus on a different aspect of the chapter's argument
+The new brief must produce an image that is clearly and visually distinct from the previous.`
+    : ''
+
   // Book context (title / audience / style / palette) sits OUTSIDE the
   // <user_content> guard because it's server-derived (selected straight
   // off the books row), not user-typed prose — there's no injection
@@ -605,7 +633,7 @@ Secondary color: ${secondaryColorName}
 Chapter title: ${page.chapter_title}
 Chapter brief: ${page.chapter_brief ?? ''}
 Opening content: ${draftSnippet}
-</user_content>
+</user_content>${regenContext}
 
 Write the image brief for this chapter. Use the ${bucket.toUpperCase()} treatment block from PART B, and substitute the primary and secondary color names above into the [primaryColorName] / [secondaryColorName] placeholders.`
 
