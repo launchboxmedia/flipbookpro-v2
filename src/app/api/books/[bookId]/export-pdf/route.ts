@@ -764,7 +764,12 @@ window.addEventListener('load', function () {
 
   return new NextResponse(html, {
     headers: {
-      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Type':  'text/html; charset=utf-8',
+      // The export reflects whatever lives in book_resources / book_pages
+      // at the moment of download. Browsers (and any proxy in between)
+      // shouldn't cache the response — otherwise editing a resource then
+      // re-exporting would silently serve the prior HTML.
+      'Cache-Control': 'no-store, max-age=0',
     },
   })
 }

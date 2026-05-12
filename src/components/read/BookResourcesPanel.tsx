@@ -80,11 +80,11 @@ export function BookResourcesPanel({ slug, resources, chapterTitles }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Open chapter resources — ${totalCount} available`}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#1A1A1A] border border-[#2A3448] text-cream-1 hover:border-gold/70 hover:text-gold transition-colors shadow-[0_8px_24px_-8px_rgba(0,0,0,0.55)]"
+        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2.5 pl-4 pr-3 py-3 rounded-full bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold shadow-[0_12px_32px_-8px_rgba(201,168,76,0.6)] hover:shadow-[0_14px_38px_-8px_rgba(201,168,76,0.75)] transition-all"
       >
-        <Paperclip className="w-4 h-4 text-gold" />
-        <span className="font-inter text-sm">Resources</span>
-        <span className="text-[10px] font-inter font-semibold text-gold-dim tabular-nums">
+        <Paperclip className="w-4 h-4" />
+        <span className="text-sm">Resources</span>
+        <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-ink-1 text-gold text-[11px] font-bold tabular-nums">
           {totalCount}
         </span>
       </button>

@@ -10,6 +10,13 @@ import { BookResourcesPanel } from '@/components/read/BookResourcesPanel'
 import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
 import type { Book, BookPage, BookResource, Profile } from '@/types/database'
 
+// Always render this page per-request. The published flipbook + resources
+// panel hydrate from a database read; static rendering would freeze the
+// resources list at build time, so adding / editing a resource wouldn't
+// surface until the next deploy. Forcing dynamic makes every visit a
+// fresh read.
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: { slug: string }
   searchParams: { session_id?: string; error?: string }
