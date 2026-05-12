@@ -22,6 +22,7 @@ const MAX_TARGET_AUDIENCE = 500
 const MAX_WEBSITE_URL = 500
 const MAX_GENRE = 80
 const MAX_OFFER_TYPE = 50
+const MAX_OFFER_DESCRIPTION = 300
 const MAX_CTA_INTENT = 200
 const MAX_TESTIMONIALS = 2000
 
@@ -102,8 +103,9 @@ export async function POST(
   if ('targetAudience' in body) patch.target_audience = clampString(body.targetAudience, MAX_TARGET_AUDIENCE)
   if ('websiteUrl'     in body) patch.website_url     = clampString(body.websiteUrl,     MAX_WEBSITE_URL)
   if ('genre'          in body) patch.genre           = clampString(body.genre,          MAX_GENRE)
-  if ('offerType'      in body) patch.offer_type      = clampString(body.offerType,      MAX_OFFER_TYPE)
-  if ('ctaIntent'      in body) patch.cta_intent      = clampString(body.ctaIntent,      MAX_CTA_INTENT)
+  if ('offerType'        in body) patch.offer_type        = clampString(body.offerType,        MAX_OFFER_TYPE)
+  if ('offerDescription' in body) patch.offer_description = clampString(body.offerDescription, MAX_OFFER_DESCRIPTION)
+  if ('ctaIntent'        in body) patch.cta_intent        = clampString(body.ctaIntent,        MAX_CTA_INTENT)
   if ('testimonials'   in body) patch.testimonials    = clampString(body.testimonials,   MAX_TESTIMONIALS)
   // Niche is the topic string from Step 1. Persisted so the per-book
   // Creator Radar's intelligence_cache key has meaningful entropy on the

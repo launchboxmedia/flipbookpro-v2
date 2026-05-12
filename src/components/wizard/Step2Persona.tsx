@@ -35,25 +35,28 @@ interface Props {
   onBack: () => void
 }
 
-/** Step 2 — Persona + Offer.
+/** Step 2 — Persona + business-owner context.
  *
- *  Leaner replacement for the old Step3Persona. The audience textarea,
- *  website URL, CTA fields, and genre have all moved out of this step:
- *    - Target audience → derived from the radar interstitial after the
- *      wizard finishes, then editable from the chapter list.
- *    - Website URL → read silently from profile.website_url; user
- *      maintains it on the brand-profile settings page.
- *    - CTA URL → publish-time setting.
- *    - Genre → not collected here; the radar uses the topic/title.
+ *  For non-business personas this step is just the radio. For business
+ *  owners it also captures the data the per-book Creator Radar and
+ *  chapter prompts need:
+ *    - offerType (category pill picker)
+ *    - offerDescription (one-sentence concrete pitch)
+ *    - targetAudience (initial intent — radar refines this into
+ *      radar_audience_insight after the wizard finishes)
+ *    - websiteUrl (pre-filled from profile, used by Firecrawl)
+ *    - testimonials (optional social proof)
  *
- *  Only persona, offer_type, and testimonials live here. Wizard's next()
- *  awaits the save and fires the per-book deep radar in the background
- *  on transition to Step 3 (Title). */
+ *  The wizard's next() awaits the save and fires the per-book deep
+ *  radar in the background on transition to Step 3 (Title). */
 export function Step2Persona({ data, onNext, onBack }: Props) {
-  const [selected, setSelected]         = useState(data.persona)
-  const [offerType, setOfferType]       = useState(data.offerType)
-  const [testimonials, setTestimonials] = useState(data.testimonials)
-  const [error, setError]               = useState('')
+  const [selected,         setSelected]         = useState(data.persona)
+  const [offerType,        setOfferType]        = useState(data.offerType)
+  const [offerDescription, setOfferDescription] = useState(data.offerDescription)
+  const [targetAudience,   setTargetAudience]   = useState(data.targetAudience)
+  const [websiteUrl,       setWebsiteUrl]       = useState(data.websiteUrl)
+  const [testimonials,     setTestimonials]     = useState(data.testimonials)
+  const [error,            setError]            = useState('')
 
   const isBusiness = selected === 'business'
 
@@ -63,11 +66,17 @@ export function Step2Persona({ data, onNext, onBack }: Props) {
       return
     }
     onNext({
-      persona:      selected,
-      // Only the persona-relevant fields flow through. Switching personas
-      // later won't carry stale fields the user thought they'd erased.
-      offerType:    isBusiness ? offerType            : '',
-      testimonials: isBusiness ? testimonials.trim()  : '',
+      persona: selected,
+      // Only the persona-relevant fields flow through. Switching
+      // personas later won't carry stale business fields the user
+      // thought they'd erased — except targetAudience + websiteUrl,
+      // which are useful regardless of persona (radar consumes both)
+      // so they always pass through.
+      offerType:        isBusiness ? offerType                : '',
+      offerDescription: isBusiness ? offerDescription.trim()  : '',
+      testimonials:     isBusiness ? testimonials.trim()      : '',
+      targetAudience:   targetAudience.trim(),
+      websiteUrl:       websiteUrl.trim(),
     })
   }
 
@@ -142,6 +151,51 @@ export function Step2Persona({ data, onNext, onBack }: Props) {
           </div>
 
           <div className="space-y-1">
+            <label className="text-sm font-inter text-ink-1/80">Describe your offer in one sentence</label>
+            <textarea
+              value={offerDescription}
+              onChange={(e) => setOfferDescription(e.target.value.slice(0, 200))}
+              rows={2}
+              maxLength={200}
+              placeholder="e.g. I help restaurant owners get working capital in 14 days or less"
+              className="w-full px-3 py-2.5 rounded-md bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
+            />
+            <p className="text-ink-1/60 text-[11px] font-source-serif">
+              {offerDescription.length}/200 characters. Concrete &mdash; what, for whom, what outcome.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-inter text-ink-1/80">Who do you want to reach with this book?</label>
+            <textarea
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value.slice(0, 200))}
+              rows={2}
+              maxLength={200}
+              placeholder="e.g. Restaurant owners with 6+ months in business who need working capital but keep getting turned down by banks"
+              className="w-full px-3 py-2.5 rounded-md bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
+            />
+            <p className="text-ink-1/60 text-[11px] font-source-serif">
+              Your starting point &mdash; we&rsquo;ll refine this with market research after setup.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-inter text-ink-1/80">Your website <span className="text-ink-1/40">(optional)</span></label>
+            <input
+              type="url"
+              inputMode="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://yourwebsite.com"
+              className="w-full px-3 py-2.5 rounded-md bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+            />
+            <p className="text-ink-1/60 text-[11px] font-source-serif">
+              We&rsquo;ll use this to research your audience and offer.
+            </p>
+          </div>
+
+          <div className="space-y-1">
             <label className="text-sm font-inter text-ink-1/80">Testimonials</label>
             <textarea
               value={testimonials}
@@ -151,7 +205,7 @@ export function Step2Persona({ data, onNext, onBack }: Props) {
               className="w-full px-3 py-2.5 rounded-md bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
             />
             <p className="text-ink-1/60 text-[11px] font-source-serif">
-              Optional. The AI may weave one in naturally — never as a quote box, just as natural proof.
+              Optional. The AI may weave one in naturally &mdash; never as a quote box, just as natural proof.
             </p>
           </div>
         </div>

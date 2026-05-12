@@ -17,6 +17,11 @@ const MAX_GENRE = 80
 // Business-persona context — generous on testimonials so authors can paste
 // a few full quotes; offer/CTA stay short.
 const MAX_OFFER_TYPE = 50
+// 300 server-side gives a small overflow buffer above the wizard
+// textarea's 200-char limit — users typing right at the edge don't
+// hit a hard server rejection. clampString truncates rather than
+// errors, which is the right ergonomics for a single-line pitch.
+const MAX_OFFER_DESCRIPTION = 300
 const MAX_CTA_INTENT = 200
 const MAX_TESTIMONIALS = 2000
 
@@ -141,9 +146,10 @@ export async function POST(
       // Business-persona-only context. The wizard clears these when persona
       // !== 'business', so clampString turns empty input into NULLs and
       // non-business books stay clean.
-      offer_type:      clampString(body.offerType,    MAX_OFFER_TYPE),
-      cta_intent:      clampString(body.ctaIntent,    MAX_CTA_INTENT),
-      testimonials:    clampString(body.testimonials, MAX_TESTIMONIALS),
+      offer_type:        clampString(body.offerType,        MAX_OFFER_TYPE),
+      offer_description: clampString(body.offerDescription, MAX_OFFER_DESCRIPTION),
+      cta_intent:        clampString(body.ctaIntent,        MAX_CTA_INTENT),
+      testimonials:      clampString(body.testimonials,     MAX_TESTIMONIALS),
       status:          'draft',
       updated_at:      new Date().toISOString(),
     })

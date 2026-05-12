@@ -66,6 +66,14 @@ export interface Book {
   // readers to do, and social proof to weave into chapters and Radar
   // positioning. All three are NULL for non-business personas.
   offer_type: string | null
+  /** One-sentence description of what the business-owner author sells.
+   *  Distinct from offer_type (the category) — this is the concrete
+   *  pitch, captured in Step 2 of the wizard and used to sharpen the
+   *  per-book Creator Radar pass + the chapter-draft prompt. NULL for
+   *  non-business personas. Optional on the type so the dashboard's
+   *  narrow column select doesn't have to include it; the wizard +
+   *  setup flows always read/write the actual column. */
+  offer_description?: string | null
   cta_intent: string | null
   testimonials: string | null
   creator_radar_data: RadarResult | null

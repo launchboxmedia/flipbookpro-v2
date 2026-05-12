@@ -66,6 +66,9 @@ export interface WizardData {
   // (informs a persona-appropriate close + lets the model weave proof).
   /** What the author sells: coaching / course / service / product / consulting / other. */
   offerType: string
+  /** One-sentence concrete pitch — what the author actually sells.
+   *  Distinct from offerType (the category). Optional. */
+  offerDescription: string
   /** What they want readers to do after finishing — short free-form. */
   ctaIntent: string
   /** Pasted testimonials / social proof. Free-form, capped server-side. */
@@ -146,6 +149,7 @@ export function WizardShell({
     websiteUrl: '',
     genre: '',
     offerType: '',
+    offerDescription: '',
     ctaIntent: '',
     testimonials: '',
     vibe: '',

@@ -82,6 +82,7 @@ export default async function WizardPage({
           websiteUrl:     book.website_url     ?? profile?.website_url         ?? '',
           genre: book.genre ?? '',
           offerType: book.offer_type ?? '',
+          offerDescription: book.offer_description ?? '',
           ctaIntent: book.cta_intent ?? '',
           testimonials: book.testimonials ?? '',
           vibe: book.vibe ?? '',
