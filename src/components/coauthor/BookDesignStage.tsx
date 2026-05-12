@@ -161,12 +161,24 @@ export function BookDesignStage({
   const [backImageError, setBackImageError] = useState('')
   const backImageInput = useRef<HTMLInputElement>(null)
 
+  // Back-cover mode — mirrors the front-cover selector. CoverMode shape
+  // is identical ('ai' | 'mascot' | 'photo') so we reuse the type.
+  const [backCoverMode, setBackCoverMode] = useState<CoverMode>('ai')
+  useEffect(() => {
+    if (backCoverMode === 'mascot' && !mascotUrl)      setBackCoverMode('ai')
+    if (backCoverMode === 'photo'  && !authorPhotoUrl) setBackCoverMode('ai')
+  }, [backCoverMode, mascotUrl, authorPhotoUrl])
+
   async function generateBackImage() {
     if (backGenerating || backUploading) return
     setBackGenerating(true)
     setBackImageError('')
     try {
-      const res = await fetch(`/api/books/${book.id}/generate-back-cover-image`, { method: 'POST' })
+      const res = await fetch(`/api/books/${book.id}/generate-back-cover-image`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ mode: backCoverMode }),
+      })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Generation failed (${res.status})`)
       if (typeof json.imageUrl === 'string') setBackImageUrl(json.imageUrl)
@@ -637,6 +649,38 @@ export function BookDesignStage({
             Back Cover Image
           </h3>
         </div>
+
+        {/* Back-cover style pills — mirrors the front-cover selector.
+            AI Generated is always present; Mascot / Photo Back Cover
+            appear when the corresponding brand asset is uploaded. */}
+        {(mascotUrl || authorPhotoUrl) && (
+          <div className="mb-4">
+            <p className="text-[10px] font-inter font-medium text-cream/55 uppercase tracking-[0.18em] mb-2">
+              Back Cover Style
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <CoverModePill
+                active={backCoverMode === 'ai'}
+                label="AI Generated"
+                onClick={() => setBackCoverMode('ai')}
+              />
+              {authorPhotoUrl && (
+                <CoverModePill
+                  active={backCoverMode === 'photo'}
+                  label="Photo Back Cover"
+                  onClick={() => setBackCoverMode('photo')}
+                />
+              )}
+              {mascotUrl && (
+                <CoverModePill
+                  active={backCoverMode === 'mascot'}
+                  label="Mascot Back Cover"
+                  onClick={() => setBackCoverMode('mascot')}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         <input
           ref={backImageInput}

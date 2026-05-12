@@ -3,25 +3,51 @@ import { createClient } from '@/lib/supabase/server'
 import {
   buildBackCoverPrompt,
   buildCustomPrompt,
+  buildMascotBackCoverPrompt,
+  buildPhotoBackCoverPrompt,
   extractBackCoverScene,
   generateImage,
+  generateWithGPTImageEdit,
   personGenerationFor,
   storagePathFromPublicUrl,
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
 import { consumeRateLimit } from '@/lib/rateLimit'
 
-// Back-cover image generation. Mirrors generate-cover-image, with three
-// deliberate differences:
-//   1. Scene comes from book metadata + the back-cover tagline/description
-//      (no chapter content), so the result reads as a closing image rather
-//      than a chapter scene.
-//   2. Prompt uses buildBackCoverPrompt — same palette + style + exclusions
-//      as the front cover, but a quieter, more atmospheric composition.
-//   3. Result is saved to books.back_cover_image_url and the storage path
-//      lives under back-covers/ for tidy bucket organisation.
+// Back-cover image generation. Three modes:
+//   - 'ai'     — typography-companion design from buildBackCoverPrompt.
+//                Haiku extracts a subtle atmospheric element; no rendered text.
+//   - 'photo'  — author photo composed into the lower third via
+//                openai.images.edit + buildPhotoBackCoverPrompt.
+//   - 'mascot' — brand mascot composed into the lower third via
+//                openai.images.edit + buildMascotBackCoverPrompt.
+// Result lands on books.back_cover_image_url; storage path lives under
+// back-covers/ for tidy bucket organisation.
 
 export const maxDuration = 120
+
+type BackCoverMode = 'ai' | 'mascot' | 'photo'
+
+interface ProfileForBackCover {
+  brand_color:  string | null
+  accent_color: string | null
+  avatar_url:   string | null
+  mascot_url:   string | null
+}
+
+async function fetchAssetBuffer(url: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`asset fetch failed (${res.status})`)
+  const contentType = res.headers.get('content-type') ?? 'image/png'
+  const buffer = Buffer.from(await res.arrayBuffer())
+  return { buffer, contentType }
+}
+
+function extFromContentType(ct: string): string {
+  if (ct.includes('webp')) return 'webp'
+  if (ct.includes('jpeg') || ct.includes('jpg')) return 'jpg'
+  return 'png'
+}
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -42,10 +68,12 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const body = await req.json().catch(() => ({}))
   const customPrompt: string | undefined = body?.customPrompt
+  const rawMode = typeof body?.mode === 'string' ? body.mode : 'ai'
+  const mode: BackCoverMode = rawMode === 'mascot' || rawMode === 'photo' ? rawMode : 'ai'
 
   const [{ data: book }, { data: profile }] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
-    supabase.from('profiles').select('brand_color, accent_color').eq('id', user.id).single(),
+    supabase.from('profiles').select('brand_color, accent_color, avatar_url, mascot_url').eq('id', user.id).single<ProfileForBackCover>(),
   ])
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -54,32 +82,76 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const paletteColors = resolvePaletteColors(book, profile ?? null)
     const trimmed = typeof customPrompt === 'string' ? customPrompt.trim() : ''
 
-    let scene: string | null = null
-    let finalPrompt: string
+    let imageBuffer: Buffer
 
-    if (trimmed) {
-      finalPrompt = buildCustomPrompt(trimmed, book, paletteColors)
+    if (mode === 'mascot' || mode === 'photo') {
+      // Edit-mode back covers — same shape as the front-cover edit
+      // path, but with the back-cover prompt builders. Custom prompts
+      // are ignored in these modes; the layout brief is the whole
+      // point.
+      const assetUrl = mode === 'mascot' ? profile?.mascot_url : profile?.avatar_url
+      if (!assetUrl) {
+        const which = mode === 'mascot' ? 'a brand mascot' : 'an author photo'
+        return NextResponse.json(
+          { error: `Upload ${which} in Settings → Brand before using this back-cover style.` },
+          { status: 400 },
+        )
+      }
+
+      const { buffer: sourceBuf, contentType } = await fetchAssetBuffer(assetUrl)
+      const filename = mode === 'mascot'
+        ? `mascot.${extFromContentType(contentType)}`
+        : `author.${extFromContentType(contentType)}`
+
+      const finalPrompt = mode === 'mascot'
+        ? buildMascotBackCoverPrompt(book, paletteColors.primaryName)
+        : buildPhotoBackCoverPrompt(book,  paletteColors.primaryName)
+
+      if (process.env.DEBUG_PROMPTS === '1') {
+        console.log(`\n========== [generate-back-cover-image] PROMPT (${mode}) ==========`)
+        console.log(`asset             : ${assetUrl}`)
+        console.log(`palette           : ${paletteColors.primaryName} / ${paletteColors.secondaryName}`)
+        console.log('--- final prompt ---')
+        console.log(finalPrompt)
+        console.log('===================================================================\n')
+      }
+
+      imageBuffer = await generateWithGPTImageEdit(
+        { buffer: sourceBuf, filename, contentType },
+        finalPrompt,
+        '1024x1536',
+        'high',
+      )
     } else {
-      scene = await extractBackCoverScene(book)
-      finalPrompt = buildBackCoverPrompt(scene, book, paletteColors)
-    }
+      // AI Generated path — subtle atmospheric companion to the front
+      // cover. Unchanged from the prior behaviour.
+      let scene: string | null = null
+      let finalPrompt: string
+      if (trimmed) {
+        finalPrompt = buildCustomPrompt(trimmed, book, paletteColors)
+      } else {
+        scene = await extractBackCoverScene(book)
+        finalPrompt = buildBackCoverPrompt(scene, book, paletteColors)
+      }
 
-    if (process.env.DEBUG_PROMPTS === '1') {
-      console.log('\n========== [generate-back-cover-image] PROMPT ==========')
-      console.log(`book.persona      : ${book.persona}`)
-      console.log(`book.visual_style : ${book.visual_style}`)
-      console.log(`book.palette      : ${book.palette} → ${paletteColors.source}`)
-      console.log(`palette colors    : primary=${paletteColors.primary} secondary=${paletteColors.secondary}`)
-      if (scene) console.log(`scene             : ${scene}`)
-      console.log('--- final prompt ---')
-      console.log(finalPrompt)
-      console.log('=========================================================\n')
-    }
+      if (process.env.DEBUG_PROMPTS === '1') {
+        console.log('\n========== [generate-back-cover-image] PROMPT (ai) ==========')
+        console.log(`book.persona      : ${book.persona}`)
+        console.log(`book.visual_style : ${book.visual_style}`)
+        console.log(`book.palette      : ${book.palette} → ${paletteColors.source}`)
+        console.log(`palette colors    : primary=${paletteColors.primary} secondary=${paletteColors.secondary}`)
+        if (scene) console.log(`scene             : ${scene}`)
+        console.log('--- final prompt ---')
+        console.log(finalPrompt)
+        console.log('=============================================================\n')
+      }
 
-    const { buffer: imageBuffer } = await generateImage(finalPrompt, {
-      aspectRatio: '2:3',
-      personGeneration: personGenerationFor(book),
-    })
+      const generated = await generateImage(finalPrompt, {
+        aspectRatio: '2:3',
+        personGeneration: personGenerationFor(book),
+      })
+      imageBuffer = generated.buffer
+    }
 
     const filename = `back-covers/${params.bookId}-${Date.now()}.jpg`
     const { error: uploadError } = await supabase.storage

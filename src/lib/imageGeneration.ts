@@ -286,6 +286,52 @@ export async function generateWithGPTImageEdit(
   throw new Error('GPT-Image-2 edit returned no image data (no b64_json or url)')
 }
 
+// ── Mascot / Photo BACK-COVER prompts ─────────────────────────────────────
+// Companion variants of the front-cover edit prompts. Same brand asset as
+// the seed image, but composed for the BACK cover: asset placed in the
+// lower third, gold frame matching the front cover, no rendered title /
+// subtitle (the flipbook viewer overlays tagline + description + CTA on
+// top of this image as a separate layer). Author name is allowed because
+// it's a common back-cover touch on photo back covers (Atomic Habits,
+// Psychology of Money, etc.) — and unlike the title, it disambiguates
+// the author from the photo subject.
+
+export function buildPhotoBackCoverPrompt(
+  book: Pick<Book, 'author_name'>,
+  primaryName: string,
+): string {
+  const author = book.author_name?.trim() || 'the author'
+  return [
+    'Professional book back cover design.',
+    'The provided image is the author\'s photo. Place the author photo in the lower third of the cover — professional headshot, clean and authoritative.',
+    '',
+    `Upper two-thirds: Dark ${primaryName} background with generous empty space for back cover copy text that will be overlaid.`,
+    '',
+    'Gold border frame matching the front cover.',
+    `Author name "${author}" in small clean text near the photo.`,
+    '',
+    'No title — this is the back cover. Publishing quality. Like the back cover of a major business book.',
+    '',
+    'Do not include: any rendered title, any subtitle, any captions, busy complex backgrounds, lifestyle photography that competes with the author photo, blurry text, decorative borders that look cheap, clipart, watermarks, false brand logos.',
+  ].join('\n')
+}
+
+export function buildMascotBackCoverPrompt(
+  _book: Pick<Book, 'author_name'>,
+  primaryName: string,
+): string {
+  return [
+    'Professional book back cover design.',
+    'The provided image is the brand mascot. Place the mascot in the lower third, smaller and more subtle than the front cover.',
+    '',
+    `Upper two-thirds: Dark ${primaryName} background, generous empty space for copy.`,
+    'Gold border frame matching the front cover.',
+    'No title text — back cover only. Publishing quality.',
+    '',
+    'Do not include: any rendered title, any subtitle, any author name, any captions, busy complex backgrounds, lifestyle photography, clipart, watermarks, false brand logos, blurry text.',
+  ].join('\n')
+}
+
 /** Back-cover variant of the cover prompt. The back cover is a CANVAS
  *  for text that the flipbook viewer overlays separately (tagline +
  *  description + CTA), so the image itself must NOT render any text.
