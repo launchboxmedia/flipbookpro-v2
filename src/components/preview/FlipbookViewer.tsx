@@ -376,15 +376,21 @@ const padLeft:  React.CSSProperties = { padding: '34px 24px 26px 38px' }  // out
 const padRight: React.CSSProperties = { padding: '34px 38px 26px 24px' }  // outer gutter right
 
 // Body containers on chapter and back-matter pages use flex:1 + overflow:hidden
-// to fill the page below the header. With sentence-aware pagination, the
-// rendered body should fit cleanly — but rendering can still leave a thin
-// partial line at the bottom because the body height isn't an exact multiple
-// of line-height. The fade is now ~0.2em — just enough to soften any ~3-4px
-// partial line that ends up at the very bottom, without swallowing real text.
-// (Was 0.6em — too aggressive once chunks are sized correctly.)
+// to fill the page below the header. The paginator (paginateMeasured) sizes
+// chunks for the AVERAGE case — one-line titles, plain paragraphs — but the
+// renderer adds wrinkles the measurer can't see: a chapter title that wraps
+// to 2 lines eats ~26px of header chrome; a drop cap floats above the first
+// paragraph; an acronym block is taller than the equivalent <p>. When those
+// land together, the rendered chunk can exceed the budget by ~10–30px, and
+// a partial line clips at the bottom edge of the body container.
+//
+// The fade is sized to gracefully dissolve up to ~1 line of overflow so the
+// reader never sees a hard half-line crop — generous enough to catch real
+// edge cases without eating clean text on a perfectly-sized chunk. Pair
+// this with the tighter paginator budgets below (FIRST/CONT_BODY_HEIGHT).
 const bodyFadeMask: React.CSSProperties = {
-  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.2em), transparent 100%)',
-  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 0.2em), transparent 100%)',
+  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 1.2em), transparent 100%)',
+  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 1.2em), transparent 100%)',
 }
 
 // ── Page components — zero hardcoded colour values ──────────────────────────
@@ -1308,11 +1314,18 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   // and the symmetric padLeft/padRight horizontal padding (24+38=62). The
   // first-chunk and continuation body heights account for the rendered
   // chrome (label + title + rule + footer for first; compact header +
-  // footer for continuation), with a small margin of safety so a 2-line
-  // chapter title doesn't push the body past the available height.
+  // footer for continuation) PLUS enough headroom for the worst case:
+  //   - a chapter title that wraps to 2 lines (~26px of extra header)
+  //   - the framework-letter padding-right that narrows the title's
+  //     wrap point on acronym-driven books
+  //   - drop caps and acronym blocks, which the measurer renders as
+  //     plain <p> so the rendered height exceeds the measured height
+  // The numbers below leave ~30px of slack vs. the actual available
+  // body area — enough to absorb those wrinkles without splitting
+  // chapters into more chunks than necessary.
   const BODY_WIDTH         = PW - 62
-  const FIRST_BODY_HEIGHT  = 380
-  const CONT_BODY_HEIGHT   = 440
+  const FIRST_BODY_HEIGHT  = 350
+  const CONT_BODY_HEIGHT   = 415
 
   // Re-measure whenever chapters or the active theme changes. useLayoutEffect
   // runs synchronously after DOM commit but before browser paint, so the
