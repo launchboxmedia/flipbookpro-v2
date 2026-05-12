@@ -86,20 +86,36 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
     onNavigate(stage)
   }
 
-  function dismissWarning(i: number) {
+  /** Mark a flag as dismissed by its index in the original `flags` array.
+   *  Dismissals are session-scoped (cleared on every re-run) and apply to
+   *  blockers, warnings, and hints alike — the user explicitly chose to
+   *  ignore the issue. */
+  function dismissFlag(globalIndex: number) {
     setDismissed((prev) => {
       const next = new Set(prev)
-      next.add(i)
+      next.add(globalIndex)
       return next
     })
   }
 
+  // Each visible item carries its GLOBAL index in the original `flags`
+  // array so dismissals remain stable regardless of which category section
+  // the card is rendered in. The previous version indexed against the
+  // `warnings` sub-array, which made it impossible to dismiss blockers
+  // and tangled the bookkeeping when re-runs reshuffled the flag list.
   const flags = result?.flags ?? []
-  const blockers = flags.filter((f) => f.severity === 'error')
-  const warnings = flags.filter((f) => f.severity === 'warning')
-  const hints    = flags.filter((f) => f.severity === 'hint')
-  const visibleWarnings = warnings.map((w, i) => ({ w, i })).filter(({ i }) => !dismissed.has(i))
-  const canPublish = !!result?.canPublish && blockers.length === 0
+  const indexedFlags = flags.map((f, i) => ({ f, i }))
+  const visibleFlags    = indexedFlags.filter(({ i }) => !dismissed.has(i))
+  const visibleBlockers = visibleFlags.filter(({ f }) => f.severity === 'error')
+  const visibleWarnings = visibleFlags.filter(({ f }) => f.severity === 'warning')
+  const visibleHints    = visibleFlags.filter(({ f }) => f.severity === 'hint')
+
+  // Publishing is gated only by ACTIVE (non-dismissed) blockers. Dismissed
+  // blockers count as "ignored for this session" — the user has explicitly
+  // chosen to publish anyway. The server's `result.canPublish` is
+  // intentionally NOT part of this gate because it can't see client-side
+  // dismissals.
+  const canPublish = visibleBlockers.length === 0
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
@@ -161,20 +177,21 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
           )}
 
           {/* Blockers ── */}
-          {blockers.length > 0 && (
+          {visibleBlockers.length > 0 && (
             <section>
               <p className="flex items-center gap-2 text-xs font-inter font-medium text-red-300 uppercase tracking-wider mb-3">
                 <AlertCircle className="w-3.5 h-3.5" />
-                Blockers · {blockers.length}
-                <span className="text-red-300/60 normal-case tracking-normal">must fix before publishing</span>
+                Blockers · {visibleBlockers.length}
+                <span className="text-red-300/60 normal-case tracking-normal">fix or ignore to publish</span>
               </p>
               <div className="space-y-2.5">
-                {blockers.map((f, i) => (
+                {visibleBlockers.map(({ f, i }) => (
                   <FlagCard
                     key={`b-${i}`}
                     severity="error"
                     flag={f}
                     onFix={() => fix(f)}
+                    onIgnore={() => dismissFlag(i)}
                   />
                 ))}
               </div>
@@ -190,13 +207,13 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
                 <span className="text-amber-300/60 normal-case tracking-normal">should fix</span>
               </p>
               <div className="space-y-2.5">
-                {visibleWarnings.map(({ w, i }) => (
+                {visibleWarnings.map(({ f, i }) => (
                   <FlagCard
                     key={`w-${i}`}
                     severity="warning"
-                    flag={w}
-                    onFix={() => fix(w)}
-                    onIgnore={() => dismissWarning(i)}
+                    flag={f}
+                    onFix={() => fix(f)}
+                    onIgnore={() => dismissFlag(i)}
                   />
                 ))}
               </div>
@@ -204,20 +221,26 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
           )}
 
           {/* Hints — collapsible */}
-          {hints.length > 0 && (
+          {visibleHints.length > 0 && (
             <section>
               <button
                 onClick={() => setHintsOpen((v) => !v)}
                 className="flex items-center gap-2 text-xs font-inter font-medium text-cream/60 hover:text-cream uppercase tracking-wider mb-3 transition-colors"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Nice to have · {hints.length}
+                Nice to have · {visibleHints.length}
                 {hintsOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
               {hintsOpen && (
                 <div className="space-y-2.5">
-                  {hints.map((h, i) => (
-                    <FlagCard key={`h-${i}`} severity="hint" flag={h} onFix={() => fix(h)} />
+                  {visibleHints.map(({ f, i }) => (
+                    <FlagCard
+                      key={`h-${i}`}
+                      severity="hint"
+                      flag={f}
+                      onFix={() => fix(f)}
+                      onIgnore={() => dismissFlag(i)}
+                    />
                   ))}
                 </div>
               )}
