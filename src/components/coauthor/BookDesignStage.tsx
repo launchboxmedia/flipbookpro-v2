@@ -1,13 +1,73 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Loader2, RefreshCw, Upload, Wand2, ImageIcon, X, Check,
   BookOpen, Layers, Sparkles, ArrowRight,
+  ShoppingBag, Link2, FileText,
 } from 'lucide-react'
 import type { Book, BookPage } from '@/types/database'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import type { ImageStatus } from './CoauthorShell'
+
+// ── AI back-cover critique flag shape ──────────────────────────────────────
+// Matches the response from /api/books/[id]/critique-back-matter. Lifted
+// from the deleted BackMatterStage so the analyze/apply/dismiss flow
+// keeps the same surface.
+type BackMatterField    = 'tagline' | 'description' | 'ctaText' | 'ctaUrl' | 'optional'
+type BackMatterFlagType = 'HOOK' | 'CLARITY' | 'CTA' | 'VALUE' | 'TONE' | 'LENGTH'
+
+interface BackMatterFlag {
+  field:      BackMatterField
+  type:       BackMatterFlagType
+  issue:      string
+  suggestion: string
+  severity:   'low' | 'medium' | 'high'
+}
+
+const FIELD_LABEL: Record<BackMatterField, string> = {
+  tagline:     'Tagline',
+  description: 'Description',
+  ctaText:     'CTA text',
+  ctaUrl:      'CTA URL',
+  optional:    'Optional pages',
+}
+
+// ── Optional back-matter pages ─────────────────────────────────────────────
+// Three slots saved to book_pages at negative chapter_index values via the
+// existing /api/books/[id]/back-matter route. The route maps:
+//   upsell → -1, affiliate → -2, custom → -3.
+type BackMatterType = 'upsell' | 'affiliate' | 'custom'
+
+const OPTIONAL_TYPES: ReadonlyArray<{
+  id:          BackMatterType
+  label:       string
+  icon:        React.ComponentType<{ className?: string }>
+  description: string
+  placeholder: string
+}> = [
+  {
+    id:          'upsell',
+    label:       'Upsell Page',
+    icon:        ShoppingBag,
+    description: 'Promote a product, course, or service.',
+    placeholder: 'Describe your offer, price, and how to access it…',
+  },
+  {
+    id:          'affiliate',
+    label:       'Affiliate Page',
+    icon:        Link2,
+    description: 'Share recommended resources with links.',
+    placeholder: 'List your recommended resources with links…',
+  },
+  {
+    id:          'custom',
+    label:       'Custom Page',
+    icon:        FileText,
+    description: 'Write any content — bio, CTA, credits.',
+    placeholder: 'Write your custom page content…',
+  },
+]
 
 interface Props {
   book: Book
@@ -126,6 +186,168 @@ export function BookDesignStage({
   const [savingText,  setSavingText]  = useState(false)
   const [savedText,   setSavedText]   = useState(false)
   const [textError,   setTextError]   = useState('')
+
+  // ── AI back-cover critique ────────────────────────────────────────────
+  const [analyzing,       setAnalyzing]       = useState(false)
+  const [hasAnalyzed,     setHasAnalyzed]     = useState(false)
+  const [analyzeError,    setAnalyzeError]    = useState('')
+  const [flags,           setFlags]           = useState<BackMatterFlag[]>([])
+  const [dismissedFlags,  setDismissedFlags]  = useState<Set<number>>(new Set())
+  const [applyingFlag,    setApplyingFlag]    = useState<number | null>(null)
+  const visibleFlags = flags.filter((_, i) => !dismissedFlags.has(i))
+
+  async function runAnalysis() {
+    if (analyzing) return
+    setAnalyzing(true)
+    setAnalyzeError('')
+    setFlags([])
+    setDismissedFlags(new Set())
+    try {
+      const res = await fetch(`/api/books/${book.id}/critique-back-matter`, { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Analysis failed (${res.status})`)
+      setFlags(Array.isArray(json.flags) ? json.flags : [])
+      setHasAnalyzed(true)
+    } catch (e) {
+      setAnalyzeError(e instanceof Error ? e.message : 'Analysis failed')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  function dismissFlag(i: number) {
+    setDismissedFlags((prev) => {
+      const next = new Set(prev)
+      next.add(i)
+      return next
+    })
+  }
+
+  /** Apply a flag's suggestion to the corresponding back-cover field and
+   *  persist immediately. Reads/writes the explicit "next" values rather
+   *  than relying on setState landing first, so a fast double-click can't
+   *  send a stale snapshot to the server. */
+  async function applyFlag(flagIndex: number) {
+    const flag = flags[flagIndex]
+    if (!flag) return
+
+    let nextTagline     = tagline
+    let nextDescription = description
+    let nextCtaText     = ctaText
+    if (flag.field === 'tagline') {
+      nextTagline = flag.suggestion
+      setTagline(flag.suggestion)
+    } else if (flag.field === 'description') {
+      nextDescription = flag.suggestion
+      setDescription(flag.suggestion)
+    } else if (flag.field === 'ctaText') {
+      nextCtaText = flag.suggestion
+      setCtaText(flag.suggestion)
+    } else {
+      // ctaUrl / optional — advice-only, just dismiss.
+      dismissFlag(flagIndex)
+      return
+    }
+
+    setApplyingFlag(flagIndex)
+    setTextError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/back-cover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          back_cover_tagline:     nextTagline.trim()     || null,
+          back_cover_description: nextDescription.trim() || null,
+          back_cover_cta_text:    nextCtaText.trim()     || null,
+          back_cover_cta_url:     ctaUrl.trim()          || null,
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Save failed')
+      }
+      dismissFlag(flagIndex)
+      setSavedText(true)
+      setTimeout(() => setSavedText(false), 2500)
+    } catch (e) {
+      setTextError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setApplyingFlag(null)
+    }
+  }
+
+  // ── Optional pages ────────────────────────────────────────────────────
+  const [activeOptional,   setActiveOptional]   = useState<BackMatterType | null>(null)
+  const [optionalTitles,   setOptionalTitles]   = useState<Record<BackMatterType, string>>({ upsell: '', affiliate: '', custom: '' })
+  const [optionalContents, setOptionalContents] = useState<Record<BackMatterType, string>>({ upsell: '', affiliate: '', custom: '' })
+  const [savingOptional,   setSavingOptional]   = useState<BackMatterType | null>(null)
+  const [savedOptional,    setSavedOptional]    = useState<Set<BackMatterType>>(new Set())
+  const [optionalError,    setOptionalError]    = useState('')
+
+  // Hydrate existing optional pages from the back-matter endpoint. The
+  // route already filters to chapter_index < 0; we map by index because
+  // -4+ fallback rows aren't part of any tile.
+  useEffect(() => {
+    let cancelled = false
+    async function fetchOptional() {
+      try {
+        const res = await fetch(`/api/books/${book.id}/back-matter`)
+        if (!res.ok || cancelled) return
+        const json = await res.json().catch(() => ({}))
+        const pages: Array<{ chapter_index: number; chapter_title?: string; content?: string }> =
+          Array.isArray(json.pages) ? json.pages : []
+        const indexToType: Record<number, BackMatterType> = { [-1]: 'upsell', [-2]: 'affiliate', [-3]: 'custom' }
+        const titles:   Record<BackMatterType, string> = { upsell: '', affiliate: '', custom: '' }
+        const contents: Record<BackMatterType, string> = { upsell: '', affiliate: '', custom: '' }
+        const saved = new Set<BackMatterType>()
+        for (const p of pages) {
+          const t = indexToType[p.chapter_index]
+          if (!t) continue
+          if (typeof p.chapter_title === 'string') titles[t]   = p.chapter_title
+          if (typeof p.content       === 'string') contents[t] = p.content
+          if (p.content) saved.add(t)
+        }
+        if (cancelled) return
+        setOptionalTitles(titles)
+        setOptionalContents(contents)
+        setSavedOptional(saved)
+      } catch {
+        // best-effort hydrate — leaving tiles in their empty default is fine
+      }
+    }
+    fetchOptional()
+    return () => { cancelled = true }
+  }, [book.id])
+
+  async function saveOptional(type: BackMatterType) {
+    if (!optionalContents[type]?.trim()) return
+    setSavingOptional(type)
+    setOptionalError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/back-matter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          title:   optionalTitles[type] || OPTIONAL_TYPES.find((t) => t.id === type)?.label,
+          content: optionalContents[type],
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Save failed')
+      }
+      setSavedOptional((prev) => {
+        const next = new Set(prev)
+        next.add(type)
+        return next
+      })
+    } catch (e) {
+      setOptionalError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSavingOptional(null)
+    }
+  }
 
   async function saveBackCoverText() {
     setSavingText(true)
@@ -395,12 +617,104 @@ export function BookDesignStage({
 
       {/* ── BACK MATTER TEXT ─────────────────────────────────────────── */}
       <section className={CARD}>
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="w-4 h-4 text-gold" />
-          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
-            Back Cover Copy
-          </h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-gold" />
+            <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+              Back Cover Copy
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={runAnalysis}
+            disabled={analyzing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1A1A1A] hover:bg-[#2A2A2A] border border-[#333] text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+          >
+            {analyzing
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : hasAnalyzed
+                ? <RefreshCw className="w-3.5 h-3.5 text-gold" />
+                : <Sparkles className="w-3.5 h-3.5 text-gold" />}
+            {analyzing ? 'Analyzing…' : hasAnalyzed ? 'Re-analyze' : 'Analyze Back Cover'}
+          </button>
         </div>
+
+        {analyzeError && (
+          <div className="mb-4 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-inter">
+            {analyzeError}
+          </div>
+        )}
+
+        {hasAnalyzed && !analyzing && visibleFlags.length === 0 && flags.length === 0 && (
+          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-inter">
+            <Check className="w-3.5 h-3.5" />
+            ✓ No issues found — back-cover copy reads well.
+          </div>
+        )}
+
+        {visibleFlags.length > 0 && (
+          <div className="mb-5 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-inter font-medium text-cream/70 uppercase tracking-wider">
+                AI Analysis · {visibleFlags.length} flag{visibleFlags.length !== 1 ? 's' : ''}
+              </p>
+              <button
+                type="button"
+                onClick={() => setDismissedFlags(new Set(flags.map((_, i) => i)))}
+                className="text-[11px] font-inter text-muted-foreground hover:text-cream transition-colors"
+              >
+                Dismiss all
+              </button>
+            </div>
+            {visibleFlags.map((flag) => {
+              const originalIndex = flags.indexOf(flag)
+              const canApply = flag.field === 'tagline' || flag.field === 'description' || flag.field === 'ctaText'
+              const isApplying = applyingFlag === originalIndex
+              return (
+                <div key={originalIndex} className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-inter font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">
+                      {FIELD_LABEL[flag.field]} · {flag.type}
+                    </span>
+                    <span className={`text-[10px] font-inter px-1.5 py-0.5 rounded ${
+                      flag.severity === 'high'   ? 'bg-red-500/15 text-red-400'
+                      : flag.severity === 'medium' ? 'bg-amber-500/15 text-amber-400'
+                      : 'bg-cream/10 text-cream/60'
+                    }`}>
+                      {flag.severity}
+                    </span>
+                  </div>
+                  <p className="text-cream/90 text-sm font-source-serif mb-1.5 leading-relaxed">{flag.issue}</p>
+                  <p className="text-cream/55 text-xs font-source-serif italic mb-3 leading-relaxed">
+                    {canApply ? `Replace with: "${flag.suggestion}"` : flag.suggestion}
+                  </p>
+                  <div className="flex gap-2">
+                    {canApply && (
+                      <button
+                        type="button"
+                        onClick={() => applyFlag(originalIndex)}
+                        disabled={isApplying || applyingFlag !== null}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 disabled:opacity-40 text-emerald-400 text-[11px] font-inter rounded-md transition-colors"
+                      >
+                        {isApplying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        {isApplying ? 'Applying…' : 'Apply'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => dismissFlag(originalIndex)}
+                      disabled={isApplying}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2A2A2A] hover:bg-[#333] text-muted-foreground text-[11px] font-inter rounded-md transition-colors disabled:opacity-40"
+                    >
+                      <X className="w-3 h-3" />
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="space-y-1">
@@ -475,6 +789,94 @@ export function BookDesignStage({
             {textError && <p className="text-red-400 text-xs font-inter">{textError}</p>}
           </div>
         </div>
+      </section>
+
+      {/* ── OPTIONAL PAGES ───────────────────────────────────────────── */}
+      <section className={CARD}>
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="w-4 h-4 text-gold" />
+          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+            Optional Pages
+          </h3>
+        </div>
+        <p className="text-xs font-source-serif text-muted-foreground mb-4 leading-relaxed">
+          Extra pages added to the very end of the flipbook — after your chapters and before the back cover. Each slot is independent; you can skip any of them.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          {OPTIONAL_TYPES.map((t) => {
+            const Icon = t.icon
+            const isActive = activeOptional === t.id
+            const isSaved  = savedOptional.has(t.id)
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveOptional(isActive ? null : t.id)}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  isActive
+                    ? 'border-accent bg-accent/10'
+                    : isSaved
+                      ? 'border-accent/40 bg-accent/5'
+                      : 'border-[#333] bg-[#1A1A1A] hover:border-[#444]'
+                }`}
+              >
+                <Icon className={`w-5 h-5 mb-2 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
+                <p className="text-sm font-inter font-medium text-cream">{t.label}</p>
+                <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">{t.description}</p>
+                {isSaved && (
+                  <p className="text-[10px] font-inter text-accent mt-2 uppercase tracking-[0.18em]">Active</p>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {activeOptional && (
+          <div className="bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-5 space-y-4">
+            <h4 className="font-inter font-medium text-cream text-sm">
+              {OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.label}
+            </h4>
+
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">Page title</label>
+              <input
+                value={optionalTitles[activeOptional] ?? ''}
+                onChange={(e) => setOptionalTitles((prev) => ({ ...prev, [activeOptional]: e.target.value }))}
+                placeholder={OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.label}
+                className="w-full px-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-inter text-muted-foreground">Content</label>
+              <textarea
+                value={optionalContents[activeOptional] ?? ''}
+                onChange={(e) => setOptionalContents((prev) => ({ ...prev, [activeOptional]: e.target.value }))}
+                rows={6}
+                placeholder={OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.placeholder}
+                className="w-full px-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => saveOptional(activeOptional)}
+                disabled={!optionalContents[activeOptional]?.trim() || savingOptional === activeOptional}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+              >
+                {savingOptional === activeOptional ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : savedOptional.has(activeOptional) ? (
+                  <Check className="w-4 h-4" />
+                ) : null}
+                {savedOptional.has(activeOptional) ? 'Saved' : 'Save Page'}
+              </button>
+              {optionalError && <p className="text-red-400 text-xs font-inter">{optionalError}</p>}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── CONTINUE CTA ─────────────────────────────────────────────── */}
