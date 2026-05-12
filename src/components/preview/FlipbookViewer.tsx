@@ -392,127 +392,46 @@ function BlankPage({ dark }: { dark?: boolean }) {
   )
 }
 
-function CoverPage({ book, profile }: { book: Book; profile: Profile | null }) {
-  const author   = book.author_name || profile?.full_name || 'Author Name'
-  const title    = book.title || 'Untitled'
-  const subtitle = book.subtitle || null
+function CoverPage({ book }: { book: Book; profile: Profile | null }) {
+  const title = book.title || 'Untitled'
 
-  // With cover image: full-bleed image, title overlaid, bottom band for subtitle + author.
-  // EXCEPT when book.cover_has_text is true — the user has indicated their
-  // uploaded image already contains the title/subtitle/author, so we skip
-  // the gradients and overlay entirely and let the artwork breathe.
+  // The cover image IS the cover. Generated covers already render title,
+  // subtitle, author, and any branding in the artwork itself; uploaded
+  // covers are user-designed. Either way, overlaying app-side text on top
+  // would double-print everything, so this page renders the image full-
+  // bleed and nothing else. The `cover_has_text` book flag and the
+  // gradient/overlay scaffold it gated are intentionally retired here —
+  // every cover is now treated as final art.
   if (book.cover_image_url) {
-    if (book.cover_has_text) {
-      return (
-        <div style={{ ...pageBase, position: 'relative', overflow: 'hidden', background: 'var(--cover-bg)' }}>
-          <img
-            src={book.cover_image_url}
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        </div>
-      )
-    }
-
     return (
       <div style={{ ...pageBase, position: 'relative', overflow: 'hidden', background: 'var(--cover-bg)' }}>
-        {/* Full-bleed cover image — z:1 */}
         <img
           src={book.cover_image_url}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 1 }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
-        {/* Dark gradient over top for title legibility — z:2 */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', background: 'linear-gradient(to bottom, rgba(0,0,0,0.80) 0%, transparent 100%)', zIndex: 2 }} />
-        {/* Dark gradient over bottom for band legibility — z:2 */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%', background: 'linear-gradient(to top, rgba(0,0,0,0.92) 10%, transparent 100%)', zIndex: 2 }} />
-
-        {/* Logo top-left — z:3 */}
-        {profile?.logo_url && (
-          <img src={profile.logo_url} alt="" style={{ position: 'absolute', top: 18, left: 20, height: 20, objectFit: 'contain', opacity: 0.8, zIndex: 3 }} />
-        )}
-
-        {/* Title — top area, always rendered — z:4 */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '28px 28px 0', zIndex: 4 }}>
-          <h1 style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: 26,
-            fontWeight: 700,
-            color: '#FFFFFF',
-            lineHeight: 1.15,
-            margin: 0,
-            textShadow: '0 2px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.9)',
-          }}>
-            {title}
-          </h1>
-        </div>
-
-        {/* Bottom band — subtitle + rule + author — always rendered — z:4 */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 28px 24px', zIndex: 4 }}>
-          {subtitle && (
-            <p style={{
-              fontFamily: "'Source Serif 4', Georgia, serif",
-              fontSize: 10.5,
-              color: 'rgba(255,255,255,0.85)',
-              fontStyle: 'italic',
-              margin: '0 0 10px',
-              textShadow: '0 1px 6px rgba(0,0,0,0.9)',
-            }}>
-              {subtitle}
-            </p>
-          )}
-          <div style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.5)', marginBottom: 8 }} />
-          <p style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 7.5,
-            color: '#FFFFFF',
-            fontVariant: 'small-caps',
-            letterSpacing: '0.14em',
-            margin: 0,
-            opacity: 0.85,
-            textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-          }}>
-            {author}
-          </p>
-        </div>
       </div>
     )
   }
 
-  // Without cover image: typographic cover with cover-bg
+  // No cover image yet — show a minimal placeholder so the cover spread
+  // isn't a blank rectangle. Title only, centered, on the theme's cover
+  // background. The author / subtitle / accent rules from the old
+  // typographic cover are dropped to keep this clearly a stand-in for
+  // "you haven't generated a cover yet" rather than its own design.
   return (
-    <div style={{ ...pageBase, background: 'var(--cover-bg)', justifyContent: 'space-between', padding: '40px 36px', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)' }} />
-
-      {/* Top: logo */}
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        {profile?.logo_url && (
-          <img src={profile.logo_url} alt="" style={{ height: 24, objectFit: 'contain', opacity: 0.65 }} />
-        )}
-      </div>
-
-      {/* Middle: title + subtitle */}
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 32, height: 2, background: 'var(--cover-band)', margin: '0 auto 18px' }} />
-        <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 26, fontWeight: 700, color: 'var(--cover-text)', lineHeight: 1.15, margin: 0 }}>
-          {title}
-        </h1>
-        {subtitle && (
-          <p style={{ fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 11, color: 'var(--accent)', fontStyle: 'italic', marginTop: 10, marginBottom: 0 }}>
-            {subtitle}
-          </p>
-        )}
-        <div style={{ width: 32, height: 2, background: 'var(--cover-band)', margin: '18px auto 0' }} />
-      </div>
-
-      {/* Bottom: author — always rendered */}
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 8, color: 'var(--cover-text)', opacity: 0.6, fontVariant: 'small-caps', letterSpacing: '0.14em', margin: 0 }}>
-          {author}
-        </p>
-      </div>
-
-      <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, height: 1, background: 'var(--rule-color)' }} />
+    <div style={{ ...pageBase, background: 'var(--cover-bg)', alignItems: 'center', justifyContent: 'center', padding: '40px 36px' }}>
+      <h1 style={{
+        fontFamily: "'Playfair Display', Georgia, serif",
+        fontSize: 26,
+        fontWeight: 700,
+        color: 'var(--cover-text)',
+        lineHeight: 1.15,
+        margin: 0,
+        textAlign: 'center',
+      }}>
+        {title}
+      </h1>
     </div>
   )
 }
