@@ -85,8 +85,12 @@ export function BrandPanel({ profile: initial }: Props) {
   const [toast, setToast] = useState<ToastState | null>(null)
   const [saving,     setSaving]     = useState(false)
   const [saved,      setSaved]      = useState(false)
-  const [logoLoading, setLogoLoading] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [logoLoading,        setLogoLoading]        = useState(false)
+  const [authorPhotoLoading, setAuthorPhotoLoading] = useState(false)
+  const [mascotLoading,      setMascotLoading]      = useState(false)
+  const fileRef         = useRef<HTMLInputElement>(null)
+  const authorPhotoRef  = useRef<HTMLInputElement>(null)
+  const mascotRef       = useRef<HTMLInputElement>(null)
 
   // Drop the highlight ring after 3s. The dependency on highlightKeys means
   // a fresh enrichment restarts the timer.
@@ -113,6 +117,41 @@ export function BrandPanel({ profile: initial }: Props) {
     } finally {
       setLogoLoading(false)
     }
+  }
+
+  async function handleAuthorPhotoUpload(file: File) {
+    setAuthorPhotoLoading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/profile/author-photo', { method: 'POST', body: form })
+      const json = await res.json()
+      if (json.avatarUrl) setProfile((p) => p ? { ...p, avatar_url: json.avatarUrl } : p)
+    } finally {
+      setAuthorPhotoLoading(false)
+    }
+  }
+
+  async function handleMascotUpload(file: File) {
+    setMascotLoading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/profile/mascot', { method: 'POST', body: form })
+      const json = await res.json()
+      if (json.mascotUrl) setProfile((p) => p ? { ...p, mascot_url: json.mascotUrl } : p)
+    } finally {
+      setMascotLoading(false)
+    }
+  }
+
+  async function clearAsset(field: 'logo_url' | 'avatar_url' | 'mascot_url') {
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: null }),
+    })
+    setProfile((p) => p ? { ...p, [field]: null } : p)
   }
 
   async function autoFill() {
@@ -285,47 +324,152 @@ export function BrandPanel({ profile: initial }: Props) {
           )}
         </div>
 
-        {/* Logo */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
-          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Logo</p>
-          <div className="flex items-center gap-4">
-            {profile?.logo_url ? (
-              <div className="relative">
-                <img src={profile.logo_url} alt="Logo" className="h-14 w-auto object-contain rounded" />
-                <button
-                  onClick={async () => {
-                    await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo_url: null }) })
-                    setProfile((p) => p ? { ...p, logo_url: null } : p)
-                  }}
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="h-14 w-24 border border-dashed border-cream-3 rounded flex items-center justify-center text-ink-1/60 text-xs font-inter">
-                No logo
-              </div>
-            )}
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={logoLoading}
-              className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
-            >
-              {logoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {profile?.logo_url ? 'Replace' : 'Upload'} Logo
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }}
-            />
+        {/* Brand assets — Logo, Author Photo, Mascot. The latter two
+            drive the Mascot Cover / Photo Cover modes in Book Design.
+            Each is independent; uploading one doesn't affect the others.
+            Squares are 14 × 14 (logo keeps the wider auto-width landscape
+            look — logos are usually wordmarks). */}
+        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-6">
+          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Brand Assets</p>
+
+          {/* Logo ── */}
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-inter font-medium text-ink-1">Logo</p>
+              <p className="text-[10px] font-inter text-ink-1/50">PNG / JPEG / WebP · max 2 MB</p>
+            </div>
+            <div className="flex items-center gap-4">
+              {profile?.logo_url ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={profile.logo_url} alt="Logo" className="h-14 w-auto object-contain rounded" />
+                  <button
+                    onClick={() => clearAsset('logo_url')}
+                    aria-label="Remove logo"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-14 w-24 border border-dashed border-cream-3 rounded flex items-center justify-center text-ink-1/60 text-xs font-inter">
+                  No logo
+                </div>
+              )}
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={logoLoading}
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              >
+                {logoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {profile?.logo_url ? 'Replace' : 'Upload'} Logo
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }}
+              />
+            </div>
+            <p className="text-xs font-inter text-ink-1/55">
+              Used in flipbook headers and PDF exports.
+            </p>
           </div>
-          <p className="text-xs font-inter text-ink-1/60">
-            PNG, JPEG, or WebP. Max 2&nbsp;MB. Recommended: transparent background, at least 256&nbsp;px on the long edge.
-          </p>
+
+          <div className="border-t border-cream-3" />
+
+          {/* Author Photo ── */}
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-inter font-medium text-ink-1">Author Photo</p>
+              <p className="text-[10px] font-inter text-ink-1/50">PNG / JPEG / WebP · max 5 MB</p>
+            </div>
+            <div className="flex items-center gap-4">
+              {profile?.avatar_url ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={profile.avatar_url} alt="Author photo" className="h-16 w-16 object-cover rounded-md border border-cream-3" />
+                  <button
+                    onClick={() => clearAsset('avatar_url')}
+                    aria-label="Remove author photo"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-16 w-16 border border-dashed border-cream-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
+                  No photo
+                </div>
+              )}
+              <button
+                onClick={() => authorPhotoRef.current?.click()}
+                disabled={authorPhotoLoading}
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              >
+                {authorPhotoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {profile?.avatar_url ? 'Replace' : 'Upload'} Photo
+              </button>
+              <input
+                ref={authorPhotoRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAuthorPhotoUpload(f) }}
+              />
+            </div>
+            <p className="text-xs font-inter text-ink-1/55">
+              Used on photo-style book covers. Front-facing headshot works best.
+            </p>
+          </div>
+
+          <div className="border-t border-cream-3" />
+
+          {/* Mascot ── */}
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-inter font-medium text-ink-1">Brand Mascot</p>
+              <p className="text-[10px] font-inter text-ink-1/50">PNG / WebP only · max 5 MB</p>
+            </div>
+            <div className="flex items-center gap-4">
+              {profile?.mascot_url ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={profile.mascot_url} alt="Mascot" className="h-16 w-16 object-contain rounded-md border border-cream-3 bg-cream-2" />
+                  <button
+                    onClick={() => clearAsset('mascot_url')}
+                    aria-label="Remove mascot"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="h-16 w-16 border border-dashed border-cream-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
+                  No mascot
+                </div>
+              )}
+              <button
+                onClick={() => mascotRef.current?.click()}
+                disabled={mascotLoading}
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              >
+                {mascotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {profile?.mascot_url ? 'Replace' : 'Upload'} Mascot
+              </button>
+              <input
+                ref={mascotRef}
+                type="file"
+                accept="image/png,image/webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMascotUpload(f) }}
+              />
+            </div>
+            <p className="text-xs font-inter text-ink-1/55">
+              Character or mascot used on book covers. Transparent background required.
+            </p>
+          </div>
         </div>
 
         {/* Author info */}

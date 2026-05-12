@@ -320,6 +320,11 @@ export interface Profile {
   avatar_url: string | null
   plan: PlanType
   logo_url: string | null
+  /** Brand mascot / character image. Used by the "Mascot Cover" mode in
+   *  Book Design — the mascot is layered as the central hero element by
+   *  openai.images.edit() on top of a typography-first cover layout.
+   *  PNG/WebP only on upload so transparency is preserved. */
+  mascot_url?: string | null
   brand_color: string | null
   accent_color: string | null
   author_bio: string | null

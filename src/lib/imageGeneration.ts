@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import type { Book, BookPage } from '@/types/database'
 import type { ResolvedPaletteColors } from '@/lib/palettes'
 
@@ -189,6 +189,101 @@ export function buildCoverPrompt(
     'Do not include: busy complex backgrounds, multiple people, lifestyle photography, blurry text, decorative borders that look cheap, clipart, watermarks, false brand logos. Human figures allowed only as small non-face silhouettes if essential to the concept.',
   ]
   return lines.filter((l) => l !== '' || true).join('\n')
+}
+
+// ── Mascot + photo cover prompts ───────────────────────────────────────────
+// Both prompts are written for openai.images.edit() — the provided image
+// (mascot or author photo) is the seed, and gpt-image-2 composes a cover
+// LAYOUT around it instead of generating from scratch. These prompts
+// instruct the model where to place the image relative to title/subtitle/
+// author and which colours to use for typography.
+
+export function buildMascotCoverPrompt(
+  book: Pick<Book, 'title' | 'subtitle' | 'author_name'>,
+  primaryName: string,
+  secondaryName: string,
+): string {
+  const title    = book.title?.trim()       || 'Untitled'
+  const subtitle = book.subtitle?.trim()    || ''
+  const author   = book.author_name?.trim() || 'the author'
+  return [
+    'Professional book cover design.',
+    'The provided image is the brand mascot/character. Place this mascot character prominently in the center of the cover as the hero graphic element.',
+    '',
+    'REQUIRED TEXT (render legibly):',
+    `- Title: "${title}" — large bold, upper portion`,
+    subtitle ? `- Subtitle: "${subtitle}" — smaller, below title` : '',
+    `- Author: "${author}" — bottom of cover`,
+    '',
+    `Design: Dark ${primaryName} background. ${secondaryName} and white typography. Gold border frame. The mascot character is the central visual, title is above it, author below.`,
+    'Publishing quality. Similar to: Zero Excuses by Victor E. Wynn style cover.',
+    '',
+    'Do not include: busy complex backgrounds, multiple people, lifestyle photography, blurry text, decorative borders that look cheap, clipart, watermarks, false brand logos.',
+  ].filter(Boolean).join('\n')
+}
+
+export function buildPhotoCoverPrompt(
+  book: Pick<Book, 'title' | 'subtitle' | 'author_name'>,
+  primaryName: string,
+  secondaryName: string,
+): string {
+  const title    = book.title?.trim()       || 'Untitled'
+  const subtitle = book.subtitle?.trim()    || ''
+  const author   = book.author_name?.trim() || 'the author'
+  return [
+    'Professional book cover design.',
+    'The provided image is the author\'s photo. Place the author prominently on the cover, professional business appearance.',
+    '',
+    'REQUIRED TEXT (render legibly):',
+    `- Author name: "${author}" — large, near or above the author photo`,
+    `- Title: "${title}" — bold, prominent`,
+    subtitle ? `- Subtitle: "${subtitle}" — smaller` : '',
+    '',
+    `Design: The author photo takes up 40-50% of the cover. Title is bold and dominant. ${primaryName} background or accent elements. ${secondaryName} typography accents.`,
+    'Publishing quality. Similar to: Chris Hogan Everyday Millionaires or Suze Orman style.',
+    '',
+    'Do not include: busy complex backgrounds, multiple people, lifestyle photography that competes with the author photo, blurry text, decorative borders that look cheap, clipart, watermarks, false brand logos.',
+  ].filter(Boolean).join('\n')
+}
+
+/** Wrap openai.images.edit() so the cover route can call it with the same
+ *  ergonomics as generateImage(): supply a source image as a Buffer +
+ *  filename, get back a Buffer with the composed cover. Imagen 4 has no
+ *  edit endpoint, so the cover-edit path is GPT-Image-2 only — if
+ *  OPENAI_API_KEY is missing we throw rather than silently degrade. */
+export async function generateWithGPTImageEdit(
+  source: { buffer: Buffer; filename: string; contentType: string },
+  prompt: string,
+  size: GptImageSize = '1024x1536',
+  quality: ImageQuality = 'high',
+): Promise<Buffer> {
+  if (!openai) throw new Error('OPENAI_API_KEY not configured — mascot/photo cover modes require it.')
+
+  const sourceFile = await toFile(source.buffer, source.filename, { type: source.contentType })
+
+  const result = await openai.images.edit({
+    model:   'gpt-image-2',
+    image:   sourceFile,
+    prompt,
+    size,
+    quality,
+    n:       1,
+  })
+
+  const data = result.data?.[0]
+  if (!data) throw new Error('GPT-Image-2 edit returned no data')
+
+  if (data.b64_json) {
+    const buf = Buffer.from(data.b64_json, 'base64')
+    if (buf.byteLength < 1000) throw new Error('GPT-Image-2 edit returned an image too small to be valid')
+    return buf
+  }
+  if (data.url) {
+    const res = await fetch(data.url)
+    if (!res.ok) throw new Error(`Failed to fetch GPT-Image-2 edit image (${res.status})`)
+    return Buffer.from(await res.arrayBuffer())
+  }
+  throw new Error('GPT-Image-2 edit returned no image data (no b64_json or url)')
 }
 
 /** Back-cover variant of the cover prompt. Same style / palette / part 4

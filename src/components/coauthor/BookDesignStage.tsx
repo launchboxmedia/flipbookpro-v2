@@ -11,6 +11,12 @@ import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { createClient } from '@/lib/supabase/client'
 import type { ImageStatus } from './CoauthorShell'
 
+// Cover generation modes. 'ai' is the Phase-1 typography-first AI cover;
+// 'mascot' and 'photo' route through openai.images.edit() with a brand
+// asset as the seed image. The selector pill is gated on whether the
+// matching asset exists in the user's profile.
+export type CoverMode = 'ai' | 'mascot' | 'photo'
+
 // ── AI back-cover critique flag shape ──────────────────────────────────────
 // Matches the response from /api/books/[id]/critique-back-matter. Lifted
 // from the deleted BackMatterStage so the analyze/apply/dismiss flow
@@ -79,8 +85,17 @@ interface Props {
   coverImageUrl: string | null
   coverImageStatus: ImageStatus
   coverImageError: string | null
-  onGenerateCover: () => void
+  /** Generate the cover via the selected mode. 'ai' uses Haiku scene
+   *  extraction + the typography prompt; 'mascot' / 'photo' edit the
+   *  uploaded brand asset into a cover layout. */
+  onGenerateCover: (mode: CoverMode) => void
   onUploadCover: (file: File) => void
+
+  /** Profile-side asset URLs that gate the Mascot / Photo cover modes.
+   *  When null, the corresponding pill is hidden — the author needs to
+   *  upload the asset in Settings → Brand first. */
+  authorPhotoUrl?: string | null
+  mascotUrl?:      string | null
 
   // ── Chapter images ─────────────────────────────────────────────────────
   imageStatuses: Record<string, ImageStatus>
@@ -114,11 +129,27 @@ export function BookDesignStage({
   onGenerateChapterImage,
   onUploadChapterImage,
   authorNamePlaceholder = '',
+  authorPhotoUrl = null,
+  mascotUrl = null,
   onContinue,
 }: Props) {
   // ── Front cover wiring ────────────────────────────────────────────────
   const coverFileInput = useRef<HTMLInputElement>(null)
   const coverBusy = coverImageStatus === 'generating'
+
+  // Selected cover mode — drives both the Generate Cover button label and
+  // the body posted to /generate-cover-image. The user can switch
+  // between AI / Mascot / Photo at any time; once selected, the next
+  // click of Generate uses that mode.
+  const [coverMode, setCoverMode] = useState<CoverMode>('ai')
+
+  // If the user previously selected a brand-asset mode but the asset got
+  // removed in settings, snap back to 'ai' so we never POST a mode whose
+  // asset doesn't exist.
+  useEffect(() => {
+    if (coverMode === 'mascot' && !mascotUrl)      setCoverMode('ai')
+    if (coverMode === 'photo'  && !authorPhotoUrl) setCoverMode('ai')
+  }, [coverMode, mascotUrl, authorPhotoUrl])
 
   // ── Chapter images — derived counts for the header label ──────────────
   const withImages = chapters.filter((c) => !!c.image_url).length
@@ -445,6 +476,39 @@ export function BookDesignStage({
           }}
         />
 
+        {/* Cover style pills — only render the row when at least one
+            non-AI mode is available. AI is always present; Mascot and
+            Photo appear when their corresponding brand asset is
+            uploaded in Settings → Brand. */}
+        {(mascotUrl || authorPhotoUrl) && (
+          <div className="mb-4">
+            <p className="text-[10px] font-inter font-medium text-cream/55 uppercase tracking-[0.18em] mb-2">
+              Cover Style
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <CoverModePill
+                active={coverMode === 'ai'}
+                label="AI Generated"
+                onClick={() => setCoverMode('ai')}
+              />
+              {mascotUrl && (
+                <CoverModePill
+                  active={coverMode === 'mascot'}
+                  label="Mascot Cover"
+                  onClick={() => setCoverMode('mascot')}
+                />
+              )}
+              {authorPhotoUrl && (
+                <CoverModePill
+                  active={coverMode === 'photo'}
+                  label="Photo Cover"
+                  onClick={() => setCoverMode('photo')}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {coverBusy ? (
           <div className="aspect-[3/4] max-w-[160px] bg-[#1A1A1A] border border-dashed border-gold/40 rounded-md flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-gold" />
@@ -470,7 +534,7 @@ export function BookDesignStage({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={onGenerateCover}
+                  onClick={() => onGenerateCover(coverMode)}
                   disabled={coverBusy}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter text-xs font-semibold rounded-md transition-colors disabled:opacity-50"
                 >
@@ -500,7 +564,7 @@ export function BookDesignStage({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={onGenerateCover}
+                  onClick={() => onGenerateCover(coverMode)}
                   disabled={coverBusy}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter text-xs font-semibold rounded-md transition-colors disabled:opacity-50"
                 >
@@ -1033,5 +1097,30 @@ function ChapterImageCard({
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Cover-style pill ─────────────────────────────────────────────────────
+
+function CoverModePill({
+  active, label, onClick,
+}: {
+  active: boolean
+  label:  string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-3 py-1.5 rounded-full text-xs font-inter transition-colors ${
+        active
+          ? 'bg-gold text-ink-1 font-semibold'
+          : 'border border-[#333] hover:border-gold/40 text-cream/70 hover:text-cream'
+      }`}
+    >
+      {label}
+    </button>
   )
 }

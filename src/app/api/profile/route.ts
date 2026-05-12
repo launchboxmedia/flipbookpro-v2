@@ -32,6 +32,11 @@ export async function PATCH(req: NextRequest) {
     'display_name', 'brand_name', 'brand_tagline', 'cta_url', 'cta_text',
     'primary_color', 'background_color', 'expertise', 'audience_description',
     'offer_types', 'website_url',
+    // Brand-asset URLs — uploads go through their dedicated routes
+    // (logo / author-photo / mascot), but the Remove buttons in the
+    // brand panel PATCH a null here to clear the field without
+    // touching the storage bucket.
+    'avatar_url', 'mascot_url',
   ]
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const key of allowed) {

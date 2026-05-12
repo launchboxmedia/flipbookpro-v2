@@ -42,6 +42,13 @@ interface Props {
    *  placeholder hint on the BookDesignStage author-name input. Empty
    *  string when the profile has neither. */
   authorNamePlaceholder?: string
+  /** Public URL of the uploaded author photo (profiles.avatar_url).
+   *  null when no photo is set — disables the "Photo Cover" pill in
+   *  Book Design. */
+  authorPhotoUrl?: string | null
+  /** Public URL of the uploaded brand mascot (profiles.mascot_url).
+   *  null when no mascot is set — disables the "Mascot Cover" pill. */
+  mascotUrl?: string | null
   userEmail: string
   isPremium?: boolean
   isAdmin?: boolean
@@ -58,6 +65,8 @@ export function CoauthorShell({
   hasStripeConnect = false,
   hasCtaChapter = false,
   authorNamePlaceholder = '',
+  authorPhotoUrl = null,
+  mascotUrl = null,
   userEmail,
   isPremium,
   isAdmin,
@@ -199,14 +208,21 @@ export function CoauthorShell({
     }
   }, [book.id, palette, pages, activeChapterIndex, generateChapterImage])
 
-  const generateCoverImage = useCallback(async (customPrompt?: string) => {
+  const generateCoverImage = useCallback(async (
+    arg?: string | { customPrompt?: string; mode?: 'ai' | 'mascot' | 'photo' },
+  ) => {
+    // Backward-compatible overload: a string arg is treated as a custom
+    // prompt (legacy callers in the sidebar still do that). An object
+    // arg carries an optional cover mode for Phase 2.
+    const customPrompt = typeof arg === 'string' ? arg : arg?.customPrompt
+    const mode         = typeof arg === 'object' ? arg.mode : undefined
     setCoverImageStatus('generating')
     setCoverImageError(null)
     try {
       const res = await fetch(`/api/books/${book.id}/generate-cover-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customPrompt }),
+        body: JSON.stringify({ customPrompt, mode: mode ?? 'ai' }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Failed (${res.status})`)
@@ -405,13 +421,15 @@ export function CoauthorShell({
                 coverImageUrl={coverImageUrl}
                 coverImageStatus={coverImageStatus}
                 coverImageError={coverImageError}
-                onGenerateCover={() => generateCoverImage()}
+                onGenerateCover={(mode) => generateCoverImage({ mode })}
                 onUploadCover={handleCoverUpload}
                 imageStatuses={imageStatuses}
                 imageErrors={imageErrors}
                 onGenerateChapterImage={(pageId) => generateChapterImage(pageId)}
                 onUploadChapterImage={(pageId, file) => uploadChapterImage(pageId, file)}
                 authorNamePlaceholder={authorNamePlaceholder}
+                authorPhotoUrl={authorPhotoUrl}
+                mascotUrl={mascotUrl}
                 onContinue={() => setStage('pre-publish')}
               />
             )}
