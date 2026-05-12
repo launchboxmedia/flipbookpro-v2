@@ -528,6 +528,41 @@ function firstNWords(text: string | null | undefined, n: number): string {
   return text.split(/\s+/).filter(Boolean).slice(0, n).join(' ')
 }
 
+// All three scene extractors share the same shape — a system prompt, a
+// user message, a max-token budget — so the Anthropic call + 529-overload
+// fallback lives in one helper. Tries Sonnet (better briefs) first; if
+// Anthropic returns 529 / "overloaded" after the SDK's built-in retries,
+// retries the SAME prompt once against Haiku. Haiku usually has separate
+// capacity headroom and gets through when Sonnet won't. Brief quality is
+// a notch lower, but it's strictly better than the user seeing a stale
+// image because regeneration silently failed.
+async function extractSceneWithFallback(opts: {
+  systemPrompt: string
+  userContent: string
+  maxTokens: number
+}): Promise<string> {
+  const callModel = async (model: string): Promise<string> => {
+    const msg = await anthropic.messages.create({
+      model,
+      max_tokens: opts.maxTokens,
+      system: [{ type: 'text', text: opts.systemPrompt, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: opts.userContent }],
+    })
+    return extractText(msg.content).replace(/^["'`]|["'`]$/g, '').trim()
+  }
+
+  try {
+    return await callModel('claude-sonnet-4-6')
+  } catch (err) {
+    const isOverloaded =
+      err instanceof Error &&
+      (err.message.includes('529') || err.message.toLowerCase().includes('overloaded'))
+    if (!isOverloaded) throw err
+    console.warn('[scene-extractor] Sonnet returned 529/overloaded — falling back to Haiku for this call')
+    return await callModel('claude-haiku-4-5-20251001')
+  }
+}
+
 export async function extractChapterScene(
   page: Pick<BookPage, 'chapter_title' | 'chapter_brief' | 'content'>,
   book: Pick<Book, 'persona' | 'title' | 'target_audience' | 'visual_style'>,
@@ -574,15 +609,11 @@ Opening content: ${draftSnippet}
 
 Write the image brief for this chapter. Use the ${bucket.toUpperCase()} treatment block from PART B, and substitute the primary and secondary color names above into the [primaryColorName] / [secondaryColorName] placeholders.`
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 600,
-    system: [{ type: 'text', text: CHAPTER_SCENE_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userContent }],
+  return extractSceneWithFallback({
+    systemPrompt: CHAPTER_SCENE_SYSTEM,
+    userContent,
+    maxTokens: 600,
   })
-
-  const text = extractText(msg.content)
-  return text.replace(/^["'`]|["'`]$/g, '').trim()
 }
 
 /** Back-cover scene extraction — anchored on title + subtitle + the back-
@@ -618,15 +649,11 @@ Back-cover tagline: ${tagline || '(none set yet)'}
 Back-cover description: ${description || '(none set yet)'}
 </user_content>`
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 200,
-    system: [{ type: 'text', text: BACK_COVER_SCENE_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userContent }],
+  return extractSceneWithFallback({
+    systemPrompt: BACK_COVER_SCENE_SYSTEM,
+    userContent,
+    maxTokens: 200,
   })
-
-  const text = extractText(msg.content)
-  return text.replace(/^["'`]|["'`]$/g, '').trim()
 }
 
 export async function extractCoverScene(
@@ -660,15 +687,11 @@ Chapters covered:
 ${briefs.length > 0 ? briefs.map((b, i) => `${i + 1}. ${b}`).join('\n') : '(no chapter briefs yet — use title and subtitle alone)'}
 </user_content>`
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 200,
-    system: [{ type: 'text', text: COVER_SCENE_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userContent }],
+  return extractSceneWithFallback({
+    systemPrompt: COVER_SCENE_SYSTEM,
+    userContent,
+    maxTokens: 200,
   })
-
-  const text = extractText(msg.content)
-  return text.replace(/^["'`]|["'`]$/g, '').trim()
 }
 
 // ── Image generation ────────────────────────────────────────────────────────
