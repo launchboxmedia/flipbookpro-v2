@@ -63,6 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const { buffer: imageBuffer } = await generateImage(finalPrompt, {
       aspectRatio: '2:3',
       personGeneration: personGenerationFor(book),
+      // Covers render typography directly into the image (title +
+      // subtitle + author). 'high' costs more but is noticeably
+      // sharper on the rendered letterforms — worth it for the one
+      // image readers see first.
+      quality: 'high',
     })
 
     const filename = `covers/${params.bookId}-${Date.now()}.jpg`
