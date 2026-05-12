@@ -80,12 +80,27 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   if (!pub) notFound()
 
-  const [{ data: book }, { data: allPages }, { data: authorProfile }, { data: resources }] = await Promise.all([
+  const [
+    { data: book },
+    { data: allPages },
+    { data: authorProfile },
+    { data: resources, error: resourcesError },
+  ] = await Promise.all([
     supabase.from('books').select('*').eq('id', pub.book_id).single(),
     supabase.from('book_pages').select('*').eq('book_id', pub.book_id).order('chapter_index'),
     supabase.from('profiles').select('*').eq('id', pub.user_id).single(),
     supabase.from('book_resources').select('*').eq('book_id', pub.book_id).order('chapter_index'),
   ])
+
+  // TEMP DIAGNOSTIC — confirms the server-side resource fetch actually
+  // returns rows under the anon-role RLS context of a public visit.
+  // Remove once the failure mode is understood.
+  // eslint-disable-next-line no-console
+  console.log(
+    '[read] resources fetched:', resources?.length ?? 'null',
+    'book:', pub.book_id,
+    'err:', resourcesError?.message ?? 'none',
+  )
 
   if (!book) notFound()
 
