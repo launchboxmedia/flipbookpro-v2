@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     if (trimmed) {
       finalPrompt = buildCustomPrompt(trimmed, book, paletteColors)
     } else {
-      scene = await extractChapterScene(page, book)
+      scene = await extractChapterScene(page, book, paletteColors.primaryName, paletteColors.secondaryName)
       finalPrompt = buildChapterPrompt(scene, book, paletteColors)
     }
 
