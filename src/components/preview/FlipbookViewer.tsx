@@ -1346,11 +1346,13 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   // font/size so a 3-line title doesn't smuggle ~50px of extra header
   // chrome past a static budget.
   const BODY_WIDTH       = PW - 62
-  // Down from 415 by 10px. The paginator's measurer now renders drop caps
-  // and acronym blocks with the same decorations the page actually shows,
-  // so its predicted heights are tighter — we don't need as much safety
-  // margin on continuation pages as before.
-  const CONT_BODY_HEIGHT = 405
+  // Down from 405 → 385. After the measurer-fidelity fix we still saw
+  // last-line bleed on chapters with long titles (4-line chapter 10,
+  // 2-line chapter 11). A 20px reduction here = ~1 body-line at the
+  // current font-size/line-height — enough to absorb whatever the
+  // measurer's last-line rounding underestimates. Worst case: one
+  // extra page per long, dense chapter. That's acceptable.
+  const CONT_BODY_HEIGHT = 385
 
   // Re-measure whenever chapters, framework data, or the active theme
   // changes. useLayoutEffect runs synchronously after DOM commit but
@@ -1393,7 +1395,13 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
     // → firstBody = 490 - 63 - measuredTitleHeight - safety
     const INNER_HEIGHT      = PH - 60
     const FIXED_CHROME      = 63
-    const FIRST_PAGE_SAFETY = 20
+    // Bumped from 20 → 35 to match the parallel CONT_BODY_HEIGHT
+    // tightening. After the measurer-fidelity fix, first-chunk bleed
+    // still showed on long-title chapters because the measurer's
+    // bottom-line height accounting under-counts subpixel rounding
+    // and font-load timing. 15px extra absorbs both without affecting
+    // chapters with short titles meaningfully.
+    const FIRST_PAGE_SAFETY = 35
     const FIRST_PAGE_MIN    = 140  // never less than ~6 lines, even for absurdly long titles
 
     const map = new Map<string, string[]>()
