@@ -156,17 +156,63 @@ export function buildCustomPrompt(
 // returns these as cached reads on subsequent calls within a 5-minute
 // window, so a session of generating multiple chapter images is cheap.
 
+// Few-shot examples shape what Haiku will pattern-match toward. The
+// previous example bank was deliberately generic — keys, doors, scales,
+// footprints — which is fine for an abstract self-help book but actively
+// hurts FlipBookPro's actual customer base (social-media, lead-gen, and
+// service-business operators). When Haiku saw "Why TikTok works for
+// high-ticket brokerage" it abstracted to "unlocking access" and emitted
+// keys-on-a-surface. The new examples below stay specific to the
+// content/social/funnel/service-business problem space so the abstraction
+// step lands on the right kind of object.
 const FEW_SHOT_EXAMPLES = `Examples of good concept-to-scene translations:
-- Sequencing steps in any process → scattered arrows in random directions with one bold arrow cutting straight through.
-- Building consistent daily habits → a single plant growing from a small seed with visible roots in clean soil.
-- Identifying what's holding someone back → a locked door with light through the keyhole and a key on the floor nearby.
-- Financial planning and budgeting → balanced scales with coins and simple geometric goal shapes.
-- Overcoming fear of starting → a single footprint on fresh snow with more space ahead than behind.
-- Mastering a technical skill → clean tools arranged precisely on a workbench, ready to be used.
-- Building a team or network → three distinct nodes connected by clean lines, each contributing to the center.
-- Tracking and measuring results → a clean upward trend line with key milestone markers along the path.
-- Eliminating what's not working → items being cleanly sorted and removed from a surface, leaving only what matters.
-- Finding your audience → a spotlight on a specific group of seats in an otherwise empty theater.`
+- Building a social media content system → a clean content calendar grid with colored category blocks arranged in a weekly pattern.
+- How a platform algorithm distributes content → a network of nodes where signals from one point radiate outward to many receivers, with one bold signal reaching further than the rest.
+- Generating inbound leads without cold outreach → a funnel with small figures entering at the top and a single qualified figure emerging at the bottom, everything else filtered out.
+- Qualifying a prospect before booking a call → a scorecard with three criteria columns, two checked and one question mark remaining.
+- Building authority in a niche market → a single spotlight beam illuminating one specific section of an otherwise dark stage.
+- Systematizing a repeatable business process → three interlocked gears of different sizes turning together, each labeled with a process step.
+- Tracking performance metrics against goals → a dashboard with three key metric panels, one showing an upward trend, one a conversion rate, one a pipeline value.
+- Creating content in batches to save time → a single recording setup surrounded by multiple finished video frames arranged in a grid, all produced from one session.
+- Converting social media attention into revenue → a phone screen showing engagement notifications flowing into a pipeline that ends at a closed deal symbol.
+- Scaling a service business through delegation → a central hub connected to three satellite nodes, each performing a specialized task that feeds back to the center.`
+
+// Domain-aware noun extraction. We pull concrete subject anchors from the
+// chapter title + brief and append them as a HINT to Haiku, OUTSIDE the
+// <user_content> protection tag. That makes the hints model-instructions
+// (Haiku will read them) rather than user-data (Haiku is told to ignore
+// directives in user-data). Server-derived and bounded by the hardcoded
+// regex set, so there's no prompt-injection surface.
+function extractDomainNouns(title: string, brief: string): string {
+  const text = `${title} ${brief}`.toLowerCase()
+  const domains: string[] = []
+
+  // Social / content
+  if (text.includes('tiktok'))                                  domains.push('TikTok phone screen')
+  if (text.includes('video'))                                   domains.push('video frame')
+  if (/\b(content|post|posting|publish)\b/.test(text))          domains.push('content grid')
+  if (text.includes('algorithm'))                               domains.push('network distribution diagram')
+  if (text.includes('hook'))                                    domains.push('attention-stopping visual element')
+
+  // Business / finance
+  if (/\bfund/.test(text))                                      domains.push('capital or funding symbol')
+  if (text.includes('broker'))                                  domains.push('deal or transaction symbol')
+  if (/\blead\b/.test(text) || text.includes('leads'))          domains.push('qualified prospect funnel')
+  if (text.includes('lender'))                                  domains.push('lender relationship network')
+  if (text.includes('pipeline'))                                domains.push('deal pipeline flow')
+  if (/\bdm\b/.test(text) || text.includes('message'))          domains.push('message conversation thread')
+  if (text.includes('call') || text.includes('discovery'))      domains.push('scheduled call or calendar')
+  if (text.includes('compliance'))                              domains.push('checklist or rulebook')
+  if (text.includes('scale') || text.includes('grow'))          domains.push('growth or expansion system')
+  if (text.includes('roi') || text.includes('metric'))          domains.push('performance dashboard')
+  if (text.includes('batch') || text.includes('system'))        domains.push('systematic workflow')
+  if (text.includes('reputation'))                              domains.push('shield or trust symbol')
+  if (text.includes('profile') || text.includes('identity'))    domains.push('brand identity marker')
+
+  if (domains.length === 0) return ''
+  // Cap at 3 — more than that crowds the scene and dilutes the hint.
+  return `\n\nKey visual elements to consider for this specific chapter: ${domains.slice(0, 3).join(', ')}.`
+}
 
 const CHAPTER_SCENE_SYSTEM = `You are an art director briefing an illustrator. Read this chapter content and write one sentence describing a specific concrete visual scene that captures the emotional and conceptual core of this chapter. The scene must be directly connected to the chapter topic. Think in terms of objects, symbols, and visual metaphors specific to this subject matter. Do not describe landscapes, clouds, fog, or generic abstract backgrounds. Return only the scene description sentence, nothing else.
 
@@ -201,12 +247,17 @@ export async function extractChapterScene(
     ? 'IMPORTANT: This book is for a business or publishing audience. The scene must NOT include human figures of any kind — use objects, symbols, metaphors, and environments only.\n\n'
     : ''
 
+  const domainHint = extractDomainNouns(page.chapter_title, page.chapter_brief ?? '')
+
+  // Domain hint sits OUTSIDE the <user_content> protection tag so Haiku
+  // treats it as instructions, not data. The string is server-derived
+  // (regex over title + brief), so there's no injection surface.
   const userContent = `${personaConstraint}<user_content>
 Chapter title: ${page.chapter_title}
 Chapter brief: ${page.chapter_brief ?? '(none provided)'}
 First 200 words of the approved draft:
 ${draftSnippet || '(no draft yet — use the title and brief alone)'}
-</user_content>`
+</user_content>${domainHint}`
 
   const msg = await haiku.messages.create({
     model: 'claude-haiku-4-5-20251001',

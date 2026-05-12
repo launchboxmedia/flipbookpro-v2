@@ -303,6 +303,12 @@ export interface BookPage {
   research_facts?: string | null
   /** Source citations that back research_facts. Populated together with it. */
   research_citations?: ResearchCitation[] | null
+  /** Haiku-generated visual scene description that drove the most recent
+   *  chapter-image generation. Persisted so the author can see WHAT the
+   *  model decided to draw (and override it with a custom prompt when
+   *  the auto-extracted scene misses the mark). NULL on legacy rows
+   *  generated before this column existed. */
+  image_scene?: string | null
   created_at: string
   updated_at: string
 }

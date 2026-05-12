@@ -77,7 +77,15 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
 
     const oldPath = storagePathFromPublicUrl(page.image_url, 'book-images')
-    await supabase.from('book_pages').update({ image_url: publicUrl }).eq('id', pageId)
+    // Persist the Haiku-generated scene alongside the new image URL so the
+    // author can see WHAT got drawn and re-roll with a custom prompt when
+    // the auto-extracted scene misses the chapter. When the request used
+    // a custom prompt (no Haiku call), scene is null and we leave the
+    // image_scene column unset — defensive, in case a later regen wants
+    // to surface the prior auto-scene as a starting point.
+    const update: Record<string, string | null> = { image_url: publicUrl }
+    if (scene) update.image_scene = scene
+    await supabase.from('book_pages').update(update).eq('id', pageId)
     // Best-effort cleanup of the previous image. Don't block on errors.
     if (oldPath && oldPath !== filename) {
       void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
@@ -87,6 +95,8 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
     return NextResponse.json({
       imageUrl: publicUrl,
+      provider,
+      scene,
       _debug: {
         persona: book.persona,
         visualStyle: book.visual_style,
