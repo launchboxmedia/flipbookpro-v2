@@ -534,7 +534,12 @@ export async function extractChapterScene(
   primaryColorName: string,
   secondaryColorName: string,
 ): Promise<string> {
-  const draftSnippet = firstNWords(page.content, 300)
+  // Key statistics and specific data points usually live past the
+  // opening paragraphs — 300 words landed before the meat of most
+  // chapters. 500 gives Sonnet enough body text to find the concrete
+  // numbers / named tools / specific comparisons that should drive
+  // the brief.
+  const draftSnippet = firstNWords(page.content, 500)
 
   const personaConstraint = forbidsHumans(book)
     ? 'IMPORTANT: This book is for a business or publishing audience. The brief must NOT describe human figures of any kind — use objects, symbols, metaphors, and environments only.\n\n'
