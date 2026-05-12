@@ -80,27 +80,12 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   if (!pub) notFound()
 
-  const [
-    { data: book },
-    { data: allPages },
-    { data: authorProfile },
-    { data: resources, error: resourcesError },
-  ] = await Promise.all([
+  const [{ data: book }, { data: allPages }, { data: authorProfile }, { data: resources }] = await Promise.all([
     supabase.from('books').select('*').eq('id', pub.book_id).single(),
     supabase.from('book_pages').select('*').eq('book_id', pub.book_id).order('chapter_index'),
     supabase.from('profiles').select('*').eq('id', pub.user_id).single(),
     supabase.from('book_resources').select('*').eq('book_id', pub.book_id).order('chapter_index'),
   ])
-
-  // TEMP DIAGNOSTIC — confirms the server-side resource fetch actually
-  // returns rows under the anon-role RLS context of a public visit.
-  // Remove once the failure mode is understood.
-  // eslint-disable-next-line no-console
-  console.log(
-    '[read] resources fetched:', resources?.length ?? 'null',
-    'book:', pub.book_id,
-    'err:', resourcesError?.message ?? 'none',
-  )
 
   if (!book) notFound()
 
@@ -143,6 +128,9 @@ export default async function ReadPage({ params, searchParams }: Props) {
     ?? (pub.gate_type === 'none'    ? 'free' :
         pub.gate_type === 'payment' ? 'paid' : 'email')
 
+  // Build the floating resources panel once. Renders nothing internally
+  // when the book has no resources, so it's safe to drop into every
+  // post-gate path unconditionally.
   const resourcesPanel = (
     <BookResourcesPanel
       slug={params.slug}
@@ -151,22 +139,27 @@ export default async function ReadPage({ params, searchParams }: Props) {
     />
   )
 
-  const flipbook = (
-    <>
-      <FlipbookViewer
-        book={book as Book}
-        chapters={chapters as BookPage[]}
-        backMatter={backMatter as BookPage[]}
-        theme={theme}
-        profile={(authorProfile as Profile) ?? null}
-        isPublicView
-      />
-      {resourcesPanel}
-    </>
+  // FlipbookViewer alone — the panel used to be folded into this fragment,
+  // but that nested it inside EmailGate's `children`, which only renders
+  // after the visitor submits an email AND only ever lives under EmailGate's
+  // render path. Lifting the panel out lets it render as a top-level
+  // sibling for both email-gated and free paths, so a returning visitor
+  // who lands back on the gate form still sees the resources affordance.
+  const viewer = (
+    <FlipbookViewer
+      book={book as Book}
+      chapters={chapters as BookPage[]}
+      backMatter={backMatter as BookPage[]}
+      theme={theme}
+      profile={(authorProfile as Profile) ?? null}
+      isPublicView
+    />
   )
 
   // Paid books: show the buy gate unless the visitor has a valid signed
-  // access cookie keyed to this slug.
+  // access cookie keyed to this slug. The panel is intentionally NOT
+  // rendered for the unpaid view — if the visitor hasn't bought, they
+  // shouldn't see the download links either.
   if (accessType === 'paid') {
     const cookieJar = await cookies()
     const token = cookieJar.get(cookieNameForSlug(params.slug))?.value
@@ -188,11 +181,15 @@ export default async function ReadPage({ params, searchParams }: Props) {
         </>
       )
     }
-    // Valid cookie → show the flipbook, paying buyer is in.
-    return <>{structuredData}{flipbook}</>
+    // Valid cookie → flipbook + resources panel.
+    return <>{structuredData}{viewer}{resourcesPanel}</>
   }
 
-  // Email-gated: collect an email before reading.
+  // Email-gated: collect an email before reading. The panel sits OUTSIDE
+  // EmailGate so it stays mounted regardless of submit state — the
+  // resource download URLs are public anyway (anyone with slug + id can
+  // hit /read/[slug]/r/[id]), so there's no soft-gate purpose served by
+  // hiding the panel pre-submit.
   if (accessType === 'email') {
     return (
       <>
@@ -205,12 +202,16 @@ export default async function ReadPage({ params, searchParams }: Props) {
           author={pub.author}
           description={pub.description}
         >
-          {flipbook}
+          {viewer}
         </EmailGate>
+        {resourcesPanel}
       </>
     )
   }
 
-  // Free — open access.
-  return <>{structuredData}{flipbook}</>
+  // Free — open access. Panel rendered as a top-level sibling of the
+  // viewer so its `position: fixed` lives at the page root with no
+  // wrapper that might trap stacking or be hidden by a parent
+  // condition.
+  return <>{structuredData}{viewer}{resourcesPanel}</>
 }
