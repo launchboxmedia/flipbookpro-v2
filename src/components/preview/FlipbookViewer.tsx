@@ -376,22 +376,10 @@ const padLeft:  React.CSSProperties = { padding: '34px 24px 26px 38px' }  // out
 const padRight: React.CSSProperties = { padding: '34px 38px 26px 24px' }  // outer gutter right
 
 // Body containers on chapter and back-matter pages use flex:1 + overflow:hidden
-// to fill the page below the header. The paginator (paginateMeasured) sizes
-// chunks for the AVERAGE case — one-line titles, plain paragraphs — but the
-// renderer adds wrinkles the measurer can't see: a chapter title that wraps
-// to 2 lines eats ~26px of header chrome; a drop cap floats above the first
-// paragraph; an acronym block is taller than the equivalent <p>. When those
-// land together, the rendered chunk can exceed the budget by ~10–30px, and
-// a partial line clips at the bottom edge of the body container.
-//
-// The fade is sized to gracefully dissolve up to ~1 line of overflow so the
-// reader never sees a hard half-line crop — generous enough to catch real
-// edge cases without eating clean text on a perfectly-sized chunk. Pair
-// this with the tighter paginator budgets below (FIRST/CONT_BODY_HEIGHT).
-const bodyFadeMask: React.CSSProperties = {
-  WebkitMaskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 1.2em), transparent 100%)',
-  maskImage: 'linear-gradient(to bottom, #000 0, #000 calc(100% - 1.2em), transparent 100%)',
-}
+// to fill the page below the header. We rely on the dynamic title-height
+// measurement (see useLayoutEffect below) so the paginator's per-chapter
+// budget already accounts for however many lines the title wraps to —
+// no bottom fade needed.
 
 // ── Page components — zero hardcoded colour values ──────────────────────────
 
@@ -747,7 +735,6 @@ function IntroductionPage({
         fontSize: 'var(--body-size)',
         color: 'var(--page-text)',
         lineHeight: 'var(--line-height)',
-        ...bodyFadeMask,
       }}>
         {!hasContent ? (
           <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>
@@ -963,12 +950,11 @@ function ChapterTextPage({
         </div>
       )}
 
-      {/* Body. The bottom fade is intentional: even with sentence-aware
-          pagination, the rendered line height vs page height can leave a
-          partial line. The mask softens that to transparent rather than
-          slicing letters. With proper pagination this only ever affects a
-          handful of pixels. */}
-      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask, position: 'relative', zIndex: 3 }}>
+      {/* Body. Hard-clips overflow at the bottom edge — the per-chapter
+          paginator budget (computed from a measured title height) is
+          sized so partial lines essentially never occur, so a clean
+          clip is fine. */}
+      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', position: 'relative', zIndex: 3 }}>
         {!hasContent ? (
           <p style={{ color: 'var(--page-text-muted)', fontStyle: 'italic', margin: 0 }}>Chapter not yet written.</p>
         ) : isFirstChunk ? (
@@ -1040,7 +1026,7 @@ function BackMatterPage({ page, side }: { page: BookPage; side: 'left' | 'right'
         {page.chapter_title}
       </h2>
       <div style={{ width: 22, height: 2, background: 'var(--accent)', marginBottom: 16, flexShrink: 0 }} />
-      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)', ...bodyFadeMask }}>
+      <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)' }}>
         {paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)}
       </div>
     </div>
@@ -1303,6 +1289,47 @@ function ExportMenu({ bookId }: { bookId: string }) {
   )
 }
 
+/** Render a hidden div with the real chapter-title styles and return its
+ *  measured pixel height. Mirrors the inline styles on the <h2> in
+ *  ChapterTextPage — same font, size, weight, line-height, margins, and
+ *  available width (which differs for framework chapters because the
+ *  letter overlay takes 60px on the right). The paginator uses this to
+ *  size the first-chunk body budget per chapter, so titles that wrap to
+ *  2/3/4 lines no longer smuggle extra header chrome past a static
+ *  budget. */
+function measureTitleHeight(
+  title: string,
+  width: number,
+  fontFamily: string,
+  fontSize: string,
+): number {
+  if (!title.trim() || typeof document === 'undefined') return 0
+  const el = document.createElement('div')
+  el.style.cssText = [
+    'position: absolute',
+    'top: -10000px',
+    'left: 0',
+    `width: ${width}px`,
+    `font-family: ${fontFamily}`,
+    `font-size: ${fontSize}`,
+    'font-weight: 700',
+    'line-height: 1.2',
+    'margin: 0',
+    'padding: 0',
+    'visibility: hidden',
+    'pointer-events: none',
+    // Mirror the renderer's wrap behaviour — no special hyphenation or
+    // overflow, just plain text wrapping at the given width.
+    'word-wrap: break-word',
+    'white-space: normal',
+  ].join('; ')
+  el.textContent = title
+  document.body.appendChild(el)
+  const h = el.getBoundingClientRect().height
+  document.body.removeChild(el)
+  return h
+}
+
 export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false }: FlipbookViewerProps) {
   // Measured chunks per chapter id. Initially null — the first paint uses
   // the heuristic paginator (paginateText). Once useLayoutEffect runs, we
@@ -1310,27 +1337,21 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   // accurate chunks before the user sees the heuristic version.
   const [measuredChunks, setMeasuredChunks] = useState<Map<string, string[]> | null>(null)
 
-  // Body geometry constants — derived from the page layout (PW=400, PH=550)
-  // and the symmetric padLeft/padRight horizontal padding (24+38=62). The
-  // first-chunk and continuation body heights account for the rendered
-  // chrome (label + title + rule + footer for first; compact header +
-  // footer for continuation) PLUS enough headroom for the worst case:
-  //   - a chapter title that wraps to 2 lines (~26px of extra header)
-  //   - the framework-letter padding-right that narrows the title's
-  //     wrap point on acronym-driven books
-  //   - drop caps and acronym blocks, which the measurer renders as
-  //     plain <p> so the rendered height exceeds the measured height
-  // The numbers below leave ~30px of slack vs. the actual available
-  // body area — enough to absorb those wrinkles without splitting
-  // chapters into more chunks than necessary.
-  const BODY_WIDTH         = PW - 62
-  const FIRST_BODY_HEIGHT  = 350
-  const CONT_BODY_HEIGHT   = 415
+  // Body geometry — width is symmetric (page width minus the wider outer
+  // gutter plus narrower spine gutter, 38+24=62). The continuation body
+  // budget stays static because the continuation header is a single
+  // compact row whose height doesn't vary with title length. The
+  // first-chunk budget is computed per chapter inside the layout effect
+  // below — we measure the rendered title height with the real heading
+  // font/size so a 3-line title doesn't smuggle ~50px of extra header
+  // chrome past a static budget.
+  const BODY_WIDTH       = PW - 62
+  const CONT_BODY_HEIGHT = 415
 
-  // Re-measure whenever chapters or the active theme changes. useLayoutEffect
-  // runs synchronously after DOM commit but before browser paint, so the
-  // user sees the measured chunks on first visible frame instead of a
-  // heuristic-then-measured flash.
+  // Re-measure whenever chapters, framework data, or the active theme
+  // changes. useLayoutEffect runs synchronously after DOM commit but
+  // before browser paint, so the user sees the measured chunks on the
+  // first visible frame instead of a heuristic-then-measured flash.
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -1340,13 +1361,59 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
     const fontSize   = theme.vars['--body-size']   ?? '13px'
     const lineHeight = theme.vars['--line-height'] ?? '1.75'
 
+    const headingFamily =
+      theme.vars['--heading-font'] ??
+      "'Playfair Display', Georgia, serif"
+    const headingSize   = theme.vars['--heading-size'] ?? '20px'
+
+    // Framework letter map — when a chapter maps to a framework step the
+    // title gets paddingRight: 60 (room for the 80pt gold letter overlay),
+    // which narrows the wrap width and pushes longer titles to extra
+    // lines. The title measurer needs to honour the same width.
+    const letterByChapterIndex = new Map<number, true>()
+    if (book.framework_data?.steps) {
+      for (const step of book.framework_data.steps) {
+        if (typeof step.chapter_index === 'number' && step.letter) {
+          letterByChapterIndex.set(step.chapter_index, true)
+        }
+      }
+    }
+
+    // Page geometry breakdown (PH=550):
+    //   - 60px page padding (34 top + 26 bottom)
+    //   - 13px label ("Chapter N" small-caps) + 3px margin = 16px above title
+    //   - 9px margin after title + 2px accent rule + 16px margin before body = 27px below title
+    //   - ~20px page-number footer at the bottom
+    // → fixed header/footer chrome around the variable title: 16 + 27 + 20 = 63px
+    // → inner content height available for [title + body]: PH - 60 = 490px
+    // → firstBody = 490 - 63 - measuredTitleHeight - safety
+    const INNER_HEIGHT      = PH - 60
+    const FIXED_CHROME      = 63
+    const FIRST_PAGE_SAFETY = 20
+    const FIRST_PAGE_MIN    = 140  // never less than ~6 lines, even for absurdly long titles
+
     const map = new Map<string, string[]>()
     for (const ch of chapters) {
       if (!ch.content || !ch.content.trim()) continue
+
+      const hasFrameworkLetter = letterByChapterIndex.has(ch.chapter_index)
+      const titleWidth         = BODY_WIDTH - (hasFrameworkLetter ? 60 : 0)
+      const titleHeight        = measureTitleHeight(
+        ch.chapter_title || '',
+        titleWidth,
+        headingFamily,
+        headingSize,
+      )
+
+      const firstPageHeight = Math.max(
+        FIRST_PAGE_MIN,
+        INNER_HEIGHT - FIXED_CHROME - titleHeight - FIRST_PAGE_SAFETY,
+      )
+
       try {
         const chunks = paginateMeasured(ch.content, {
-          bodyWidth:         BODY_WIDTH,
-          firstPageHeight:   FIRST_BODY_HEIGHT,
+          bodyWidth:          BODY_WIDTH,
+          firstPageHeight,
           continuationHeight: CONT_BODY_HEIGHT,
           fontFamily,
           fontSize,
@@ -1358,7 +1425,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
       }
     }
     setMeasuredChunks(map)
-  }, [chapters, theme])
+  }, [chapters, theme, book.framework_data])
 
   const spreads = useMemo(
     () => buildSpreads(chapters, backMatter, book.framework_data ?? null, measuredChunks),
