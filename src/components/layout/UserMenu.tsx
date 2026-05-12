@@ -2,8 +2,9 @@
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { User, CreditCard, Building2, LogOut, Crown, ChevronUp } from 'lucide-react'
-import { logout } from '@/app/login/actions'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   userEmail: string
@@ -20,6 +21,24 @@ function initials(email: string) {
 export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collapsed = false }: Props) {
   const userInitials = initials(userEmail)
   const local = userEmail.split('@')[0]
+  const router = useRouter()
+
+  // Client-side sign out. The prior server-action-via-<form> pattern lost
+  // the form to Radix's menu-close unmount during the same click — Radix
+  // closes the DropdownMenu.Content (and its portaled subtree, including
+  // the form) before React's form-action intercept fired, so the server
+  // action never ran. onSelect on a plain DropdownMenu.Item runs first,
+  // signOut() awaits cleanly, then router.push lands the user on /login
+  // — the dropdown closes naturally as the route changes.
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    // refresh ensures the middleware re-evaluates with cleared cookies on
+    // the next request, so a fast double-click can't see a stale auth
+    // state and bounce back to /dashboard.
+    router.refresh()
+  }
 
   return (
     <DropdownMenu.Root>
@@ -107,16 +126,12 @@ export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collap
 
           <DropdownMenu.Separator className="h-px bg-ink-3 my-1" />
 
-          <form action={logout}>
-            <DropdownMenu.Item asChild>
-              <button
-                type="submit"
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-inter text-cream/70 hover:bg-ink-3 hover:text-cream text-left cursor-pointer outline-none"
-              >
-                <LogOut className="w-3.5 h-3.5 text-ink-subtle" /> Sign out
-              </button>
-            </DropdownMenu.Item>
-          </form>
+          <DropdownMenu.Item
+            onSelect={() => { void handleSignOut() }}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-inter text-cream/80 hover:bg-ink-3 hover:text-cream cursor-pointer outline-none"
+          >
+            <LogOut className="w-3.5 h-3.5 text-ink-subtle" /> Sign out
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
