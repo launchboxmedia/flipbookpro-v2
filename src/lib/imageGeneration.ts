@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 import type { Book, BookPage } from '@/types/database'
 import type { ResolvedPaletteColors } from '@/lib/palettes'
+import { generateText } from '@/lib/textGeneration'
 
 // Scene-extraction client. Used by extractChapterScene /
 // extractCoverScene / extractBackCoverScene. We dropped Haiku here in
@@ -563,6 +564,92 @@ async function extractSceneWithFallback(opts: {
   }
 }
 
+// Light self-QA on a chapter scene brief before it goes to the image
+// model. Runs ONE extra Sonnet call asking "is this brief specific to
+// this exact chapter, and would a reader instantly understand it?" If
+// QA returns passes=true, the original brief goes through unchanged.
+// If QA returns passes=false with a revised brief, the revised brief
+// goes through. Any QA failure (timeout, overloaded, malformed JSON,
+// missing fields) returns the original — QA is OPTIONAL polish and
+// must NEVER block image generation.
+const QA_SYSTEM_PROMPT = `You are a quality reviewer for book illustrations. Review the image brief below and evaluate it on two criteria:
+
+1. SPECIFICITY: Is this brief specific to this exact chapter, or could it illustrate any generic business book chapter? Generic briefs contain: megaphones, envelopes, org charts, unlabeled bar charts, handshakes, lightbulbs, or any icon that doesn't reference something specific from this chapter's content.
+
+2. CLARITY: Would a reader who just finished this chapter look at the resulting image and immediately understand it represents THIS chapter's argument? Or would the meaning be unclear without explanation?
+
+Return ONLY valid JSON, no preamble, no code fences. Use this exact shape:
+{
+  "passes": true,
+  "specificity_issue": null,
+  "clarity_issue": null,
+  "revised_brief": null
+}
+or, when the brief needs revision:
+{
+  "passes": false,
+  "specificity_issue": "describe the problem",
+  "clarity_issue": "describe the problem or null",
+  "revised_brief": "rewritten brief that fixes the issues, same format and length as the original"
+}`
+
+async function qaReviewScene(
+  scene: string,
+  page: Pick<BookPage, 'chapter_title' | 'chapter_brief'>,
+): Promise<string> {
+  const userPrompt = `Chapter title: ${page.chapter_title}
+Chapter argument: ${page.chapter_brief ?? '(none provided)'}
+
+Image brief to review:
+${scene}
+
+Does this brief pass both criteria?`
+
+  try {
+    const raw = await generateText({
+      systemPrompt: QA_SYSTEM_PROMPT,
+      userPrompt,
+      maxTokens: 400,
+      humanize: false,
+      model: 'claude-sonnet-4-6',
+    })
+
+    // Defensive parse — strip optional code fences before JSON.parse so
+    // we still succeed if Sonnet wraps the body in ```json … ``` despite
+    // the no-preamble instruction.
+    const cleaned = raw.trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim()
+
+    const parsed = JSON.parse(cleaned) as {
+      passes?: unknown
+      revised_brief?: unknown
+    }
+
+    if (parsed.passes === true) return scene
+    if (
+      parsed.passes === false &&
+      typeof parsed.revised_brief === 'string' &&
+      parsed.revised_brief.trim().length > 0
+    ) {
+      console.log('[chapter-scene-qa] revised brief applied')
+      return parsed.revised_brief.trim()
+    }
+
+    // Indeterminate shape (passes missing / not boolean / revised_brief
+    // missing on a failure). Fall through to the original.
+    return scene
+  } catch (err) {
+    console.warn(
+      '[chapter-scene-qa] failed, returning original brief:',
+      err instanceof Error ? err.message : 'unknown error',
+    )
+    return scene
+  }
+}
+
+
 export async function extractChapterScene(
   page: Pick<BookPage, 'chapter_title' | 'chapter_brief' | 'content'>,
   book: Pick<Book, 'persona' | 'title' | 'target_audience' | 'visual_style'>,
@@ -637,11 +724,15 @@ Opening content: ${draftSnippet}
 
 Write the image brief for this chapter. Use the ${bucket.toUpperCase()} treatment block from PART B, and substitute the primary and secondary color names above into the [primaryColorName] / [secondaryColorName] placeholders.`
 
-  return extractSceneWithFallback({
+  const scene = await extractSceneWithFallback({
     systemPrompt: CHAPTER_SCENE_SYSTEM,
     userContent,
     maxTokens: 600,
   })
+  // Light self-review pass — best-effort. If the brief looks generic,
+  // QA will rewrite it; otherwise the original goes through. QA failure
+  // never blocks generation.
+  return qaReviewScene(scene, page)
 }
 
 /** Back-cover scene extraction — anchored on title + subtitle + the back-
