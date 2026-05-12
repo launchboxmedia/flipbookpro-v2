@@ -25,11 +25,22 @@ export default function LoginPage({
         </div>
 
         <AuthCard>
-          {searchParams.error && (
-            <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              {decodeURIComponent(searchParams.error)}
-            </div>
-          )}
+          {searchParams.error && (() => {
+            // Friendly mapping for the two well-known error codes the
+            // auth flow redirects with. Anything else falls back to the
+            // raw (decoded) string so we never blank out an unfamiliar
+            // failure mode.
+            const code = decodeURIComponent(searchParams.error)
+            const message =
+              code === 'confirmation_failed'  ? 'Sign in failed. Please try again.'      :
+              code === 'auth_callback_failed' ? 'Authentication failed. Please try again.' :
+              code
+            return (
+              <div className="text-red-400 text-sm text-center bg-red-400/10 rounded-lg p-3 mb-4">
+                {message}
+              </div>
+            )
+          })()}
 
           <GoogleSignInButton />
 
@@ -73,7 +84,7 @@ export default function LoginPage({
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-accent hover:bg-accent/90 text-cream font-inter font-medium text-sm rounded-md transition-colors"
+              className="w-full py-2.5 px-4 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-sm rounded-md transition-colors"
             >
               Sign In
             </button>
