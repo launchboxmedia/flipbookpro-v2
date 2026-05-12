@@ -131,12 +131,6 @@ function selectPages(homepage: string, links: string[]): string[] {
   return out
 }
 
-interface ScrapedPage {
-  url: string
-  markdown: string
-  branding: FirecrawlScrapeResponse['data'] extends infer D ? (D extends { branding?: infer B } ? B : never) : never
-}
-
 function combineMarkdown(scraped: Array<{ url: string; markdown: string }>): string {
   if (scraped.length === 0) return ''
   const perPageCap = Math.floor(COMBINED_CONTENT_CAP / scraped.length)

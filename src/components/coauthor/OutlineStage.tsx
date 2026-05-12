@@ -1204,7 +1204,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                   {ctaCreating && <Loader2 className="w-3.5 h-3.5 animate-spin text-gold" />}
                 </p>
                 <p className="text-ink-1/70 text-sm font-source-serif mt-1.5 leading-relaxed">
-                  An optional final chapter that points readers to your next step — a free guide, a call, or wherever you want them to land. We'll seed it with on-tone copy you can edit.
+                  An optional final chapter that points readers to your next step — a free guide, a call, or wherever you want them to land. We&apos;ll seed it with on-tone copy you can edit.
                 </p>
                 {ctaError && (
                   <p className="text-rose-600 text-xs font-inter mt-2">{ctaError}</p>

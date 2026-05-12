@@ -129,9 +129,7 @@ interface WizardShellProps {
 }
 
 export function WizardShell({
-  bookId, initialData, maxChapters = 6, initialStep = 0, mode = 'upload',
-  initialRadar = { ranAt: null, data: null, appliedAt: null },
-  radarPlan = 'free',
+  bookId, initialData, initialStep = 0, mode = 'upload',
 }: WizardShellProps) {
   // eslint-disable-next-line no-console
   console.log('[WizardShell] mode:', mode)
