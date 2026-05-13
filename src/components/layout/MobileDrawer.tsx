@@ -8,6 +8,7 @@ import {
   LayoutDashboard, BookOpen, ImageIcon, Compass, AlignLeft, Radar,
   Layers, User, Building2, CreditCard, MessageCircle,
   Star, HelpCircle, Shield, X, BarChart3, Lock, Wand2, ShieldCheck, Globe, Eye, ExternalLink,
+  Users, Key,
 } from 'lucide-react'
 import type { BookContext } from './AppSidebar'
 import type { CoauthorStage } from '@/components/coauthor/CoauthorShell'
@@ -229,6 +230,8 @@ export function MobileDrawer({ open, onClose, isAdmin = false, bookContext }: Pr
               {linkRow('Profile',       <User className="w-4 h-4" />,       '/settings/profile')}
               {linkRow('Brand Profile', <Building2 className="w-4 h-4" />,  '/settings/brand')}
               {linkRow('Billing',       <CreditCard className="w-4 h-4" />, '/settings/billing')}
+              {linkRow('Leads',         <Users className="w-4 h-4" />,      '/settings/leads')}
+              {linkRow('API Keys',      <Key className="w-4 h-4" />,        '/settings/api-keys')}
 
               {sectionLabel('Support')}
               {linkRow('Chat',     <MessageCircle className="w-4 h-4" />, '/support/chat')}

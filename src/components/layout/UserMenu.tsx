@@ -3,7 +3,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, CreditCard, Building2, LogOut, Crown, ChevronUp } from 'lucide-react'
+import { User, CreditCard, Building2, LogOut, Crown, ChevronUp, Users, Key } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
@@ -110,6 +110,24 @@ export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collap
               className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-inter text-cream/80 hover:bg-ink-3 hover:text-cream cursor-pointer outline-none"
             >
               <CreditCard className="w-3.5 h-3.5 text-ink-subtle" /> Billing
+            </Link>
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/settings/leads"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-inter text-cream/80 hover:bg-ink-3 hover:text-cream cursor-pointer outline-none"
+            >
+              <Users className="w-3.5 h-3.5 text-ink-subtle" /> Leads
+            </Link>
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/settings/api-keys"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-inter text-cream/80 hover:bg-ink-3 hover:text-cream cursor-pointer outline-none"
+            >
+              <Key className="w-3.5 h-3.5 text-ink-subtle" /> API Keys
             </Link>
           </DropdownMenu.Item>
 

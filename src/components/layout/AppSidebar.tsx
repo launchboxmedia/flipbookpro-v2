@@ -11,7 +11,7 @@ import {
   Star, HelpCircle, Shield, ChevronDown, ChevronUp,
   Crown, BarChart3, Loader2, RefreshCw, Upload, X, Wand2,
   ImageIcon, FileText, Users, MessageSquare, Gauge, BookMarked, Type, Lock,
-  Radar, ShieldCheck, Globe, Eye, ExternalLink,
+  Radar, ShieldCheck, Globe, Eye, ExternalLink, Key,
 } from 'lucide-react'
 import type { BookPage } from '@/types/database'
 import type { CoauthorStage, ImageStatus } from '@/components/coauthor/CoauthorShell'
@@ -455,6 +455,8 @@ export function AppSidebar({
             {linkItem('Profile', <User className="w-4 h-4" />, '/settings/profile')}
             {linkItem('Brand Profile', <Building2 className="w-4 h-4" />, '/settings/brand')}
             {linkItem('Billing', <CreditCard className="w-4 h-4" />, '/settings/billing')}
+            {linkItem('Leads', <Users className="w-4 h-4" />, '/settings/leads')}
+            {linkItem('API Keys', <Key className="w-4 h-4" />, '/settings/api-keys')}
           </div>
         )}
 
