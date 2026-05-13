@@ -81,6 +81,30 @@ export async function POST(req: NextRequest) {
       }
       break
     }
+
+    // Connect account state changed — typically a previously-pending
+    // account becoming active after Stripe finishes verification, but
+    // also fires on KYC issues, capabilities updates, etc. We mirror
+    // charges_enabled + details_submitted into profiles so the
+    // BillingPanel's connect-status pill stays in sync without the user
+    // having to bounce back through onboarding for us to learn.
+    case 'account.updated': {
+      const account = event.data.object as Stripe.Account
+      const userId = account.metadata?.supabase_user_id
+      // Bail early if the event is for an account we didn't create
+      // through this app (no metadata) — there's nothing to sync.
+      if (!userId) break
+
+      const isActive = account.charges_enabled && account.details_submitted
+
+      const supabase = await createClient()
+      const { error } = await supabase
+        .from('profiles')
+        .update({ stripe_connect_status: isActive ? 'active' : 'pending' })
+        .eq('stripe_connect_id', account.id)
+      if (error) console.error('[stripe/webhook] account.updated sync failed', error.message)
+      break
+    }
   }
 
   return NextResponse.json({ received: true })
