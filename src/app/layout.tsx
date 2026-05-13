@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Playfair_Display, Source_Serif_4, Inter } from 'next/font/google'
+import { Playfair_Display, Source_Serif_4, Inter, JetBrains_Mono } from 'next/font/google'
 import { AppProviders } from '@/components/providers/AppProviders'
 import './globals.css'
 
@@ -21,6 +21,12 @@ const inter = Inter({
   display: 'swap',
 })
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'FlipBookPro — AI-Powered Flipbook Creator',
   description: 'Create stunning AI-illustrated flipbooks in minutes.',
@@ -28,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${sourceSerif.variable} ${inter.variable}`}>
+    <html lang="en" className={`${playfair.variable} ${sourceSerif.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-inter antialiased bg-canvas text-cream">
         <AppProviders>{children}</AppProviders>
       </body>
