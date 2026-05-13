@@ -54,6 +54,39 @@
   .press-scale:active {
     transform: scale(0.97);
   }
+
+  /* Dashboard card stagger reveal. Each card sets --card-index inline; the
+     delay is derived so a 4-card section settles in ~400ms. */
+  @keyframes dashCardFadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .dash-card {
+    opacity: 0;
+    animation: dashCardFadeInUp 0.4s ease forwards;
+    animation-delay: calc(0.08s * var(--card-index, 0));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dash-card {
+      animation: flipbook-fade-in 180ms ease-out both;
+      animation-delay: 0s;
+    }
+  }
+
+  /* Pulse halo for the Copy Link button on a published book that has no
+     readers yet. Draws attention to the share action without being noisy —
+     a single soft ring breathing every 2s. */
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.4); }
+    70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  }
+  .pulse-ring {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-ring { animation: none; }
+  }
 }
 
 @layer base {

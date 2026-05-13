@@ -3,126 +3,145 @@ import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { NewBookButton } from '@/components/dashboard/NewBookButton'
-import { StatsRow } from '@/components/dashboard/StatsRow'
-import { ContinueWorking } from '@/components/dashboard/ContinueWorking'
-import { BookOpen, Sparkles } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { getEffectivePlan } from '@/lib/auth'
+
+/** Greeting tier driven by the user's local hour-of-day. Server-rendered, so
+ *  it reflects the server's clock. Good enough for the first paint — the
+ *  product isn't sensitive to a ±1h drift at timezone boundaries. */
+function greeting(date: Date): string {
+  const h = date.getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+function firstName(email: string, fallback?: string | null): string {
+  if (fallback && fallback.trim()) return fallback.trim().split(/\s+/)[0]
+  const local = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim()
+  return local.split(/\s+/)[0] || 'there'
+}
+
+function todayLabel(date: Date): string {
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: books }, { data: profile }, planInfo] = await Promise.all([
+  // All data the dashboard needs in one round trip. Counts are derived
+  // client-side over small, RLS-gated result sets — no aggregate query needed.
+  const [
+    { data: books },
+    { data: pageRows },
+    { data: publishedRows },
+    { data: leadRows },
+    { data: recentLeads },
+    { data: profile },
+    planInfo,
+  ] = await Promise.all([
     supabase.from('books')
-      .select('id, user_id, title, subtitle, status, cover_image_url, cover_has_text, framework_data, slug, persona, created_at, updated_at, published_at, palette, visual_style, typography, cover_direction, author_name, vibe, writing_tone, reader_level, human_score, back_cover_tagline, back_cover_description, back_cover_cta_text, back_cover_cta_url, back_cover_image_url, target_audience, website_url, genre, offer_type, cta_intent, testimonials, creator_radar_data, creator_radar_ran_at')
+      .select('id, title, status, updated_at, cover_image_url')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false }),
-    supabase.from('profiles').select('books_created_this_month').eq('id', user.id).single(),
+    supabase.from('book_pages')
+      .select('book_id, approved')
+      .gte('chapter_index', 0),
+    supabase.from('published_books')
+      .select('book_id, is_active, slug')
+      .eq('user_id', user.id),
+    supabase.from('leads')
+      .select('book_id')
+      .eq('user_id', user.id),
+    supabase.from('leads')
+      .select('email, name, created_at, books!inner(title)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase.from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .maybeSingle(),
     getEffectivePlan(supabase, user.id),
   ])
 
-  const bookIds = (books ?? []).map((b) => b.id)
-
-  const { data: pageCounts } = bookIds.length
-    ? await supabase.from('book_pages').select('book_id').in('book_id', bookIds).gte('chapter_index', 0)
-    : { data: [] }
-
-  const countMap: Record<string, number> = {}
-  for (const row of pageCounts ?? []) {
-    countMap[row.book_id] = (countMap[row.book_id] ?? 0) + 1
+  // Per-book chapter rollup: total + approved counts.
+  const chapterStats: Record<string, { total: number; approved: number }> = {}
+  for (const row of pageRows ?? []) {
+    const s = chapterStats[row.book_id] ?? { total: 0, approved: 0 }
+    s.total += 1
+    if (row.approved) s.approved += 1
+    chapterStats[row.book_id] = s
   }
 
+  // Per-book published state — keyed by book_id. Only one row per book exists
+  // (unique index), so the map directly maps to the row.
+  const publishedByBook: Record<string, { is_active: boolean; slug: string }> = {}
+  for (const row of publishedRows ?? []) {
+    publishedByBook[row.book_id] = { is_active: !!row.is_active, slug: row.slug }
+  }
+
+  // Per-book lead count.
+  const leadsByBook: Record<string, number> = {}
+  for (const row of leadRows ?? []) {
+    leadsByBook[row.book_id] = (leadsByBook[row.book_id] ?? 0) + 1
+  }
+
+  const now = new Date()
+  const greetingLine = `${greeting(now)}, ${firstName(user.email ?? '', (profile as { full_name?: string } | null)?.full_name)}`
   const isPremium = planInfo.plan !== 'free'
-  const monthlyLimit = planInfo.booksPerMonth
-  const monthlyUsed  = profile?.books_created_this_month ?? 0
-  const slotsLeft = Number.isFinite(monthlyLimit) ? Math.max(0, monthlyLimit - monthlyUsed) : Number.POSITIVE_INFINITY
 
-  // Stats — derived from the books list, no extra query needed.
-  const totalBooks = books?.length ?? 0
-  const publishedCount = (books ?? []).filter((b) => b.status === 'published' || !!b.slug).length
-  const inProgressCount = (books ?? []).filter((b) => b.status === 'draft' || b.status === 'generating').length
-
-  // Continue Working — most recently updated book that isn't shelf-ready yet,
-  // i.e. the book the user was actively building. Falls back to undefined if
-  // none, in which case we hide the card.
-  const continueBook = (books ?? []).find((b) => b.status === 'draft' || b.status === 'generating')
+  const hasBooks = (books?.length ?? 0) > 0
 
   return (
     <AppShell userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin}>
-      <div className="max-w-6xl mx-auto px-6 py-10">
-          {/* Hero / header */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 pb-6 border-b border-ink-3">
-            <div>
-              <p className="text-[10px] font-inter font-semibold text-gold/70 uppercase tracking-[0.2em] mb-2">
-                Your Library
-              </p>
-              <h1 className="font-playfair text-4xl text-cream font-semibold leading-tight">
-                {books && books.length > 0
-                  ? `${books.length} book${books.length !== 1 ? 's' : ''} in your shelf`
-                  : 'Build your first flipbook'}
-              </h1>
-              <p className="text-ink-subtle text-sm font-source-serif mt-2 max-w-xl">
-                Approved drafts, generating illustrations, and finished books — all in one place.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Monthly slot counter */}
-              <div className="hidden sm:flex flex-col items-end px-4 py-2.5 rounded-lg bg-ink-2 border border-ink-3">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-gold" />
-                  <span className="font-inter text-[11px] text-ink-subtle uppercase tracking-wider">
-                    This month
-                  </span>
-                </div>
-                <p className="font-playfair text-sm text-cream font-semibold mt-0.5">
-                  {Number.isFinite(monthlyLimit) ? (
-                    <>
-                      {monthlyUsed} / {monthlyLimit}
-                      <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
-                      <span className="font-inter text-[11px] text-ink-muted font-normal">
-                        {slotsLeft === 0 ? 'limit reached' : `${slotsLeft} left`}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      {monthlyUsed}
-                      <span aria-hidden="true" className="text-ink-muted/50 mx-1.5 font-normal">·</span>
-                      <span className="font-inter text-[11px] text-gold font-normal">unlimited</span>
-                    </>
-                  )}
+      <div className="max-w-6xl mx-auto px-6 py-10 min-h-[calc(100vh-0px)]">
+        {!hasBooks ? (
+          // Empty state — first-run command center. Centered card, single CTA.
+          <div className="flex flex-col items-center justify-center text-center py-32">
+            <BookOpen className="w-12 h-12 text-gold mb-6" />
+            <h1 className="font-playfair text-2xl text-white mb-3">
+              Your first book is one click away
+            </h1>
+            <p className="text-white/50 font-source-serif mb-8 max-w-md">
+              Create a book in minutes with AI assistance.
+            </p>
+            <NewBookButton />
+          </div>
+        ) : (
+          <>
+            <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
+              <div>
+                <h1 className="font-playfair text-3xl text-white leading-tight">
+                  {greetingLine}
+                </h1>
+                <p className="text-white/40 text-sm font-source-serif mt-1">
+                  {todayLabel(now)}
                 </p>
               </div>
-              <NewBookButton />
-            </div>
-          </div>
+              <div className="shrink-0">
+                <NewBookButton />
+              </div>
+            </header>
 
-          {!books || books.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-ink-3 rounded-2xl bg-ink-2/30 animate-fade-in">
-              <BookOpen className="w-12 h-12 text-ink-muted mb-4" />
-              <h3 className="font-playfair text-xl text-cream/80 mb-2">Your shelf is empty</h3>
-              <p className="text-ink-subtle text-sm font-source-serif mb-6 max-w-sm">
-                Create your first book and let AI build it with you — from outline to illustrated flipbook.
-              </p>
-              <NewBookButton />
-            </div>
-          ) : (
-            <div className="space-y-10">
-              <StatsRow
-                total={totalBooks}
-                inProgress={inProgressCount}
-                published={publishedCount}
-              />
-              {continueBook && (
-                <ContinueWorking
-                  book={continueBook}
-                  chapterCount={countMap[continueBook.id] ?? 0}
-                />
-              )}
-              <DashboardGrid books={books} pageCounts={countMap} />
-            </div>
-          )}
+            <DashboardGrid
+              books={books ?? []}
+              chapterStats={chapterStats}
+              publishedByBook={publishedByBook}
+              leadsByBook={leadsByBook}
+              recentLeads={(recentLeads ?? []).map((l) => ({
+                email: l.email as string,
+                name: (l.name as string | null) ?? null,
+                created_at: l.created_at as string,
+                book_title: Array.isArray(l.books)
+                  ? ((l.books[0] as { title?: string } | undefined)?.title ?? '')
+                  : ((l.books as { title?: string } | null)?.title ?? ''),
+              }))}
+            />
+          </>
+        )}
       </div>
     </AppShell>
   )
