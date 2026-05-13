@@ -71,9 +71,19 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   const supabase = await createClient()
 
+  // Explicit column list — select('*') was silently returning null even
+  // though all rows + RLS + column grants check out. The matching column
+  // list in generateMetadata works, so we mirror that pattern: only ask
+  // for the columns the route actually uses.
   const { data: pub } = await supabase
     .from('published_books')
-    .select('*')
+    .select(`
+      id, slug, book_id, user_id, title, subtitle,
+      author, description, cover_image_url,
+      access_type, gate_type, price_cents,
+      is_active, published_at, created_at,
+      updated_at
+    `)
     .eq('slug', params.slug)
     .eq('is_active', true)
     .single()
