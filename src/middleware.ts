@@ -1,7 +1,49 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Vanity / funnel domains. Hitting `<host>/<slug>` rewrites to /go/<slug>
+// so the marketing landing renders. /api, /_next, /read, and any other
+// multi-segment path passes through unchanged so the same app serves
+// from this host without modification.
+const FUNNEL_HOSTS = new Set(['go.bookbuilderpro.app'])
+
 export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host')?.toLowerCase() ?? ''
+
+  // ── Funnel host handling ────────────────────────────────────────────────
+  // Done BEFORE the supabase session refresh because none of the funnel
+  // pages need auth — /go/* and /read/* are both public routes, and the
+  // /api endpoints called from them do their own auth where needed.
+  if (FUNNEL_HOSTS.has(hostname)) {
+    const path = request.nextUrl.pathname
+
+    // Bare funnel host → bounce to the main marketing site so the
+    // domain isn't a dead end if someone types it without a slug.
+    if (path === '/') {
+      return NextResponse.redirect(new URL('https://bookbuilderpro.app', request.url))
+    }
+
+    // Only single-segment slug paths get rewritten. Multi-segment
+    // routes (/read/<slug>, /api/leads, /_next/...) and anything with
+    // a file extension (favicon.ico) pass through unchanged so the
+    // app keeps working end-to-end on the funnel host.
+    const segments = path.slice(1).split('/').filter(Boolean)
+    const isSingleSegmentSlug =
+      segments.length === 1 &&
+      !path.startsWith('/_next') &&
+      !path.startsWith('/api') &&
+      !path.includes('.')
+
+    if (isSingleSegmentSlug) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/go/${segments[0]}`
+      return NextResponse.rewrite(url)
+    }
+
+    return NextResponse.next({ request })
+  }
+
+  // ── Default flow on the canonical domain ───────────────────────────────
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
