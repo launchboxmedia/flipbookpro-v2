@@ -95,19 +95,22 @@ const config: Config = {
         inter: ['var(--font-inter)', 'Inter', 'sans-serif'],
         mono: ['var(--font-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace'],
       },
-      // Editorial type scale (design system §3.2). Tailwind's `sm`/`xs`
-      // defaults are intentionally left alone to avoid shifting existing UI.
+      // Editorial type scale (design system §3.2). Includes `sm`/`xs`
+      // overrides matching the spec (13/20, 12/18) — these replace
+      // Tailwind defaults (14/20, 12/16) project-wide.
       fontSize: {
-        'display-xl': ['72px', { lineHeight: '80px', letterSpacing: '-0.02em',  fontWeight: '600' }],
-        'display-lg': ['56px', { lineHeight: '64px', letterSpacing: '-0.02em',  fontWeight: '600' }],
-        'display':    ['44px', { lineHeight: '52px', letterSpacing: '-0.02em',  fontWeight: '600' }],
-        'h1':         ['36px', { lineHeight: '44px', letterSpacing: '-0.015em', fontWeight: '500' }],
-        'h2':         ['28px', { lineHeight: '36px', letterSpacing: '-0.015em', fontWeight: '500' }],
-        'h3':         ['22px', { lineHeight: '30px', letterSpacing: '-0.01em',  fontWeight: '500' }],
-        'h4':         ['18px', { lineHeight: '26px', fontWeight: '500' }],
-        'prose-lg':   ['19px', { lineHeight: '30px', fontWeight: '400' }],
-        'prose':      ['17px', { lineHeight: '28px', fontWeight: '400' }],
-        'body':       ['15px', { lineHeight: '22px', fontWeight: '400' }],
+        'display-xl': ['72px',     { lineHeight: '80px', letterSpacing: '-0.02em',  fontWeight: '600' }],
+        'display-lg': ['56px',     { lineHeight: '64px', letterSpacing: '-0.02em',  fontWeight: '600' }],
+        'display':    ['44px',     { lineHeight: '52px', letterSpacing: '-0.02em',  fontWeight: '600' }],
+        'h1':         ['36px',     { lineHeight: '44px', letterSpacing: '-0.015em', fontWeight: '500' }],
+        'h2':         ['28px',     { lineHeight: '36px', letterSpacing: '-0.015em', fontWeight: '500' }],
+        'h3':         ['22px',     { lineHeight: '30px', letterSpacing: '-0.01em',  fontWeight: '500' }],
+        'h4':         ['18px',     { lineHeight: '26px', fontWeight: '500' }],
+        'prose-lg':   ['19px',     { lineHeight: '30px', fontWeight: '400' }],
+        'prose':      ['17px',     { lineHeight: '28px', fontWeight: '400' }],
+        'body':       ['15px',     { lineHeight: '22px', fontWeight: '400' }],
+        'sm':         ['0.8125rem',{ lineHeight: '1.25rem' }],
+        'xs':         ['0.75rem',  { lineHeight: '1.125rem' }],
       },
       borderRadius: {
         lg: 'var(--radius)',
