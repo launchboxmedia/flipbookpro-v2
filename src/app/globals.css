@@ -73,19 +73,33 @@
     }
   }
 
-  /* Pulse halo for the Copy Link button on a published book that has no
-     readers yet. Draws attention to the share action without being noisy —
-     a single soft ring breathing every 2s. */
-  @keyframes pulse-ring {
-    0%   { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.4); }
-    70%  { box-shadow: 0 0 0 6px rgba(201, 168, 76, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
-  }
-  .pulse-ring {
-    animation: pulse-ring 2s ease-out infinite;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .pulse-ring { animation: none; }
+  /* (pulse-ring moved to tailwind.config.ts as animate-pulse-ring — single
+     source of truth alongside fade-in / shimmer / page-flip etc.) */
+}
+
+/* Global button physics — every interactive element gets the same tactile
+   200ms transition + a subtle press scale. Tailwind utilities with their
+   own duration values still win on specificity, so existing transition-
+   colors / duration-* classes keep their behavior. */
+button {
+  transition: all 200ms ease;
+}
+button:active {
+  transform: scale(0.98);
+}
+
+/* Reduced-motion blanket — collapses every animation + transition to a
+   1ms duration so the experience stays usable without disabling layout
+   transitions outright. Lives outside the @layer so it survives the
+   utility-cascade order with !important. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -134,6 +134,74 @@ const config: Config = {
         320: '320ms',
         480: '480ms',
       },
+      // Loading + reveal motion. Pure CSS — no JS animation libs. Names
+      // mirror the design-system spec so any future component can compose
+      // them via Tailwind's animate-* utilities.
+      keyframes: {
+        fadeIn: {
+          from: { opacity: '0' },
+          to:   { opacity: '1' },
+        },
+        slideUp: {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        scaleIn: {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to:   { opacity: '1', transform: 'scale(1)' },
+        },
+        pulseSubtle: {
+          '0%, 100%': { opacity: '0.7' },
+          '50%':      { opacity: '1' },
+        },
+        pulseLogo: {
+          '0%, 100%': { opacity: '0.9', transform: 'scale(1)' },
+          '50%':      { opacity: '1',   transform: 'scale(1.03)' },
+        },
+        shimmer: {
+          '0%':   { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        glowPulse: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(201,168,76,0.4)' },
+          '50%':      { boxShadow: '0 0 0 8px rgba(201,168,76,0)' },
+        },
+        pulseRing: {
+          '0%':   { boxShadow: '0 0 0 0 rgba(201,168,76,0.4)' },
+          '70%':  { boxShadow: '0 0 0 6px rgba(201,168,76,0)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(201,168,76,0)' },
+        },
+        // 4-page stack uses staggered animation-delay so each page flips
+        // in turn. 0–15% holds the page upright before the rotation begins
+        // (the "lift") and 85–100% holds at -180deg so the next cycle
+        // starts cleanly without a snap-back.
+        pageFlip: {
+          '0%, 15%':   { transform: 'rotateY(0deg)',    animationTimingFunction: 'ease-in'  },
+          '50%':       { transform: 'rotateY(-90deg)',  animationTimingFunction: 'ease-out' },
+          '85%, 100%': { transform: 'rotateY(-180deg)' },
+        },
+        coverOpen: {
+          '0%':   { transform: 'rotateY(0deg)' },
+          '100%': { transform: 'rotateY(-140deg)' },
+        },
+        revealUp: {
+          '0%':   { clipPath: 'inset(100% 0 0 0)', opacity: '0' },
+          '100%': { clipPath: 'inset(0% 0 0 0)',   opacity: '1' },
+        },
+      },
+      animation: {
+        'fade-in':      'fadeIn 0.3s ease-out forwards',
+        'slide-up':     'slideUp 0.4s ease-out forwards',
+        'scale-in':     'scaleIn 0.2s ease-out forwards',
+        'pulse-subtle': 'pulseSubtle 2s ease-in-out infinite',
+        'pulse-logo':   'pulseLogo 2s ease-in-out infinite',
+        'shimmer':      'shimmer 2s linear infinite',
+        'glow-pulse':   'glowPulse 2s ease-in-out infinite',
+        'pulse-ring':   'pulseRing 2s ease-out infinite',
+        'page-flip':    'pageFlip 1.2s ease-in-out infinite',
+        'cover-open':   'coverOpen 1.2s ease-in-out forwards',
+        'reveal-up':    'revealUp 0.6s ease-out forwards',
+      },
     },
   },
   plugins: [

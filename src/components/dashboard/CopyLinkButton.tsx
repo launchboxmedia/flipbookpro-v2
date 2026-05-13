@@ -50,7 +50,7 @@ export function CopyLinkButton({ url, prominent = false }: Props) {
   // the user gets a clean confirmation moment, then resumes (the user usually
   // navigates away long before that matters).
   const sizing = prominent ? 'px-4 py-2.5 text-sm' : 'px-3 py-2 text-sm'
-  const pulse = prominent && !copied ? 'pulse-ring' : ''
+  const pulse = prominent && !copied ? 'animate-pulse-ring' : ''
 
   return (
     <button
