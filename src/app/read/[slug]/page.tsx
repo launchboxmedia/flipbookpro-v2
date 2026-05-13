@@ -71,10 +71,9 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   const supabase = await createClient()
 
-  // Explicit column list — select('*') was silently returning null even
-  // though all rows + RLS + column grants check out. The matching column
-  // list in generateMetadata works, so we mirror that pattern: only ask
-  // for the columns the route actually uses.
+  // Explicit column list for type safety —
+  // select('*') works but explicit columns
+  // keep TypeScript inference clean
   const { data: pub } = await supabase
     .from('published_books')
     .select(`
