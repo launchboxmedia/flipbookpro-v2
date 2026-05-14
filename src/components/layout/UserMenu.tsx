@@ -33,6 +33,11 @@ export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collap
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    // Clear the per-session splash flag so the next sign-in plays the
+    // splash again. sessionStorage usually clears with the tab anyway, but
+    // a user signing out and back in within the same tab would otherwise
+    // skip the splash.
+    try { window.sessionStorage?.removeItem('app_booted') } catch {}
     router.push('/login')
     // refresh ensures the middleware re-evaluates with cleared cookies on
     // the next request, so a fast double-click can't see a stale auth

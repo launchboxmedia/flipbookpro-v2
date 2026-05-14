@@ -50,6 +50,35 @@ export function AppBootWrapper({ children }: Props) {
     <>
       {children}
       {decided && showSplash && <SplashScreen onComplete={handleComplete} />}
+      <ResetSplashButton />
     </>
+  )
+}
+
+/** Dev-only affordance for testing the splash without devtools. Clears the
+ *  session flag and hard-reloads — same sequence a user would run via the
+ *  console. Tree-shaken out in production builds because the entire body
+ *  short-circuits on a constant NODE_ENV check. */
+function ResetSplashButton() {
+  if (process.env.NODE_ENV !== 'development') return null
+
+  function reset() {
+    try {
+      window.sessionStorage?.removeItem(SESSION_KEY)
+    } catch {
+      // ignore
+    }
+    window.location.reload()
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={reset}
+      aria-label="Reset splash screen"
+      className="fixed bottom-4 right-4 z-50 text-white/20 hover:text-white/50 text-xs font-inter transition-colors cursor-pointer"
+    >
+      Reset Splash
+    </button>
   )
 }
