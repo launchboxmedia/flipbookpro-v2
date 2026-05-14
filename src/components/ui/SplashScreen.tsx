@@ -172,8 +172,26 @@ export function SplashScreen({ onComplete }: Props) {
                 {PAGE_LINES.map((w, j) => (
                   <div
                     key={j}
-                    className="h-px bg-cream-line/70 rounded-full"
-                    style={{ width: `${w}%` }}
+                    // bg-ink-1/30 reads as soft ink on cream — closer to a
+                    // pen mark than the previous cream-line stripe, which
+                    // looked like ruled paper. The `animate-write-line`
+                    // utility scales the line from a left anchor so the
+                    // viewer sees it being written left-to-right; the
+                    // per-line animation-delay staggers a page's worth of
+                    // writing across the loop.
+                    //
+                    // Using the Tailwind utility class is load-bearing
+                    // here: Tailwind's JIT only emits `@keyframes writeLine`
+                    // when it scans an `animate-write-line` class in
+                    // source. Inline `animation: writeLine ...` strings
+                    // don't count, so the keyframe would be purged.
+                    className="h-px bg-ink-1/30 rounded-full animate-write-line"
+                    style={{
+                      width: `${w}%`,
+                      transformOrigin: 'left center',
+                      transform: 'scaleX(0)',
+                      animationDelay: `${j * 0.3}s`,
+                    }}
                   />
                 ))}
               </div>

@@ -206,6 +206,15 @@ const config: Config = {
           '0%, 100%': { transform: 'translateX(0)' },
           '50%':      { transform: 'translateX(2px)' },
         },
+        // Used by SplashScreen page lines — scales each line from a left
+        // anchor so it reads as a pen drawing the line across the page.
+        // Holds full-width at the end of each cycle so the page looks
+        // "written" while the loop pauses before re-running.
+        writeLine: {
+          '0%, 5%':    { transform: 'scaleX(0)' },
+          '40%':       { transform: 'scaleX(1)' },
+          '95%, 100%': { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         'fade-in':      'fadeIn 0.3s ease-out forwards',
@@ -222,6 +231,7 @@ const config: Config = {
         'book-float':   'bookFloat 2s ease-in-out infinite',
         'book-breathe': 'bookBreathe 1.5s ease-in-out infinite',
         'page-sliver':  'pageSliver 1.5s ease-in-out infinite',
+        'write-line':   'writeLine 2.4s ease-out infinite both',
       },
     },
   },
