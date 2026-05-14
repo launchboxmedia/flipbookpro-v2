@@ -322,8 +322,12 @@ export default async function GoPage({ params }: Props) {
               Join {leadCount.toLocaleString()} {leadCount === 1 ? 'reader' : 'readers'}
             </p>
           )}
+          {/* Closing headline. Reuses the book's own tagline when set —
+              it's already a sharper, book-specific pitch than any
+              generic closer we could write. Generic fallback covers
+              books that haven't filled in back_cover_tagline yet. */}
           <h2 className="font-playfair text-3xl md:text-4xl text-white mb-4">
-            Ready when you are.
+            {book.back_cover_tagline ?? 'Ready when you are.'}
           </h2>
           <p className="font-source-serif text-white/50 text-lg mb-10">
             Get instant access and start reading today.

@@ -53,10 +53,12 @@ export function HeroSection({
       className="relative bg-ink-1 overflow-hidden"
       // Radial gold glow behind the book — anchored at 35% horizontal so
       // the brightest point sits behind the cover, not the text. inline
-      // backgroundImage so the gradient parameters stay readable.
+      // backgroundImage so the gradient parameters stay readable. Alpha
+      // bumped from 0.07 to 0.15 so the cover reads as a lit object,
+      // not a flat illustration on a dark background.
       style={{
         backgroundImage:
-          'radial-gradient(ellipse 60% 70% at 35% 50%, rgba(201,168,76,0.07) 0%, transparent 70%)',
+          'radial-gradient(ellipse 60% 70% at 35% 50%, rgba(201,168,76,0.15) 0%, transparent 70%)',
       }}
     >
       <div className="relative max-w-6xl mx-auto px-6 lg:px-8 py-16 lg:py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-screen">
@@ -69,9 +71,11 @@ export function HeroSection({
             style={{
               // Two stacked drop-shadows — the gold one is the signature
               // hero element; the darker black layer grounds it on dark
-              // backgrounds.
+              // backgrounds. Bumped from 64/0.25/0.6 to 80/0.35/0.7 so
+              // the cover reads as physically present in space rather
+              // than pasted onto a flat dark plane.
               filter:
-                'drop-shadow(0 32px 64px rgba(201,168,76,0.25)) drop-shadow(0 8px 32px rgba(0,0,0,0.6))',
+                'drop-shadow(0 32px 80px rgba(201,168,76,0.35)) drop-shadow(0 8px 32px rgba(0,0,0,0.7))',
             }}
           >
             {coverImageUrl ? (
