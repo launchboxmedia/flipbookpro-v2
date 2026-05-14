@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, Source_Serif_4, Inter, JetBrains_Mono } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { AppProviders } from '@/components/providers/AppProviders'
 import { AppBootWrapper } from '@/components/ui/AppBootWrapper'
 import './globals.css'
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AppProviders>
           <AppBootWrapper>{children}</AppBootWrapper>
         </AppProviders>
+        <Analytics />
       </body>
     </html>
   )
