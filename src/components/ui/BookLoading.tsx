@@ -24,15 +24,18 @@ interface Props {
   className?: string
 }
 
-const SIZE_MAP: Record<Size, { wrapper: string; cover: string; perspective: string }> = {
-  sm: { wrapper: 'w-8 h-10',   cover: 'w-8 h-10',   perspective: '300px' },
-  md: { wrapper: 'w-12 h-16',  cover: 'w-12 h-16',  perspective: '400px' },
-  lg: { wrapper: 'w-20 h-28',  cover: 'w-20 h-28',  perspective: '600px' },
+const SIZE_MAP: Record<Size, string> = {
+  sm: 'w-8 h-10',
+  md: 'w-12 h-16',
+  lg: 'w-16 h-20',
 }
 
-const PAGES = [0, 1, 2, 3]
-const LINE_WIDTHS = [70, 88, 60] // % of page width
-
+/** Subtle in-app loader. A small closed book with a single tied
+ *  scale + opacity breath and a thin cream sliver that nudges from
+ *  behind the right edge in time with the breath. Reads as "alive
+ *  and waiting" without demanding attention — the elaborate page-
+ *  flipping animation lives in SplashScreen where it earns the
+ *  spotlight. */
 export function BookLoading({ label, size = 'md', className }: Props) {
   const [messageIndex, setMessageIndex] = useState(0)
 
@@ -44,66 +47,29 @@ export function BookLoading({ label, size = 'md', className }: Props) {
     return () => window.clearInterval(id)
   }, [label])
 
-  const { wrapper, perspective } = SIZE_MAP[size]
+  const wrapper = SIZE_MAP[size]
   const currentMessage = label ?? ROTATING_MESSAGES[messageIndex]
 
   return (
     <div className={`flex flex-col items-center gap-3 ${className ?? ''}`}>
-      <div className={`relative ${wrapper}`} style={{ perspective }} aria-hidden="true">
-        <div className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
-          {/* Spine + cover. Linear gradient + gold left border reads as a
-              bound edge; the inset shimmer adds the "well-loved leather"
-              highlight that breathes through the loop. */}
-          <div
-            className="absolute inset-0 rounded-r-sm shadow-xl overflow-hidden"
-            style={{
-              borderLeft: '3px solid rgba(201,168,76,0.7)',
-              background: 'linear-gradient(135deg, #0F1623 0%, #1C2333 100%)',
-            }}
-          >
-            <div
-              className="absolute inset-0 animate-shimmer"
-              style={{
-                background:
-                  'linear-gradient(135deg, transparent 30%, rgba(201,168,76,0.08) 50%, transparent 70%)',
-                backgroundSize: '200% 200%',
-              }}
-            />
-          </div>
-
-          {/* Page stack. Each page is offset by a couple px so the closed
-              edge fans out, then flips on a staggered animation-delay so
-              the loop reads as a continuous wave rather than four pages
-              snapping in sync. */}
-          {PAGES.map((i) => (
-            <div
-              key={i}
-              className="absolute bg-cream-1 rounded-r-sm overflow-hidden"
-              style={{
-                top: `${2 + i}px`,
-                right: `${2 + i}px`,
-                bottom: `${2 + i}px`,
-                left: `${4 + i * 2}px`,
-                transformStyle: 'preserve-3d',
-                backfaceVisibility: 'hidden',
-                transformOrigin: 'left center',
-                animation: `pageFlip 1.2s ease-in-out ${i * 0.15}s infinite`,
-              }}
-            >
-              {LINE_WIDTHS.map((w, j) => (
-                <div
-                  key={j}
-                  className="bg-ink-4/30 rounded-full"
-                  style={{
-                    height: '1px',
-                    width: `${w}%`,
-                    margin: j === 0 ? '20% 8% 0' : '8% 8% 0',
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+      {/* The book — the breath animation animates the entire wrapper
+          (scale + opacity); a thin page sliver behind the right edge
+          slides on the same 1.5s clock so the motion reads as a single
+          coherent gesture rather than two independent loops. */}
+      <div className={`relative ${wrapper} animate-book-breathe`} aria-hidden="true">
+        {/* Cover — flat ink-1 fill with the same gold spine as the splash
+            so the loaders read as the same artifact at different scales. */}
+        <div
+          className="absolute inset-0 bg-ink-1 rounded-r-sm"
+          style={{ borderLeft: '2px solid rgba(201,168,76,0.7)' }}
+        />
+        {/* Page sliver — 2px-wide cream sliver behind the right edge.
+            Sits inset top/bottom by 2px so it reads as a page peeking
+            out, not a full second cover. */}
+        <div
+          className="absolute right-0 w-0.5 bg-cream-1 rounded-r-sm animate-page-sliver"
+          style={{ top: '2px', bottom: '2px' }}
+        />
       </div>
 
       {/* Label — pulses subtly to confirm the loader is alive even if the
