@@ -1,9 +1,12 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import type { Book, BookPage, Profile, PublishedBook } from '@/types/database'
+import { HeroSection } from './components/HeroSection'
+import { ChapterList } from './components/ChapterList'
 
 interface Props {
   params: { slug: string }
@@ -12,7 +15,7 @@ interface Props {
 /**
  * Conversion-page data load. Cached per-request via React.cache so
  * generateMetadata and the page component each call this without
- * doubling the supabase round-trips. Returns null when the slug
+ * doubling the Supabase round-trips. Returns null when the slug
  * doesn't resolve to an active published book; callers either render
  * a 404 (page) or a generic title (metadata).
  */
@@ -30,7 +33,7 @@ const loadLanding = cache(async (slug: string) => {
 
   // Fan-out: book row + chapter index/titles + resource count + lead
   // count, all in parallel against the resolved book_id. Counts use
-  // head:true so we get a count without paying for row payload.
+  // head:true so we get a count without paying for the row payload.
   const [bookResult, chaptersResult, resourceCountResult, leadCountResult] = await Promise.all([
     supabase
       .from('books')
@@ -42,6 +45,11 @@ const loadLanding = cache(async (slug: string) => {
       .select('chapter_index, chapter_title')
       .eq('book_id', pub.book_id)
       .gte('chapter_index', 0)
+      // Exclude the CTA sentinel chapter — it sits at chapter_index 99
+      // as a closing call-to-action and shouldn't be counted as
+      // content. The landing page is selling the BOOK, not its
+      // post-script.
+      .lt('chapter_index', 99)
       .order('chapter_index'),
     supabase
       .from('book_resources')
@@ -65,7 +73,11 @@ const loadLanding = cache(async (slug: string) => {
   const chapters = (chaptersResult.data ?? []) as Pick<BookPage, 'chapter_index' | 'chapter_title'>[]
   const resourceCount = resourceCountResult.count ?? 0
   const leadCount     = leadCountResult.count ?? 0
-  const accessType    = pub.access_type as PublishedBook['access_type']
+  // The column is NOT NULL with default 'email' per the 20260430
+  // migration, so the cast is safe — but coerce to a known value for
+  // type safety against legacy rows.
+  const accessType: PublishedBook['access_type'] =
+    (pub.access_type as PublishedBook['access_type']) ?? 'email'
 
   // Format whole-dollar prices without trailing zeros ($9 not $9.00),
   // but preserve cents when present ($9.99).
@@ -96,62 +108,14 @@ const loadLanding = cache(async (slug: string) => {
   }
 })
 
-/** CTA copy + button styling vary by access_type — same shape both
- *  in the hero and the final CTA section. Returned as data so both
- *  render sites stay consistent without duplicating the conditional. */
-function ctaCopy(
-  accessType: PublishedBook['access_type'],
-  priceFormatted: string | null,
-): { text: string; subtext: string | null } {
-  if (accessType === 'paid') {
-    return {
-      text:    `Get Instant Access — ${priceFormatted ?? ''} →`.replace(/\s+→$/, ' →'),
-      subtext: 'Instant download · 30-day guarantee',
-    }
-  }
-  if (accessType === 'email') {
-    return {
-      text:    'Get Free Access →',
-      subtext: 'Enter your email to unlock instantly',
-    }
-  }
-  return {
-    text:    'Read Now — It’s Free →',
-    subtext: null,
-  }
-}
-
-function PrimaryCta({
-  href,
-  text,
-  subtext,
-}: {
-  href: string
-  text: string
-  subtext: string | null
-}) {
-  return (
-    <div>
-      <Link
-        href={href}
-        className="w-full bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold py-4 px-8 rounded-xl text-lg transition-colors text-center block"
-      >
-        {text}
-      </Link>
-      {subtext && (
-        <p className="text-white/40 text-xs text-center mt-2 font-inter">
-          {subtext}
-        </p>
-      )}
-    </div>
-  )
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await loadLanding(params.slug)
   if (!data) return { title: 'Book Not Found', robots: { index: false, follow: false } }
 
   const { book, authorName } = data
+  // back_cover_tagline is the strongest pitch line; subtitle is the
+  // fallback when the tagline isn't set. Either way the description
+  // surfaces in Google snippets and social cards.
   const description = book.back_cover_tagline ?? book.subtitle ?? undefined
   const canonical = `https://go.bookbuilderpro.app/${params.slug}`
 
@@ -163,8 +127,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url:         canonical,
       type:        'book',
+      // 1200×630 is the recommended OG image size. Book covers are
+      // portrait (2:3) and will be letterboxed by social scrapers, but
+      // tagging the dimensions as the canonical OG size keeps Facebook
+      // and Twitter happy at render time.
       images:      book.cover_image_url
-        ? [{ url: book.cover_image_url, width: 768, height: 1024, alt: book.title }]
+        ? [{ url: book.cover_image_url, width: 1200, height: 630, alt: book.title }]
         : [],
     },
     twitter: {
@@ -174,6 +142,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images:      book.cover_image_url ? [book.cover_image_url] : [],
     },
     alternates: { canonical },
+  }
+}
+
+/** Per-access-type CTA copy. Mirrored from HeroSection so the
+ *  server-rendered final-CTA section stays in sync with the hero
+ *  without bumping the client bundle. The trailing-arrow trim
+ *  defends against the paid template emitting a double space when
+ *  priceFormatted is empty. */
+function ctaCopyFor(
+  accessType: PublishedBook['access_type'],
+  priceFormatted: string | null,
+): { text: string; sub: string | null } {
+  if (accessType === 'paid') {
+    return {
+      text: `Get Instant Access — ${priceFormatted ?? ''} →`.replace(/\s+→$/, ' →'),
+      sub:  'Instant access · Secure checkout',
+    }
+  }
+  if (accessType === 'email') {
+    return {
+      text: 'Get Free Access →',
+      sub:  'Enter your email to unlock instantly',
+    }
+  }
+  return {
+    text: 'Read Now — It’s Free →',
+    sub:  null,
   }
 }
 
@@ -194,175 +189,101 @@ export default async function GoPage({ params }: Props) {
   } = data
 
   const readHref = `/read/${params.slug}`
-  const cta = ctaCopy(accessType, priceFormatted)
+  const ctaCopy = ctaCopyFor(accessType, priceFormatted)
 
-  // First letter for the avatar fallback initials. Defensive against
-  // names that start with whitespace or punctuation; falls back to '?'.
-  // ASCII-only match (the project's TS target predates Unicode property
-  // escapes) — non-Latin first characters skip past to '?', acceptable
-  // for an English-language product.
+  // First letter for the avatar fallback. Defensive against names that
+  // start with whitespace or punctuation; falls back to '?'. ASCII-only
+  // — non-Latin starting characters skip past to '?', acceptable for an
+  // English-language product.
   const authorInitial = authorName.trim().match(/[a-zA-Z0-9]/)?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div className="bg-ink-1">
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="min-h-screen bg-ink-1 flex items-center px-6 py-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 max-w-6xl mx-auto items-center">
-          {/* LEFT — Cover image */}
-          <div className="flex justify-center md:justify-end order-1 md:order-1">
-            {book.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={book.cover_image_url}
-                alt={book.title}
-                className="rounded-xl shadow-[0_20px_60px_rgba(201,168,76,0.3)] -rotate-2 max-w-xs w-full"
-                style={{ aspectRatio: '3/4', objectFit: 'cover' }}
-              />
-            ) : (
-              <div
-                className="rounded-xl shadow-[0_20px_60px_rgba(201,168,76,0.3)] -rotate-2 max-w-xs w-full bg-ink-3 flex items-center justify-center"
-                style={{ aspectRatio: '3/4' }}
-              >
-                <span className="font-playfair text-white/30 text-center px-6 leading-tight">
-                  {book.title}
-                </span>
-              </div>
-            )}
-          </div>
+    <>
+      {/* ── 1. HERO ─────────────────────────────────────────────────── */}
+      <HeroSection
+        slug={params.slug}
+        title={book.title}
+        subtitle={book.subtitle}
+        coverImageUrl={book.cover_image_url}
+        authorName={authorName}
+        avatarUrl={profile?.avatar_url ?? null}
+        backCoverTagline={book.back_cover_tagline}
+        chapterCount={chapterCount}
+        resourceCount={resourceCount}
+        accessType={accessType}
+        priceFormatted={priceFormatted}
+      />
 
-          {/* RIGHT — Book details */}
-          <div className="order-2 md:order-2">
-            <p className="text-gold font-inter text-xs uppercase tracking-[0.2em] mb-3">
-              {authorName}
-            </p>
-            <h1 className="font-playfair text-4xl md:text-5xl text-white font-bold leading-tight">
-              {book.title}
-            </h1>
-            {book.subtitle && (
-              <p className="font-source-serif text-xl text-white/60 italic mt-3">
-                {book.subtitle}
-              </p>
-            )}
-
-            <div className="w-16 h-0.5 bg-gold my-8" aria-hidden />
-
-            {book.back_cover_tagline && (
-              <p className="font-source-serif text-white/80 text-lg leading-relaxed">
-                {book.back_cover_tagline}
-              </p>
-            )}
-
-            <div className="flex items-center gap-2 text-white/50 text-sm mt-6 flex-wrap font-inter">
-              <span>{chapterCount} {chapterCount === 1 ? 'Chapter' : 'Chapters'}</span>
-              {resourceCount > 0 && (
-                <>
-                  <span className="text-gold" aria-hidden>·</span>
-                  <span>{resourceCount} {resourceCount === 1 ? 'Resource' : 'Resources'}</span>
-                </>
-              )}
-              <span className="text-gold" aria-hidden>·</span>
-              <span>Instant Access</span>
-            </div>
-
-            <div className="mt-4">
-              {accessType === 'paid' ? (
-                <span className="inline-block bg-gold text-ink-1 text-sm font-bold px-4 py-1.5 rounded-full font-inter">
-                  {priceFormatted}
-                </span>
-              ) : (
-                <span className="inline-block border border-gold text-gold text-sm px-4 py-1.5 rounded-full font-inter">
-                  Free
-                </span>
-              )}
-            </div>
-
-            <div className="mt-6">
-              <PrimaryCta href={readHref} text={cta.text} subtext={cta.subtext} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── ABOUT THIS BOOK (cream) ───────────────────────────────────────── */}
+      {/* ── 2. ABOUT THIS BOOK (cream) ─────────────────────────────── */}
       {book.back_cover_description && (
         <section className="bg-cream-1 py-20 px-6">
           <div className="max-w-3xl mx-auto">
-            <h2 className="font-playfair text-3xl text-ink-1 mb-8">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-ink-1/40 font-medium mb-3">
               About This Book
+            </p>
+            <h2 className="font-playfair text-3xl text-ink-1 mb-8">
+              What This Book Is About
             </h2>
             {book.back_cover_description
               .split(/\n\n+/)
               .map((p) => p.trim())
               .filter(Boolean)
               .map((p, i) => (
-                <p key={i} className="font-source-serif text-ink-1 text-lg leading-relaxed mb-4">
+                <p
+                  key={i}
+                  className="font-source-serif text-ink-1/80 text-lg leading-relaxed mb-5"
+                >
                   {p}
                 </p>
               ))}
+            {book.back_cover_tagline && (
+              <blockquote className="border-l-4 border-gold pl-6 my-8 font-playfair text-xl italic text-ink-1">
+                {book.back_cover_tagline}
+              </blockquote>
+            )}
           </div>
         </section>
       )}
 
-      {/* ── WHAT'S INSIDE (dark) ──────────────────────────────────────────── */}
+      {/* ── 3. WHAT'S INSIDE (dark, scroll-reveal chapters) ────────── */}
       <section className="bg-ink-2 py-20 px-6">
         <div className="max-w-4xl mx-auto">
-          <h2 className="font-playfair text-3xl text-gold text-center mb-16">
-            What’s Inside
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-medium mb-3 text-center">
+            What&rsquo;s Inside
+          </p>
+          <h2 className="font-playfair text-3xl text-white text-center mb-16">
+            {chapterCount} {chapterCount === 1 ? 'Chapter' : 'Chapters'} of Field-Tested Strategy
           </h2>
-
-          <ol className="space-y-6">
-            {chapters.slice(0, 6).map((ch, i) => (
-              <li key={ch.chapter_index} className="flex items-start gap-5">
-                <span className="font-playfair text-2xl text-gold font-bold w-8 flex-shrink-0 leading-none pt-1">
-                  {i + 1}
-                </span>
-                <span className="font-source-serif text-white text-lg leading-snug">
-                  {ch.chapter_title}
-                </span>
-              </li>
-            ))}
-          </ol>
-
-          {chapterCount > 6 && (
-            <p className="text-gold/50 text-sm mt-8 font-inter">
-              + {chapterCount - 6} more {chapterCount - 6 === 1 ? 'chapter' : 'chapters'}
-            </p>
-          )}
-
-          {resourceCount > 0 && (
-            <div className="mt-16 border border-gold/20 bg-gold/5 rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl" aria-hidden>📎</span>
-                <h3 className="font-playfair text-gold text-xl">
-                  {resourceCount} Downloadable {resourceCount === 1 ? 'Resource' : 'Resources'} Included
-                </h3>
-              </div>
-              <p className="font-source-serif text-white/60 text-base leading-relaxed">
-                Checklists, templates, scripts, and frameworks — practical tools you keep and use beyond the book.
-              </p>
-            </div>
-          )}
+          <ChapterList
+            chapters={chapters}
+            totalCount={chapterCount}
+            resourceCount={resourceCount}
+          />
         </div>
       </section>
 
-      {/* ── ABOUT THE AUTHOR (cream) ──────────────────────────────────────── */}
+      {/* ── 4. ABOUT THE AUTHOR (cream) ────────────────────────────── */}
       {profile?.author_bio && (
         <section className="bg-cream-1 py-20 px-6">
           <div className="max-w-3xl mx-auto">
-            <h2 className="font-playfair text-3xl text-ink-1 mb-10">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-ink-1/40 font-medium mb-3">
               About the Author
+            </p>
+            <h2 className="font-playfair text-3xl text-ink-1 mb-10">
+              About {authorName}
             </h2>
-            <div className="flex gap-6 items-start">
+            <div className="flex gap-8 items-start">
               {profile.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={profile.avatar_url}
                   alt={authorName}
-                  className="w-20 h-20 rounded-full object-cover flex-shrink-0"
+                  width={96}
+                  height={96}
+                  className="w-24 h-24 rounded-full object-cover flex-shrink-0 ring-2 ring-gold/30 shadow-lg"
                 />
               ) : (
                 <div
-                  className="w-20 h-20 rounded-full bg-teal-700 flex items-center justify-center text-white font-playfair text-2xl flex-shrink-0"
+                  className="w-24 h-24 rounded-full flex-shrink-0 bg-teal-800 flex items-center justify-center font-playfair text-3xl text-white"
                   aria-hidden
                 >
                   {authorInitial}
@@ -372,7 +293,10 @@ export default async function GoPage({ params }: Props) {
                 <p className="font-playfair text-xl text-ink-1 font-semibold mb-3">
                   {authorName}
                 </p>
-                <p className="font-source-serif text-ink-1/75 leading-relaxed whitespace-pre-line">
+                {/* whitespace-pre-line preserves single-line breaks in
+                    the bio so authors can format short multi-line bios
+                    without writing markdown. */}
+                <p className="font-source-serif text-ink-1/70 leading-relaxed text-base whitespace-pre-line">
                   {profile.author_bio}
                 </p>
               </div>
@@ -381,21 +305,46 @@ export default async function GoPage({ params }: Props) {
         </section>
       )}
 
-      {/* ── FINAL CTA ─────────────────────────────────────────────────────── */}
-      <section className="bg-ink-1 py-24 px-6 text-center">
-        {leadCount > 0 && (
-          <p className="text-white/40 text-sm mb-6 font-inter">
-            Join {leadCount.toLocaleString()} {leadCount === 1 ? 'reader' : 'readers'}
+      {/* ── 5. FINAL CTA (dark, gold glow) ─────────────────────────── */}
+      <section
+        className="relative bg-ink-1 py-24 px-6 text-center overflow-hidden"
+        style={{
+          // Mirrors the hero's glow but centered — closes the visual
+          // loop. Slightly tighter (50/60 vs 60/70) so the brightest
+          // point sits behind the heading itself.
+          backgroundImage:
+            'radial-gradient(ellipse 50% 60% at 50% 50%, rgba(201,168,76,0.06) 0%, transparent 70%)',
+        }}
+      >
+        <div className="relative max-w-2xl mx-auto">
+          {leadCount > 0 && (
+            <p className="text-white/30 text-sm mb-4">
+              Join {leadCount.toLocaleString()} {leadCount === 1 ? 'reader' : 'readers'}
+            </p>
+          )}
+          <h2 className="font-playfair text-3xl md:text-4xl text-white mb-4">
+            Ready when you are.
+          </h2>
+          <p className="font-source-serif text-white/50 text-lg mb-10">
+            Get instant access and start reading today.
           </p>
-        )}
-        <div className="max-w-sm mx-auto">
-          <PrimaryCta href={readHref} text={cta.text} subtext={cta.subtext} />
+          <div className="max-w-sm mx-auto">
+            <Link
+              href={readHref}
+              className="block w-full py-4 px-8 rounded-xl bg-gold text-ink-1 font-semibold text-lg text-center transition-all duration-200 hover:bg-gold-soft hover:shadow-[0_0_30px_rgba(201,168,76,0.4)] active:scale-[0.98]"
+            >
+              {ctaCopy.text}
+            </Link>
+            {ctaCopy.sub && (
+              <p className="text-white/30 text-xs text-center mt-2">{ctaCopy.sub}</p>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
-      <footer className="bg-[#080E18] py-10 text-center">
-        <p className="text-white/20 text-xs font-inter">
+      {/* ── 6. FOOTER ──────────────────────────────────────────────── */}
+      <footer className="bg-[#080E18] py-10 px-6 text-center">
+        <p className="text-white/20 text-xs">
           Published with{' '}
           <a
             href="https://bookbuilderpro.app"
@@ -405,6 +354,6 @@ export default async function GoPage({ params }: Props) {
           </a>
         </p>
       </footer>
-    </div>
+    </>
   )
 }
