@@ -188,6 +188,24 @@ const config: Config = {
           '0%':   { clipPath: 'inset(100% 0 0 0)', opacity: '0' },
           '100%': { clipPath: 'inset(0% 0 0 0)',   opacity: '1' },
         },
+        // Used by SplashScreen — a slow vertical bob so the closed book reads
+        // as resting on the canvas rather than glued to it.
+        bookFloat: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%':      { transform: 'translateY(-4px)' },
+        },
+        // Used by BookLoading — a single tied scale+opacity breath. Same
+        // 1.5s clock as pageSliver so the two read as one motion.
+        bookBreathe: {
+          '0%, 100%': { transform: 'scale(1)',    opacity: '0.7' },
+          '50%':      { transform: 'scale(1.04)', opacity: '1' },
+        },
+        // Used by BookLoading — a thin sliver of page peeking past the
+        // cover edge that slides 2px in time with bookBreathe.
+        pageSliver: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '50%':      { transform: 'translateX(2px)' },
+        },
       },
       animation: {
         'fade-in':      'fadeIn 0.3s ease-out forwards',
@@ -201,6 +219,9 @@ const config: Config = {
         'page-flip':    'pageFlip 1.2s ease-in-out infinite',
         'cover-open':   'coverOpen 1.2s ease-in-out forwards',
         'reveal-up':    'revealUp 0.6s ease-out forwards',
+        'book-float':   'bookFloat 2s ease-in-out infinite',
+        'book-breathe': 'bookBreathe 1.5s ease-in-out infinite',
+        'page-sliver':  'pageSliver 1.5s ease-in-out infinite',
       },
     },
   },
