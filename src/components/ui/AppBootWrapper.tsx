@@ -1,58 +1,113 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SplashScreen } from './SplashScreen'
 
 const SESSION_KEY = 'app_booted'
+
+/** Time to wait for the page to finish loading before we give up and show
+ *  the splash. A fast app should be interactive well under this; if we're
+ *  still waiting after this threshold, the splash earns its place by
+ *  covering a real wait. */
+const SPLASH_THRESHOLD_MS = 800
 
 interface Props {
   children: React.ReactNode
 }
 
-/** Renders the splash overlay on first visit per session, then renders the
- *  app underneath. Children mount immediately on every render so background
- *  data fetching starts in parallel with the splash animation — the splash
- *  is purely visual chrome, not a gate on the app's readiness.
+type Phase = 'deciding' | 'splash' | 'booted'
+
+/** Conditional splash gate. On mount, races a `SPLASH_THRESHOLD_MS` timer
+ *  against the page's `load` event:
  *
- *  Hydration note: the splash decision can only be made on the client
- *  (sessionStorage is browser-only). We start with `decided=false` so SSR
- *  and first client render match (no splash), then flip the flag in an
- *  effect. Worst case the user sees a single frame of the app before the
- *  splash overlays it — which is fine because the splash is `fixed inset-0`
- *  and covers everything behind it. */
+ *    - load fires first → app was ready quickly, skip the splash entirely
+ *    - threshold fires first → still loading, mount the splash overlay
+ *
+ *  Once the splash mounts it always runs to completion (the spec is firm
+ *  on that — half-played animations feel broken).
+ *
+ *  The sessionStorage flag short-circuits the race on any subsequent
+ *  mount in the same session: if we already showed (or skipped past) the
+ *  splash once, we don't reconsider on the next navigation.
+ *
+ *  Hydration note: SSR renders no splash. The first client render also
+ *  renders no splash because `phase` defaults to `'deciding'`. No mismatch. */
 export function AppBootWrapper({ children }: Props) {
-  const [decided, setDecided] = useState(false)
-  const [showSplash, setShowSplash] = useState(false)
+  const [phase, setPhase] = useState<Phase>('deciding')
+  const decidedRef = useRef(false)
 
   useEffect(() => {
-    let booted = false
+    // sessionStorage gate — already booted this session, never show again.
+    let alreadyBooted = false
     try {
-      booted = typeof window !== 'undefined' && !!window.sessionStorage?.getItem(SESSION_KEY)
+      alreadyBooted = !!window.sessionStorage?.getItem(SESSION_KEY)
     } catch {
-      // sessionStorage can throw in some embedded/sandboxed contexts.
-      // Failing safe = skip the splash so the user isn't stuck on it.
-      booted = true
+      // Failing safe in sandboxed contexts where storage throws: act as
+      // if we've already booted so the user is never stuck on a splash.
+      alreadyBooted = true
     }
-    if (!booted) setShowSplash(true)
-    setDecided(true)
+    if (alreadyBooted) {
+      setPhase('booted')
+      return
+    }
+
+    // If the document already finished loading before this effect ran,
+    // there's no wait to cover — skip the splash and mark booted. Done
+    // before any timer/listener is set up, so there's nothing to clean
+    // up and no temporal-dead-zone trap.
+    if (document.readyState === 'complete') {
+      decidedRef.current = true
+      markBooted()
+      setPhase('booted')
+      return
+    }
+
+    // Race the threshold timer against the page's load event. Whoever
+    // fires first wins; the loser is cancelled via `decide`'s idempotent
+    // guard and the cleanup function on unmount.
+    let timer: number | undefined
+    function onLoad() { decide('skip') }
+    function decide(outcome: 'skip' | 'show') {
+      if (decidedRef.current) return
+      decidedRef.current = true
+      if (timer !== undefined) window.clearTimeout(timer)
+      window.removeEventListener('load', onLoad)
+      if (outcome === 'show') {
+        setPhase('splash')
+      } else {
+        markBooted()
+        setPhase('booted')
+      }
+    }
+    timer = window.setTimeout(() => decide('show'), SPLASH_THRESHOLD_MS)
+    window.addEventListener('load', onLoad, { once: true })
+
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer)
+      window.removeEventListener('load', onLoad)
+    }
   }, [])
 
   function handleComplete() {
-    try {
-      window.sessionStorage?.setItem(SESSION_KEY, '1')
-    } catch {
-      // ignore — the splash already played
-    }
-    setShowSplash(false)
+    markBooted()
+    setPhase('booted')
   }
 
   return (
     <>
       {children}
-      {decided && showSplash && <SplashScreen onComplete={handleComplete} />}
+      {phase === 'splash' && <SplashScreen onComplete={handleComplete} />}
       <ResetSplashButton />
     </>
   )
+}
+
+function markBooted() {
+  try {
+    window.sessionStorage?.setItem(SESSION_KEY, '1')
+  } catch {
+    // ignore — the splash has already done its job for this load
+  }
 }
 
 /** Dev-only affordance for testing the splash without devtools. Clears the
