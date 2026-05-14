@@ -41,6 +41,16 @@ export function AppBootWrapper({ children }: Props) {
   const decidedRef = useRef(false)
 
   useEffect(() => {
+    // React 18 Strict Mode invokes effects twice in dev (mount → cleanup →
+    // mount). Without this guard the second invocation observes the
+    // already-consumed `force_splash` flag, falls through to the normal
+    // load-time race, sees `document.readyState === 'complete'`, and
+    // flips phase from 'splash' (set by the first invocation) back to
+    // 'booted' — the user sees a half-second of splash then nothing.
+    // The ref persists across invocations on the same component instance,
+    // so early-returning here keeps the first decision authoritative.
+    if (decidedRef.current) return
+
     // Dev-only override — the Reset Splash button sets force_splash so the
     // splash is testable on a warm dev server where the fast-load path
     // would otherwise skip it. Read-and-clear so it only takes effect on
