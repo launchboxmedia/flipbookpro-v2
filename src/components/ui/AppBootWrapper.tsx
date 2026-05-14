@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { SplashScreen } from './SplashScreen'
 
 const SESSION_KEY = 'app_booted'
+/** Set by the dev-only Reset Splash button so the next mount bypasses the
+ *  load-time race and always shows the splash. Cleared as soon as it's
+ *  observed so subsequent navigations in the same session behave normally. */
+const FORCE_KEY = 'force_splash'
 
 /** Time to wait for the page to finish loading before we give up and show
  *  the splash. A fast app should be interactive well under this; if we're
@@ -37,6 +41,25 @@ export function AppBootWrapper({ children }: Props) {
   const decidedRef = useRef(false)
 
   useEffect(() => {
+    // Dev-only override — the Reset Splash button sets force_splash so the
+    // splash is testable on a warm dev server where the fast-load path
+    // would otherwise skip it. Read-and-clear so it only takes effect on
+    // the mount immediately following the button click.
+    let forced = false
+    try {
+      if (window.sessionStorage?.getItem(FORCE_KEY)) {
+        forced = true
+        window.sessionStorage.removeItem(FORCE_KEY)
+      }
+    } catch {
+      // sessionStorage unavailable — fall through to normal path
+    }
+    if (forced) {
+      decidedRef.current = true
+      setPhase('splash')
+      return
+    }
+
     // sessionStorage gate — already booted this session, never show again.
     let alreadyBooted = false
     try {
@@ -120,6 +143,12 @@ function ResetSplashButton() {
   function reset() {
     try {
       window.sessionStorage?.removeItem(SESSION_KEY)
+      // Force the next mount to show the splash even on a warm session
+      // where document.readyState would already be 'complete' before our
+      // race timer arms. Without this flag, the conditional gate would
+      // skip the splash via the fast path and defeat the whole point of
+      // a "reset" button.
+      window.sessionStorage?.setItem(FORCE_KEY, '1')
     } catch {
       // ignore
     }
