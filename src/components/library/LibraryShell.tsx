@@ -94,8 +94,8 @@ export function LibraryShell({ published, ready, inProgress }: Props) {
       {/* Header row — title + subtitle + primary CTA. */}
       <header className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="font-playfair text-3xl text-white">Library</h1>
-          <p className="text-white/40 text-sm mt-1">Your books</p>
+          <h1 className="font-playfair text-3xl text-ink-1 dark:text-white">Library</h1>
+          <p className="text-ink-1/40 dark:text-white/40 text-sm mt-1">Your books</p>
         </div>
         <div className="shrink-0">
           <NewBookButton />
@@ -108,8 +108,8 @@ export function LibraryShell({ published, ready, inProgress }: Props) {
       {isLibraryEmpty ? (
         <div className="flex flex-col items-center justify-center text-center py-32">
           <BookOpen className="w-16 h-16 text-gold mb-6" />
-          <h2 className="font-playfair text-2xl text-white mb-3">Your library is empty</h2>
-          <p className="text-white/50 font-source-serif mb-8 max-w-md">
+          <h2 className="font-playfair text-2xl text-ink-1 dark:text-white mb-3">Your library is empty</h2>
+          <p className="text-ink-1/50 dark:text-white/50 font-source-serif mb-8 max-w-md">
             Create your first book to fill the shelf.
           </p>
           <NewBookButton />
@@ -130,9 +130,9 @@ export function LibraryShell({ published, ready, inProgress }: Props) {
           {noMatches ? (
             // Filters reduced the visible set to zero — different framing
             // from a genuinely empty library.
-            <div className="flex flex-col items-center justify-center text-center py-24 border border-dashed border-ink-3 rounded-2xl bg-ink-2/30">
-              <p className="font-playfair text-lg text-white/70 mb-1">No books match your filters</p>
-              <p className="text-white/40 text-sm font-source-serif">Try a different search or clear the filter.</p>
+            <div className="flex flex-col items-center justify-center text-center py-24 border border-dashed border-cream-3 dark:border-ink-3 rounded-2xl bg-cream-2 dark:bg-ink-2/30">
+              <p className="font-playfair text-lg text-ink-1/70 dark:text-white/70 mb-1">No books match your filters</p>
+              <p className="text-ink-1/40 dark:text-white/40 text-sm font-source-serif">Try a different search or clear the filter.</p>
             </div>
           ) : (
             <div className="animate-fade-in">
@@ -165,8 +165,8 @@ function GroupHeader({ label, count, accent }: { label: string; count: number; a
   return (
     <div className="flex items-center gap-3 mb-4">
       <span className={`text-xs uppercase tracking-widest font-semibold ${accent}`}>{label}</span>
-      <span className="text-white/20 text-xs">({count})</span>
-      <div className="flex-1 h-px bg-ink-3/50" />
+      <span className="text-ink-1/20 dark:text-white/20 text-xs">({count})</span>
+      <div className="flex-1 h-px bg-cream-3 dark:bg-ink-3/50" />
     </div>
   )
 }
@@ -174,8 +174,8 @@ function GroupHeader({ label, count, accent }: { label: string; count: number; a
 function GridView({ groups }: GroupsView) {
   const sections: Array<{ key: ShelfKey; label: string; accent: string; books: BookWithMeta[] }> = [
     { key: 'published',  label: 'Published',   accent: 'text-gold',       books: groups.published },
-    { key: 'ready',      label: 'Ready',       accent: 'text-white/60',   books: groups.ready },
-    { key: 'inProgress', label: 'In Progress', accent: 'text-white/30',   books: groups.inProgress },
+    { key: 'ready',      label: 'Ready',       accent: 'text-ink-1/60 dark:text-white/60',   books: groups.ready },
+    { key: 'inProgress', label: 'In Progress', accent: 'text-ink-1/30 dark:text-white/30',   books: groups.inProgress },
   ]
   return (
     <>
@@ -198,8 +198,8 @@ function GridView({ groups }: GroupsView) {
 function ListView({ groups }: GroupsView) {
   const sections: Array<{ key: ShelfKey; label: string; accent: string; books: BookWithMeta[] }> = [
     { key: 'published',  label: 'Published',   accent: 'text-gold',       books: groups.published },
-    { key: 'ready',      label: 'Ready',       accent: 'text-white/60',   books: groups.ready },
-    { key: 'inProgress', label: 'In Progress', accent: 'text-white/30',   books: groups.inProgress },
+    { key: 'ready',      label: 'Ready',       accent: 'text-ink-1/60 dark:text-white/60',   books: groups.ready },
+    { key: 'inProgress', label: 'In Progress', accent: 'text-ink-1/30 dark:text-white/30',   books: groups.inProgress },
   ]
   return (
     <>

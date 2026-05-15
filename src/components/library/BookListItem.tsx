@@ -11,9 +11,9 @@ interface Props {
 function statusPill(book: BookWithMeta): { label: string; className: string } {
   if (book.isPublished) return { label: 'Published', className: 'border-gold/30 text-gold' }
   if (book.approvedCount > 0 && book.approvedCount === book.chapterCount) {
-    return { label: 'Ready', className: 'border-white/20 text-white/50' }
+    return { label: 'Ready', className: 'border-ink-1/20 dark:border-white/20 text-ink-1/50 dark:text-white/50' }
   }
-  return { label: 'Draft', className: 'border-white/10 text-white/30' }
+  return { label: 'Draft', className: 'border-ink-1/10 dark:border-white/10 text-ink-1/30 dark:text-white/30' }
 }
 
 function timeAgo(iso: string): string {
@@ -41,7 +41,7 @@ export function BookListItem({ book }: Props) {
     <Link
       href={`/book/${book.id}/coauthor`}
       aria-label={`Open ${book.title}`}
-      className="flex items-center gap-4 p-4 bg-ink-2 rounded-xl mb-2 border border-ink-4 hover:border-ink-3 transition-colors duration-200"
+      className="flex items-center gap-4 p-4 bg-cream-2 dark:bg-ink-2 rounded-xl mb-2 border border-[#E8E0D0] dark:border-ink-4 hover:border-cream-3 dark:hover:border-ink-3 transition-colors duration-200"
     >
       {/* Thumbnail */}
       {book.cover_image_url ? (
@@ -53,14 +53,14 @@ export function BookListItem({ book }: Props) {
           className="w-10 h-14 rounded object-cover shrink-0"
         />
       ) : (
-        <div className="w-10 h-14 rounded bg-ink-3 flex items-center justify-center shrink-0" aria-hidden="true">
+        <div className="w-10 h-14 rounded bg-cream-3 dark:bg-ink-3 flex items-center justify-center shrink-0" aria-hidden="true">
           <BookOpen className="w-4 h-4 text-gold" />
         </div>
       )}
 
       <div className="flex-1 min-w-0">
-        <p className="text-white font-semibold text-sm truncate">{book.title}</p>
-        <p className="text-white/40 text-xs mt-0.5">
+        <p className="text-ink-1 dark:text-white font-semibold text-sm truncate">{book.title}</p>
+        <p className="text-ink-1/40 dark:text-white/40 text-xs mt-0.5">
           {book.chapterCount} chapter{book.chapterCount === 1 ? '' : 's'} · Updated {timeAgo(book.updated_at)}
         </p>
       </div>
@@ -74,7 +74,7 @@ export function BookListItem({ book }: Props) {
         <span className={`text-xs px-2 py-0.5 rounded-full border ${pill.className}`}>
           {pill.label}
         </span>
-        <span className="text-white/30 text-sm">Open →</span>
+        <span className="text-ink-1/30 dark:text-white/30 text-sm">Open →</span>
       </div>
     </Link>
   )

@@ -29,9 +29,9 @@ function spineBackground(book: BookWithMeta): string {
 function statusLabel(book: BookWithMeta): { text: string; className: string } {
   if (book.isPublished) return { text: 'Live', className: 'text-gold' }
   if (book.approvedCount > 0 && book.approvedCount === book.chapterCount) {
-    return { text: 'Ready', className: 'text-white/70' }
+    return { text: 'Ready', className: 'text-ink-1/70 dark:text-white/70' }
   }
-  return { text: 'Draft', className: 'text-white/40' }
+  return { text: 'Draft', className: 'text-ink-1/40 dark:text-white/40' }
 }
 
 export function BookSpine({ book, index }: Props) {
@@ -95,9 +95,9 @@ export function BookSpine({ book, index }: Props) {
         className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
         role="tooltip"
       >
-        <div className="bg-ink-1 border border-ink-3 rounded-lg px-3 py-2 shadow-xl">
-          <p className="text-white text-xs font-semibold">{book.title}</p>
-          <p className="text-white/40 text-xs">
+        <div className="bg-cream-1 dark:bg-ink-1 border border-cream-3 dark:border-ink-3 rounded-lg px-3 py-2 shadow-xl">
+          <p className="text-ink-1 dark:text-white text-xs font-semibold">{book.title}</p>
+          <p className="text-ink-1/40 dark:text-white/40 text-xs">
             {book.chapterCount} chapter{book.chapterCount === 1 ? '' : 's'}
           </p>
           {book.isPublished && book.leadCount > 0 && (

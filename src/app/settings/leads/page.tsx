@@ -52,15 +52,15 @@ export default async function LeadsPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="font-playfair text-3xl text-ink-1">Leads</h2>
-          <p className="text-ink-1/60 text-sm font-source-serif mt-1">
+          <h2 className="font-playfair text-3xl text-ink-1 dark:text-white">Leads</h2>
+          <p className="text-ink-1/60 dark:text-white/60 text-sm font-source-serif mt-1">
             {totalLeads} lead{totalLeads !== 1 ? 's' : ''} collected
           </p>
         </div>
         {totalLeads > 0 && (
           <button
             id="export-csv-btn"
-            className="flex items-center gap-2 px-4 py-2 bg-gold hover:bg-gold/90 text-ink-1 text-sm font-inter font-medium rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gold hover:bg-gold/90 text-ink-1 dark:text-white text-sm font-inter font-medium rounded-lg transition-colors"
           >
             <Download className="w-4 h-4" />
             Export CSV
@@ -71,19 +71,19 @@ export default async function LeadsPage() {
       {/* Stats card */}
       {totalLeads > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white border border-cream-3 rounded-xl px-5 py-4">
-            <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider mb-1">Total Leads</p>
-            <p className="text-2xl font-playfair text-ink-1">{totalLeads}</p>
+          <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl px-5 py-4">
+            <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider mb-1">Total Leads</p>
+            <p className="text-2xl font-playfair text-ink-1 dark:text-white">{totalLeads}</p>
           </div>
-          <div className="bg-white border border-cream-3 rounded-xl px-5 py-4">
-            <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider mb-1">Unique Emails</p>
-            <p className="text-2xl font-playfair text-ink-1">
+          <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl px-5 py-4">
+            <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider mb-1">Unique Emails</p>
+            <p className="text-2xl font-playfair text-ink-1 dark:text-white">
               {new Set(rows.map(r => r.email)).size}
             </p>
           </div>
-          <div className="bg-white border border-cream-3 rounded-xl px-5 py-4">
-            <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider mb-1">Books with Leads</p>
-            <p className="text-2xl font-playfair text-ink-1">
+          <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl px-5 py-4">
+            <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider mb-1">Books with Leads</p>
+            <p className="text-2xl font-playfair text-ink-1 dark:text-white">
               {new Set(rows.map(r => r.book_title)).size}
             </p>
           </div>
@@ -93,36 +93,36 @@ export default async function LeadsPage() {
       {/* Table or empty state */}
       {totalLeads === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-center">
-          <Mail className="w-12 h-12 text-[#333] mb-4" />
-          <h3 className="font-playfair text-xl text-ink-1/60 mb-2">No leads yet</h3>
-          <p className="text-ink-1/60 text-sm font-source-serif mb-6 max-w-sm">
+          <Mail className="w-12 h-12 text-[#333] dark:text-white/30 mb-4" />
+          <h3 className="font-playfair text-xl text-ink-1/60 dark:text-white/60 mb-2">No leads yet</h3>
+          <p className="text-ink-1/60 dark:text-white/60 text-sm font-source-serif mb-6 max-w-sm">
             Publish a book with an email gate to start collecting leads from your readers.
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-cream-3 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-cream-3">
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Email</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Name</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Book</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Source</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Date</th>
+              <tr className="border-b border-cream-3 dark:border-ink-3">
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Email</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Name</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Book</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Source</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Date</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((lead, i) => (
-                <tr key={lead.id} className={`border-b border-cream-3 ${i === rows.length - 1 ? 'border-b-0' : ''}`}>
-                  <td className="px-5 py-3 text-sm font-inter text-ink-1">{lead.email}</td>
-                  <td className="px-5 py-3 text-sm font-inter text-ink-1/70">{lead.name ?? '—'}</td>
+                <tr key={lead.id} className={`border-b border-cream-3 dark:border-ink-3 ${i === rows.length - 1 ? 'border-b-0' : ''}`}>
+                  <td className="px-5 py-3 text-sm font-inter text-ink-1 dark:text-white">{lead.email}</td>
+                  <td className="px-5 py-3 text-sm font-inter text-ink-1/70 dark:text-white/70">{lead.name ?? '—'}</td>
                   <td className="px-5 py-3 text-sm font-inter text-accent truncate max-w-[200px]">{lead.book_title}</td>
                   <td className="px-5 py-3">
-                    <span className="inline-block text-xs font-inter font-medium px-2 py-0.5 rounded-full bg-cream-3 text-ink-1/60 capitalize">
+                    <span className="inline-block text-xs font-inter font-medium px-2 py-0.5 rounded-full bg-cream-3 dark:bg-ink-3 text-ink-1/60 dark:text-white/60 capitalize">
                       {lead.source}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60">
+                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60 dark:text-white/60">
                     {new Date(lead.created_at).toLocaleDateString()}
                   </td>
                 </tr>

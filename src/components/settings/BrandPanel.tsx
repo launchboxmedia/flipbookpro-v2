@@ -271,23 +271,23 @@ export function BrandPanel({ profile: initial }: Props) {
   const enrichDays = daysSince(profile?.enrich_ran_at ?? null)
 
   return (
-    <div className="min-h-screen bg-cream-1">
+    <div className="min-h-screen bg-cream-1 dark:bg-ink-1">
       <div className="max-w-xl mx-auto px-6 py-10">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 hover:text-ink-1 font-inter transition-colors mb-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" /> Dashboard
         </Link>
 
-        <h1 className="font-playfair text-3xl text-ink-1 mb-1">Brand Identity</h1>
-        <p className="text-ink-1/60 font-inter text-sm mb-8">
+        <h1 className="font-playfair text-3xl text-ink-1 dark:text-white mb-1">Brand Identity</h1>
+        <p className="text-ink-1/60 dark:text-white/60 font-inter text-sm mb-8">
           Your brand settings apply to all books.
         </p>
 
         {/* Auto-fill from website — top of panel. Sits above all manual
             fields so a brand-new user sees it first. */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4 shadow-[0_2px_18px_rgba(0,0,0,0.05)]">
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-4 shadow-[0_2px_18px_rgba(0,0,0,0.05)]">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-gold" />
-            <p className="text-xs font-inter font-semibold text-ink-1/70 uppercase tracking-wider">
+            <p className="text-xs font-inter font-semibold text-ink-1/70 dark:text-white/70 uppercase tracking-wider">
               Auto-fill from your website
             </p>
           </div>
@@ -303,14 +303,14 @@ export function BrandPanel({ profile: initial }: Props) {
                 onChange={(e) => setEnrichUrl(e.target.value)}
                 placeholder="https://yourwebsite.com"
                 disabled={enriching}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 placeholder:text-ink-1/40 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white placeholder:text-ink-1/40 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
               />
             </div>
             <button
               type="button"
               onClick={autoFill}
               disabled={enriching || !enrichUrl.trim()}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gold hover:bg-gold-soft text-ink-1 dark:text-white font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-40 whitespace-nowrap"
             >
               {enriching
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Reading your website…</>
@@ -329,13 +329,13 @@ export function BrandPanel({ profile: initial }: Props) {
             Each is independent; uploading one doesn't affect the others.
             Squares are 14 × 14 (logo keeps the wider auto-width landscape
             look — logos are usually wordmarks). */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-6">
-          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Brand Assets</p>
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-6">
+          <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Brand Assets</p>
 
           {/* Logo ── */}
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-inter font-medium text-ink-1">Logo</p>
+              <p className="text-sm font-inter font-medium text-ink-1 dark:text-white">Logo</p>
               <p className="text-[10px] font-inter text-ink-1/50">PNG / JPEG / WebP · max 2 MB</p>
             </div>
             <div className="flex items-center gap-4">
@@ -346,20 +346,20 @@ export function BrandPanel({ profile: initial }: Props) {
                   <button
                     onClick={() => clearAsset('logo_url')}
                     aria-label="Remove logo"
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 dark:bg-ink-3 rounded-full flex items-center justify-center text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ) : (
-                <div className="h-14 w-24 border border-dashed border-cream-3 rounded flex items-center justify-center text-ink-1/60 text-xs font-inter">
+                <div className="h-14 w-24 border border-dashed border-cream-3 dark:border-ink-3 rounded flex items-center justify-center text-ink-1/60 dark:text-white/60 text-xs font-inter">
                   No logo
                 </div>
               )}
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={logoLoading}
-                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 dark:border-ink-3 hover:border-gold/40 text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
               >
                 {logoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {profile?.logo_url ? 'Replace' : 'Upload'} Logo
@@ -377,36 +377,36 @@ export function BrandPanel({ profile: initial }: Props) {
             </p>
           </div>
 
-          <div className="border-t border-cream-3" />
+          <div className="border-t border-cream-3 dark:border-ink-3" />
 
           {/* Author Photo ── */}
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-inter font-medium text-ink-1">Author Photo</p>
+              <p className="text-sm font-inter font-medium text-ink-1 dark:text-white">Author Photo</p>
               <p className="text-[10px] font-inter text-ink-1/50">PNG / JPEG / WebP · max 5 MB</p>
             </div>
             <div className="flex items-center gap-4">
               {profile?.avatar_url ? (
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={profile.avatar_url} alt="Author photo" className="h-16 w-16 object-cover rounded-md border border-cream-3" />
+                  <img src={profile.avatar_url} alt="Author photo" className="h-16 w-16 object-cover rounded-md border border-cream-3 dark:border-ink-3" />
                   <button
                     onClick={() => clearAsset('avatar_url')}
                     aria-label="Remove author photo"
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 dark:bg-ink-3 rounded-full flex items-center justify-center text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ) : (
-                <div className="h-16 w-16 border border-dashed border-cream-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
+                <div className="h-16 w-16 border border-dashed border-cream-3 dark:border-ink-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
                   No photo
                 </div>
               )}
               <button
                 onClick={() => authorPhotoRef.current?.click()}
                 disabled={authorPhotoLoading}
-                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 dark:border-ink-3 hover:border-gold/40 text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
               >
                 {authorPhotoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {profile?.avatar_url ? 'Replace' : 'Upload'} Photo
@@ -424,36 +424,36 @@ export function BrandPanel({ profile: initial }: Props) {
             </p>
           </div>
 
-          <div className="border-t border-cream-3" />
+          <div className="border-t border-cream-3 dark:border-ink-3" />
 
           {/* Mascot ── */}
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-inter font-medium text-ink-1">Brand Mascot</p>
+              <p className="text-sm font-inter font-medium text-ink-1 dark:text-white">Brand Mascot</p>
               <p className="text-[10px] font-inter text-ink-1/50">PNG / WebP only · max 5 MB</p>
             </div>
             <div className="flex items-center gap-4">
               {profile?.mascot_url ? (
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={profile.mascot_url} alt="Mascot" className="h-16 w-16 object-contain rounded-md border border-cream-3 bg-cream-2" />
+                  <img src={profile.mascot_url} alt="Mascot" className="h-16 w-16 object-contain rounded-md border border-cream-3 dark:border-ink-3 bg-cream-2 dark:bg-ink-3" />
                   <button
                     onClick={() => clearAsset('mascot_url')}
                     aria-label="Remove mascot"
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 rounded-full flex items-center justify-center text-ink-1/60 hover:text-ink-1"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-cream-3 dark:bg-ink-3 rounded-full flex items-center justify-center text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ) : (
-                <div className="h-16 w-16 border border-dashed border-cream-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
+                <div className="h-16 w-16 border border-dashed border-cream-3 dark:border-ink-3 rounded-md flex items-center justify-center text-ink-1/40 text-[10px] font-inter">
                   No mascot
                 </div>
               )}
               <button
                 onClick={() => mascotRef.current?.click()}
                 disabled={mascotLoading}
-                className="flex items-center gap-2 px-3 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 px-3 py-2 border border-cream-3 dark:border-ink-3 hover:border-gold/40 text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
               >
                 {mascotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {profile?.mascot_url ? 'Replace' : 'Upload'} Mascot
@@ -473,72 +473,72 @@ export function BrandPanel({ profile: initial }: Props) {
         </div>
 
         {/* Author info */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
-          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Author</p>
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-4">
+          <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Author</p>
           <div className="space-y-1">
-            <label className="text-xs font-inter text-ink-1/70">Display name</label>
+            <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Display name</label>
             <div className={ringClass(highlightKeys.has('fullName'))}>
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Your name"
-                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-inter text-ink-1/70">Author bio</label>
+            <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Author bio</label>
             <div className={ringClass(highlightKeys.has('authorBio'))}>
               <textarea
                 value={authorBio}
                 onChange={(e) => setAuthorBio(e.target.value)}
                 rows={3}
                 placeholder="A sentence or two about you and your work."
-                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
+                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-inter text-ink-1/70">Brand name</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Brand name</label>
               <div className={ringClass(highlightKeys.has('brandName'))}>
                 <input
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   placeholder="If different from display name"
-                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-inter text-ink-1/70">Brand tagline</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Brand tagline</label>
               <div className={ringClass(highlightKeys.has('brandTagline'))}>
                 <input
                   value={brandTagline}
                   onChange={(e) => setBrandTagline(e.target.value)}
                   placeholder="One line that sums up your work"
-                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
               </div>
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-inter text-ink-1/70">Audience</label>
+            <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Audience</label>
             <div className={ringClass(highlightKeys.has('audienceDescription'))}>
               <input
                 value={audienceDescription}
                 onChange={(e) => setAudienceDescription(e.target.value)}
                 placeholder="Who you serve"
-                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
             </div>
           </div>
           {(expertise.length > 0 || highlightKeys.has('expertise')) && (
             <div className={`space-y-1 ${ringClass(highlightKeys.has('expertise'))}`}>
-              <label className="text-xs font-inter text-ink-1/70">Expertise</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Expertise</label>
               <div className="flex flex-wrap gap-1.5">
                 {expertise.map((e) => (
-                  <span key={e} className="inline-flex items-center px-2.5 py-1 rounded-full bg-cream-2 border border-cream-3 text-ink-1 font-inter text-xs">
+                  <span key={e} className="inline-flex items-center px-2.5 py-1 rounded-full bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-xs">
                     {e}
                   </span>
                 ))}
@@ -547,10 +547,10 @@ export function BrandPanel({ profile: initial }: Props) {
           )}
           {(offerTypes.length > 0 || highlightKeys.has('offerTypes')) && (
             <div className={`space-y-1 ${ringClass(highlightKeys.has('offerTypes'))}`}>
-              <label className="text-xs font-inter text-ink-1/70">Offer types</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Offer types</label>
               <div className="flex flex-wrap gap-1.5">
                 {offerTypes.map((o) => (
-                  <span key={o} className="inline-flex items-center px-2.5 py-1 rounded-full bg-cream-2 border border-cream-3 text-ink-1 font-inter text-xs">
+                  <span key={o} className="inline-flex items-center px-2.5 py-1 rounded-full bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-xs">
                     {o}
                   </span>
                 ))}
@@ -561,29 +561,29 @@ export function BrandPanel({ profile: initial }: Props) {
 
         {/* Call-to-action */}
         {(ctaUrl || ctaText || highlightKeys.has('ctaUrl') || highlightKeys.has('ctaText')) && (
-          <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
-            <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Call-to-action</p>
+          <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-4">
+            <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Call-to-action</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-inter text-ink-1/70">CTA text</label>
+                <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">CTA text</label>
                 <div className={ringClass(highlightKeys.has('ctaText'))}>
                   <input
                     value={ctaText}
                     onChange={(e) => setCtaText(e.target.value)}
                     placeholder="e.g. Work with me"
-                    className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-inter text-ink-1/70">CTA URL</label>
+                <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">CTA URL</label>
                 <div className={ringClass(highlightKeys.has('ctaUrl'))}>
                   <input
                     type="url"
                     value={ctaUrl}
                     onChange={(e) => setCtaUrl(e.target.value)}
                     placeholder="https://yoursite.com/contact"
-                    className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                   />
                 </div>
               </div>
@@ -592,11 +592,11 @@ export function BrandPanel({ profile: initial }: Props) {
         )}
 
         {/* Brand colors */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-5">
-          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Brand Colors</p>
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-5">
+          <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Brand Colors</p>
 
           <div className="space-y-2">
-            <label className="text-xs font-inter text-ink-1/70">Primary</label>
+            <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Primary</label>
             <div className={`flex items-center gap-3 ${ringClass(highlightKeys.has('brandColor'))}`}>
               <input
                 type="color"
@@ -608,14 +608,14 @@ export function BrandPanel({ profile: initial }: Props) {
                 value={brandColor}
                 onChange={(e) => setBrandColor(e.target.value)}
                 placeholder="#C9A84C"
-                className="w-32 px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                className="w-32 px-3 py-2 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
-              <span className="text-xs font-inter text-ink-1/60">Used for accents, chapter numbers, and drop caps.</span>
+              <span className="text-xs font-inter text-ink-1/60 dark:text-white/60">Used for accents, chapter numbers, and drop caps.</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-inter text-ink-1/70">Accent</label>
+            <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Accent</label>
             <div className={`flex items-center gap-3 ${ringClass(highlightKeys.has('accentColor'))}`}>
               <input
                 type="color"
@@ -627,15 +627,15 @@ export function BrandPanel({ profile: initial }: Props) {
                 value={accentColor}
                 onChange={(e) => setAccentColor(e.target.value)}
                 placeholder="#C9A84C"
-                className="w-32 px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                className="w-32 px-3 py-2 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
-              <span className="text-xs font-inter text-ink-1/60">Pairs with primary when you choose &ldquo;Use my brand colors&rdquo; in a book.</span>
+              <span className="text-xs font-inter text-ink-1/60 dark:text-white/60">Pairs with primary when you choose &ldquo;Use my brand colors&rdquo; in a book.</span>
             </div>
           </div>
 
           {(backgroundColor || highlightKeys.has('backgroundColor')) && (
             <div className="space-y-2">
-              <label className="text-xs font-inter text-ink-1/70">Background</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">Background</label>
               <div className={`flex items-center gap-3 ${ringClass(highlightKeys.has('backgroundColor'))}`}>
                 <input
                   type="color"
@@ -647,19 +647,19 @@ export function BrandPanel({ profile: initial }: Props) {
                   value={backgroundColor}
                   onChange={(e) => setBackgroundColor(e.target.value)}
                   placeholder="#FFFFFF"
-                  className="w-32 px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  className="w-32 px-3 py-2 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
-                <span className="text-xs font-inter text-ink-1/60">Detected on your site. Currently informational only.</span>
+                <span className="text-xs font-inter text-ink-1/60 dark:text-white/60">Detected on your site. Currently informational only.</span>
               </div>
             </div>
           )}
         </div>
 
         {/* Brand voice */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-5 space-y-4">
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-4">
           <div>
-            <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Brand Voice</p>
-            <p className="text-xs font-inter text-ink-1/60 mt-1">
+            <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Brand Voice</p>
+            <p className="text-xs font-inter text-ink-1/60 dark:text-white/60 mt-1">
               Optional. When filled in, these get injected into the chapter writing prompt so drafts read like you, not generic AI.
             </p>
           </div>
@@ -671,14 +671,14 @@ export function BrandPanel({ profile: initial }: Props) {
             { label: 'Example', value: voiceExample, setter: setVoiceExample, placeholder: 'A sample sentence written in your voice', rows: 3, hl: 'voiceExample' },
           ].map((f) => (
             <div key={f.label} className="space-y-1">
-              <label className="text-xs font-inter text-ink-1/70">{f.label}</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">{f.label}</label>
               <div className={ringClass(highlightKeys.has(f.hl))}>
                 <textarea
                   value={f.value}
                   onChange={(e) => f.setter(e.target.value)}
                   rows={f.rows}
                   placeholder={f.placeholder}
-                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none"
                 />
               </div>
             </div>
@@ -686,8 +686,8 @@ export function BrandPanel({ profile: initial }: Props) {
         </div>
 
         {/* Social links */}
-        <div className="bg-white border border-cream-3 rounded-xl p-6 mb-8 space-y-4">
-          <p className="text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Social Links</p>
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-8 space-y-4">
+          <p className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Social Links</p>
           {[
             { key: 'website',   label: 'Website',     value: website,   setter: setWebsite,   placeholder: 'https://yoursite.com',          hl: 'websiteUrl' },
             { key: 'twitter',   label: 'X / Twitter', value: twitter,   setter: setTwitter,   placeholder: 'https://x.com/you',             hl: '' },
@@ -697,13 +697,13 @@ export function BrandPanel({ profile: initial }: Props) {
             { key: 'youtube',   label: 'YouTube',     value: youtube,   setter: setYoutube,   placeholder: 'https://youtube.com/@you',      hl: '' },
           ].map((s) => (
             <div key={s.key} className="space-y-1">
-              <label className="text-xs font-inter text-ink-1/70">{s.label}</label>
+              <label className="text-xs font-inter text-ink-1/70 dark:text-white/70">{s.label}</label>
               <div className={ringClass(s.hl ? highlightKeys.has(s.hl) : false)}>
                 <input
                   value={s.value}
                   onChange={(e) => s.setter(e.target.value)}
                   placeholder={s.placeholder}
-                  className="w-full px-3 py-2 rounded-lg bg-cream-2 border border-cream-3 text-ink-1 font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+                  className="w-full px-3 py-2 rounded-lg bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-white font-inter text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
               </div>
             </div>
@@ -713,7 +713,7 @@ export function BrandPanel({ profile: initial }: Props) {
         <button
           onClick={save}
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-gold hover:bg-gold/90 text-ink-1 font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-gold hover:bg-gold/90 text-ink-1 dark:text-white font-inter font-semibold text-sm rounded-lg transition-colors disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
           {saved ? 'Saved' : saving ? 'Saving…' : 'Save Brand Settings'}

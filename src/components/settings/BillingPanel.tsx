@@ -164,9 +164,9 @@ export function BillingPanel({ profile, priceIds }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-cream-1">
+    <div className="min-h-screen bg-cream-1 dark:bg-ink-1">
       <div className="max-w-3xl mx-auto px-6 py-10">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 hover:text-ink-1 font-inter transition-colors mb-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" /> Dashboard
         </Link>
 
@@ -198,16 +198,16 @@ export function BillingPanel({ profile, priceIds }: Props) {
 
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-playfair text-3xl text-ink-1">Billing</h1>
-            <p className="text-ink-1/60 font-inter text-sm mt-1">
-              Current plan: <span className="text-ink-1 capitalize">{currentPlan}</span>
+            <h1 className="font-playfair text-3xl text-ink-1 dark:text-white">Billing</h1>
+            <p className="text-ink-1/60 dark:text-white/60 font-inter text-sm mt-1">
+              Current plan: <span className="text-ink-1 dark:text-white capitalize">{currentPlan}</span>
             </p>
           </div>
           {profile?.stripe_customer_id && (
             <button
               onClick={openPortal}
               disabled={portalLoading}
-              className="flex items-center gap-2 px-4 py-2 border border-cream-3 hover:border-gold/40 text-ink-1/60 hover:text-ink-1 font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 border border-cream-3 dark:border-ink-3 hover:border-gold/40 text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white font-inter text-sm rounded-lg transition-colors disabled:opacity-40"
             >
               {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
               Manage Subscription
@@ -220,15 +220,15 @@ export function BillingPanel({ profile, priceIds }: Props) {
              - null id            → not connected
              - id + 'pending'     → onboarding incomplete or under review
              - id + 'active'      → charges_enabled + details_submitted */}
-        <section className="mb-8 rounded-2xl border border-cream-3 bg-white p-6">
+        <section className="mb-8 rounded-2xl border border-cream-3 dark:border-ink-3 bg-white dark:bg-ink-2 p-6">
           <div className="flex items-center gap-2 mb-3">
-            <CreditCard className="w-5 h-5 text-ink-1/70" />
-            <h2 className="font-playfair text-xl text-ink-1">Receive Payments</h2>
+            <CreditCard className="w-5 h-5 text-ink-1/70 dark:text-white/70" />
+            <h2 className="font-playfair text-xl text-ink-1 dark:text-white">Receive Payments</h2>
           </div>
 
           {!connectId && (
             <>
-              <p className="font-inter text-sm text-ink-1/70 leading-relaxed mb-5">
+              <p className="font-inter text-sm text-ink-1/70 dark:text-white/70 leading-relaxed mb-5">
                 Connect your Stripe account to receive payments when readers buy your books.
                 FlipBookPro takes a 10% platform fee.
               </p>
@@ -247,7 +247,7 @@ export function BillingPanel({ profile, priceIds }: Props) {
             <>
               <div className="flex items-start gap-2 mb-4">
                 <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="font-inter text-sm text-ink-1/80 leading-relaxed">
+                <p className="font-inter text-sm text-ink-1/80 dark:text-white/80 leading-relaxed">
                   Your Stripe account is pending. Complete your Stripe onboarding to start
                   receiving payments.
                 </p>
@@ -267,15 +267,15 @@ export function BillingPanel({ profile, priceIds }: Props) {
             <>
               <div className="flex items-start gap-2 mb-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-                <p className="font-inter text-sm text-ink-1 font-medium">Stripe connected</p>
+                <p className="font-inter text-sm text-ink-1 dark:text-white font-medium">Stripe connected</p>
               </div>
-              <p className="font-inter text-sm text-ink-1/70 leading-relaxed mb-4">
+              <p className="font-inter text-sm text-ink-1/70 dark:text-white/70 leading-relaxed mb-4">
                 You receive 90% of each sale. Platform fee: 10%.
               </p>
               <button
                 onClick={handleDisconnect}
                 disabled={disconnecting}
-                className="inline-flex items-center gap-1.5 text-xs text-ink-1/50 hover:text-ink-1/80 font-inter underline underline-offset-2 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/50 hover:text-ink-1/80 dark:hover:text-white/80 font-inter underline underline-offset-2 transition-colors disabled:opacity-50"
               >
                 {disconnecting && <Loader2 className="w-3 h-3 animate-spin" />}
                 Disconnect
@@ -289,7 +289,7 @@ export function BillingPanel({ profile, priceIds }: Props) {
               forward instead of seeing a blank state. */}
           {connectId && connectStatus !== 'pending' && connectStatus !== 'active' && (
             <>
-              <p className="font-inter text-sm text-ink-1/70 leading-relaxed mb-5">
+              <p className="font-inter text-sm text-ink-1/70 dark:text-white/70 leading-relaxed mb-5">
                 Your Stripe connection status is unclear. Re-run onboarding to refresh it.
               </p>
               <button
@@ -312,8 +312,8 @@ export function BillingPanel({ profile, priceIds }: Props) {
               onClick={() => setBilling(b)}
               className={`px-4 py-1.5 rounded-full font-inter text-sm transition-colors ${
                 billing === b
-                  ? 'bg-gold text-ink-1'
-                  : 'text-ink-1/60 hover:text-ink-1 border border-cream-3'
+                  ? 'bg-gold text-ink-1 dark:text-white'
+                  : 'text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white border border-cream-3 dark:border-ink-3'
               }`}
             >
               {b === 'monthly' ? 'Monthly' : 'Annual (save ~30%)'}
@@ -335,23 +335,23 @@ export function BillingPanel({ profile, priceIds }: Props) {
                 className={`rounded-2xl border p-6 flex flex-col gap-5 ${
                   plan.id === 'pro'
                     ? 'border-gold bg-gold/5'
-                    : 'border-cream-3 bg-white'
+                    : 'border-cream-3 dark:border-ink-3 bg-white dark:bg-ink-2'
                 }`}
               >
                 <div>
-                  <p className="font-inter font-semibold text-ink-1 text-sm uppercase tracking-widest mb-2">{plan.name}</p>
+                  <p className="font-inter font-semibold text-ink-1 dark:text-white text-sm uppercase tracking-widest mb-2">{plan.name}</p>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-playfair text-3xl text-ink-1 font-bold">{plan.price}</span>
-                    <span className="font-inter text-sm text-ink-1/60">{plan.interval}</span>
+                    <span className="font-playfair text-3xl text-ink-1 dark:text-white font-bold">{plan.price}</span>
+                    <span className="font-inter text-sm text-ink-1/60 dark:text-white/60">{plan.interval}</span>
                   </div>
                   {plan.id !== 'free' && (
-                    <p className="text-xs font-inter text-ink-1/60 mt-0.5">{plan.annual}</p>
+                    <p className="text-xs font-inter text-ink-1/60 dark:text-white/60 mt-0.5">{plan.annual}</p>
                   )}
                 </div>
 
                 <ul className="space-y-2 flex-1">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs font-inter text-ink-1/70">
+                    <li key={f} className="flex items-start gap-2 text-xs font-inter text-ink-1/70 dark:text-white/70">
                       <Check className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                       {f}
                     </li>
@@ -359,7 +359,7 @@ export function BillingPanel({ profile, priceIds }: Props) {
                 </ul>
 
                 {plan.id === 'free' ? (
-                  <div className={`py-2.5 rounded-lg text-center text-sm font-inter font-medium ${isCurrent ? 'bg-cream-3 text-ink-1/60' : 'bg-cream-3 text-ink-1/50'}`}>
+                  <div className={`py-2.5 rounded-lg text-center text-sm font-inter font-medium ${isCurrent ? 'bg-cream-3 dark:bg-ink-3 text-ink-1/60 dark:text-white/60' : 'bg-cream-3 dark:bg-ink-3 text-ink-1/50 dark:text-white/50'}`}>
                     {isCurrent ? 'Current Plan' : 'Free Forever'}
                   </div>
                 ) : (
@@ -368,10 +368,10 @@ export function BillingPanel({ profile, priceIds }: Props) {
                     disabled={isCurrent || loading === priceId}
                     className={`py-2.5 rounded-lg text-sm font-inter font-semibold transition-colors flex items-center justify-center gap-2 ${
                       isCurrent
-                        ? 'bg-cream-3 text-ink-1/60 cursor-default'
+                        ? 'bg-cream-3 dark:bg-ink-3 text-ink-1/60 dark:text-white/60 cursor-default'
                         : plan.id === 'pro'
-                        ? 'bg-gold hover:bg-gold/90 text-ink-1'
-                        : 'bg-cream-3 hover:bg-cream-3 text-ink-1 border border-cream-3'
+                        ? 'bg-gold hover:bg-gold/90 text-ink-1 dark:text-white'
+                        : 'bg-cream-3 dark:bg-ink-3 hover:bg-cream-3 text-ink-1 dark:text-white border border-cream-3 dark:border-ink-3'
                     }`}
                   >
                     {loading === priceId && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -383,7 +383,7 @@ export function BillingPanel({ profile, priceIds }: Props) {
           })}
         </div>
 
-        <p className="text-xs font-inter text-ink-1/60 text-center mt-6">
+        <p className="text-xs font-inter text-ink-1/60 dark:text-white/60 text-center mt-6">
           Secured by Stripe. Cancel anytime.
         </p>
       </div>

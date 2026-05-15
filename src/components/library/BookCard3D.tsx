@@ -62,7 +62,7 @@ export function BookCard3D({ book, index }: Props) {
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-ink-2 to-ink-3 flex items-center justify-center" aria-hidden="true">
+          <div className="absolute inset-0 bg-gradient-to-br from-cream-2 to-cream-3 dark:from-ink-2 dark:to-ink-3 flex items-center justify-center" aria-hidden="true">
             <BookOpen className="w-10 h-10 text-gold" strokeWidth={1.5} />
           </div>
         )}
@@ -128,8 +128,8 @@ export function BookCard3D({ book, index }: Props) {
       {/* Footer caption — title + last-updated timestamp. Sits below
           the 3D card so it doesn't tilt with the hover. */}
       <div className="mt-2">
-        <p className="text-white/70 text-xs truncate">{book.title}</p>
-        <p className="text-white/30 text-xs">Updated {formatDate(book.updated_at)}</p>
+        <p className="text-ink-1/70 dark:text-white/70 text-xs truncate">{book.title}</p>
+        <p className="text-ink-1/30 dark:text-white/30 text-xs">Updated {formatDate(book.updated_at)}</p>
       </div>
     </Link>
   )

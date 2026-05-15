@@ -15,7 +15,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       userEmail={user.email ?? ''}
       isPremium={plan !== 'free'}
       isAdmin={isAdmin}
-      mainBackground="bg-cream-1"
+      mainBackground="bg-cream-1 dark:bg-ink-1"
     >
       {children}
     </AppShell>

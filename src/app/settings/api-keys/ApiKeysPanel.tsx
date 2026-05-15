@@ -73,28 +73,28 @@ export function ApiKeysPanel({ existingKeys }: Props) {
     <div className="px-8 py-10 max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="font-playfair text-3xl text-ink-1">API Keys</h2>
-        <p className="text-ink-1/60 text-sm font-source-serif mt-1">
+        <h2 className="font-playfair text-3xl text-ink-1 dark:text-white">API Keys</h2>
+        <p className="text-ink-1/60 dark:text-white/60 text-sm font-source-serif mt-1">
           Manage API keys for programmatic access to your books and data.
         </p>
       </div>
 
       {/* Generate new key */}
-      <div className="bg-white border border-cream-3 rounded-xl p-5 mb-6">
-        <h3 className="text-sm font-inter font-medium text-ink-1 mb-3">Create new key</h3>
+      <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-5 mb-6">
+        <h3 className="text-sm font-inter font-medium text-ink-1 dark:text-white mb-3">Create new key</h3>
         <div className="flex gap-3">
           <input
             type="text"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             placeholder="Key name (e.g. Production, Staging)"
-            className="flex-1 px-4 py-2.5 bg-cream-1 border border-cream-3 rounded-lg text-ink-1 placeholder:text-[#555] text-sm font-inter focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold"
+            className="flex-1 px-4 py-2.5 bg-cream-1 dark:bg-ink-1 border border-cream-3 dark:border-ink-3 rounded-lg text-ink-1 dark:text-white placeholder:text-[#555] text-sm font-inter focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold"
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
           />
           <button
             onClick={handleGenerate}
             disabled={!newKeyName.trim() || generating}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold/90 disabled:opacity-40 disabled:cursor-not-allowed text-ink-1 text-sm font-inter font-medium rounded-lg transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold/90 disabled:opacity-40 disabled:cursor-not-allowed text-ink-1 dark:text-white text-sm font-inter font-medium rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             Generate
@@ -107,17 +107,17 @@ export function ApiKeysPanel({ existingKeys }: Props) {
         <div className="bg-gold/10 border border-gold/30 rounded-xl p-5 mb-6">
           <div className="flex items-start gap-3 mb-3">
             <AlertTriangle className="w-4 h-4 text-gold mt-0.5 shrink-0" />
-            <p className="text-sm font-inter text-ink-1">
+            <p className="text-sm font-inter text-ink-1 dark:text-white">
               Copy this key now. It will not be shown again.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <code className="flex-1 px-4 py-2.5 bg-cream-1 border border-cream-3 rounded-lg text-sm font-mono text-gold break-all select-all">
+            <code className="flex-1 px-4 py-2.5 bg-cream-1 dark:bg-ink-1 border border-cream-3 dark:border-ink-3 rounded-lg text-sm font-mono text-gold break-all select-all">
               {generatedKey}
             </code>
             <button
               onClick={handleCopy}
-              className="shrink-0 p-2.5 bg-white border border-cream-3 rounded-lg text-ink-1 hover:text-accent transition-colors"
+              className="shrink-0 p-2.5 bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-lg text-ink-1 dark:text-white hover:text-accent transition-colors"
               title="Copy to clipboard"
             >
               {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
@@ -125,7 +125,7 @@ export function ApiKeysPanel({ existingKeys }: Props) {
           </div>
           <button
             onClick={dismissGeneratedKey}
-            className="mt-3 text-xs font-inter text-ink-1/60 hover:text-ink-1 transition-colors"
+            className="mt-3 text-xs font-inter text-ink-1/60 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
           >
             I have copied my key
           </button>
@@ -135,33 +135,33 @@ export function ApiKeysPanel({ existingKeys }: Props) {
       {/* Existing keys */}
       {keys.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Key className="w-12 h-12 text-[#333] mb-4" />
-          <h3 className="font-playfair text-xl text-ink-1/60 mb-2">No API keys</h3>
-          <p className="text-ink-1/60 text-sm font-source-serif max-w-sm">
+          <Key className="w-12 h-12 text-[#333] dark:text-white/30 mb-4" />
+          <h3 className="font-playfair text-xl text-ink-1/60 dark:text-white/60 mb-2">No API keys</h3>
+          <p className="text-ink-1/60 dark:text-white/60 text-sm font-source-serif max-w-sm">
             Generate an API key above to get started with programmatic access.
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-cream-3 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-cream-3">
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Name</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Key</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Created</th>
-                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider">Last Used</th>
-                <th className="text-right px-5 py-3 text-xs font-inter font-medium text-ink-1/60 uppercase tracking-wider"></th>
+              <tr className="border-b border-cream-3 dark:border-ink-3">
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Name</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Key</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Created</th>
+                <th className="text-left px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">Last Used</th>
+                <th className="text-right px-5 py-3 text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider"></th>
               </tr>
             </thead>
             <tbody>
               {keys.map((k, i) => (
-                <tr key={k.id} className={`border-b border-cream-3 ${i === keys.length - 1 ? 'border-b-0' : ''}`}>
-                  <td className="px-5 py-3 text-sm font-inter text-ink-1">{k.name}</td>
-                  <td className="px-5 py-3 text-sm font-mono text-ink-1/60">{k.key_prefix}</td>
-                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60">
+                <tr key={k.id} className={`border-b border-cream-3 dark:border-ink-3 ${i === keys.length - 1 ? 'border-b-0' : ''}`}>
+                  <td className="px-5 py-3 text-sm font-inter text-ink-1 dark:text-white">{k.name}</td>
+                  <td className="px-5 py-3 text-sm font-mono text-ink-1/60 dark:text-white/60">{k.key_prefix}</td>
+                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60 dark:text-white/60">
                     {new Date(k.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60">
+                  <td className="px-5 py-3 text-xs font-inter text-ink-1/60 dark:text-white/60">
                     {k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : 'Never'}
                   </td>
                   <td className="px-5 py-3 text-right">

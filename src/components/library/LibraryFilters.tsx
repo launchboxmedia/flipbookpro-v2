@@ -51,19 +51,19 @@ export function LibraryFilters({
   onViewModeChange,
 }: Props) {
   return (
-    <div className="bg-ink-2 rounded-xl p-3 mb-8 flex items-center gap-3 flex-wrap border border-ink-4">
+    <div className="bg-cream-2 dark:bg-ink-2 rounded-xl p-3 mb-8 flex items-center gap-3 flex-wrap border border-[#E8E0D0] dark:border-ink-4">
       {/* Search — flex-1 so it eats whatever space the pills + selects
           don't claim, with a min-w so it doesn't collapse on small
           viewports. */}
       <div className="relative flex-1 min-w-[12rem]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" aria-hidden="true" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-1/30 dark:text-white/30 pointer-events-none" aria-hidden="true" />
         <input
           type="search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search books..."
           aria-label="Search books"
-          className="w-full bg-ink-3 border border-ink-4 rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-gold/50 transition-colors"
+          className="w-full bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-lg pl-9 pr-3 py-2 text-ink-1 dark:text-white text-sm placeholder:text-ink-1/30 dark:placeholder:text-white/30 focus:outline-none focus:border-gold/50 transition-colors"
         />
       </div>
 
@@ -81,7 +81,7 @@ export function LibraryFilters({
               className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
                 active
                   ? 'bg-gold text-ink-1 font-semibold'
-                  : 'bg-ink-3 text-white/50 hover:text-white'
+                  : 'bg-cream-3 dark:bg-ink-3 text-ink-1/50 dark:text-white/50 hover:text-ink-1 dark:hover:text-white'
               }`}
             >
               {pill.label}
@@ -97,10 +97,10 @@ export function LibraryFilters({
         id="library-sort"
         value={sortBy}
         onChange={(e) => onSortChange(e.target.value as SortBy)}
-        className="bg-ink-3 border border-ink-4 rounded-lg text-white/60 text-xs px-3 py-2 focus:outline-none focus:border-gold/50 transition-colors"
+        className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-lg text-ink-1/60 dark:text-white/60 text-xs px-3 py-2 focus:outline-none focus:border-gold/50 transition-colors"
       >
         {SORT_OPTIONS.map((opt) => (
-          <option key={opt.key} value={opt.key} className="bg-ink-2 text-white">
+          <option key={opt.key} value={opt.key} className="bg-cream-2 dark:bg-ink-2 text-ink-1 dark:text-white">
             {opt.label}
           </option>
         ))}
@@ -120,8 +120,8 @@ export function LibraryFilters({
               onClick={() => onViewModeChange(key)}
               className={`p-2 rounded-lg transition-colors ${
                 active
-                  ? 'text-gold bg-ink-3'
-                  : 'text-white/30 hover:text-white'
+                  ? 'text-gold bg-cream-3 dark:bg-ink-3'
+                  : 'text-ink-1/30 dark:text-white/30 hover:text-ink-1 dark:hover:text-white'
               }`}
             >
               <Icon className="w-4 h-4" />

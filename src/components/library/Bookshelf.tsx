@@ -11,8 +11,8 @@ interface Props {
 
 const LABEL_COLOR: Record<ShelfKey, string> = {
   published:  'text-gold',
-  ready:      'text-white/60',
-  inProgress: 'text-white/30',
+  ready:      'text-ink-1/60 dark:text-white/60',
+  inProgress: 'text-ink-1/30 dark:text-white/30',
 }
 
 /** A single bookshelf — three of these stack inside the Library shell.
@@ -32,15 +32,15 @@ export function Bookshelf({ shelfKey, label, books }: Props) {
         <span className={`text-xs uppercase tracking-widest font-semibold ${labelColor}`}>
           {label}
         </span>
-        <span className="text-white/20 text-xs">({books.length})</span>
-        <div className="flex-1 h-px bg-ink-3/50" />
+        <span className="text-ink-1/20 dark:text-white/20 text-xs">({books.length})</span>
+        <div className="flex-1 h-px bg-cream-3 dark:bg-ink-3/50" />
       </div>
 
       {/* Shelf container — the back wall + a wood-toned bottom strip
           + a soft shadow under the shelf. The books stand on the wood
           strip; rounded corners on the container give the bookshelf
           its silhouette without a heavy frame. */}
-      <div className="bg-ink-2/40 rounded-2xl border border-ink-3 overflow-hidden">
+      <div className="bg-cream-2 dark:bg-ink-2/40 rounded-2xl border border-cream-3 dark:border-ink-3 overflow-hidden">
         {/* Books — flex items-end so books of varying heights all stand
             on the same baseline. flex-wrap so a shelf with 30 books
             wraps onto a second row gracefully. */}
@@ -53,7 +53,7 @@ export function Bookshelf({ shelfKey, label, books }: Props) {
         {/* The shelf surface — horizontal wood strip the books stand on.
             Gradient from ink-4 to ink-3 to ink-4 gives the strip a
             warmer, slightly polished feel against the cooler back wall. */}
-        <div className="h-4 w-full bg-gradient-to-r from-ink-4 via-ink-3 to-ink-4 border-t border-ink-4/80" aria-hidden="true" />
+        <div className="h-4 w-full bg-[#D4C5A9] dark:bg-gradient-to-r dark:from-ink-4 dark:via-ink-3 dark:to-ink-4 border-t border-[#E8E0D0] dark:border-ink-4/80" aria-hidden="true" />
         {/* Shadow below the shelf — the underside of the wood catching
             ambient light. Sells the volume. */}
         <div className="h-2 w-full bg-gradient-to-b from-black/30 to-transparent" aria-hidden="true" />
