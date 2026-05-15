@@ -96,16 +96,21 @@ export default async function DashboardPage() {
   const hasBooks = (books?.length ?? 0) > 0
 
   return (
-    <AppShell userEmail={user.email ?? ''} isPremium={isPremium} isAdmin={planInfo.isAdmin}>
+    <AppShell
+      userEmail={user.email ?? ''}
+      isPremium={isPremium}
+      isAdmin={planInfo.isAdmin}
+      mainBackground="bg-cream-1 dark:bg-canvas"
+    >
       <div className="max-w-6xl mx-auto px-6 py-10 min-h-[calc(100vh-0px)]">
         {!hasBooks ? (
           // Empty state — first-run command center. Centered card, single CTA.
           <div className="flex flex-col items-center justify-center text-center py-32">
             <BookOpen className="w-12 h-12 text-gold mb-6" />
-            <h1 className="font-playfair text-2xl text-white mb-3">
+            <h1 className="font-playfair text-2xl text-ink-1 dark:text-white mb-3">
               Your first book is one click away
             </h1>
-            <p className="text-white/50 font-source-serif mb-8 max-w-md">
+            <p className="text-ink-1/50 dark:text-white/50 font-source-serif mb-8 max-w-md">
               Create a book in minutes with AI assistance.
             </p>
             <NewBookButton />
@@ -114,10 +119,10 @@ export default async function DashboardPage() {
           <>
             <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
               <div>
-                <h1 className="font-playfair text-3xl text-white leading-tight">
+                <h1 className="font-playfair text-3xl text-ink-1 dark:text-white leading-tight">
                   {greetingLine}
                 </h1>
-                <p className="text-white/40 text-sm font-source-serif mt-1">
+                <p className="text-ink-1/40 dark:text-white/40 text-sm font-source-serif mt-1">
                   {todayLabel(now)}
                 </p>
               </div>

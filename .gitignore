@@ -40,3 +40,6 @@ next-env.d.ts
 
 .vercel
 .playwright-mcp/
+
+# Playwright authenticated storage state (contains a live session)
+e2e/.auth/

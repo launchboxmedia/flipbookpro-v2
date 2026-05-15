@@ -54,6 +54,18 @@ const config: Config = {
         'warning-tint': '#F5EAD2',
         info:           '#5A7BA5',
         'info-tint':    '#E1E8F1',
+        // ── Phase-1 light/dark semantic tokens ──────────────────────────
+        // Backed by CSS vars in globals.css (:root = light, .dark = ink).
+        // Used where a single semantic name is clearer than a paired
+        // `bg-cream-1 dark:bg-ink-1`; simple swaps still use dark: prefix.
+        'surface-1':    'var(--surface-1)',
+        'surface-2':    'var(--surface-2)',
+        'surface-3':    'var(--surface-3)',
+        'surface-4':    'var(--surface-4)',
+        'text-primary': 'var(--text-primary)',
+        'text-muted':   'var(--text-muted)',
+        'text-subtle':  'var(--text-subtle)',
+        'border-theme': 'var(--border-color)',
         // Existing tokens kept for compatibility with screens not yet
         // migrated to the new system
         canvas: '#1A1A1A',
@@ -215,6 +227,28 @@ const config: Config = {
           '40%':       { transform: 'scaleX(1)' },
           '95%, 100%': { transform: 'scaleX(1)' },
         },
+        // Used by HeroSection book riffle — a single cream page hinges
+        // around its left edge (the spine) from front-facing (rotateY 0)
+        // to back-facing (rotateY -180). With backface-visibility:hidden
+        // on the page, the visible portion is the 0 → -90 quarter-turn:
+        // the page flips forward, going edge-on, and is gone. Six pages
+        // run with staggered delays for the cascade.
+        riffleFlip: {
+          '0%':   { transform: 'rotateY(0deg)' },
+          '100%': { transform: 'rotateY(-180deg)' },
+        },
+        // Used by HeroSection book cover — the cover hinges open around
+        // its left edge to -160deg, holds open while the pages flip
+        // through, then hinges back to closed. With backface-visibility:
+        // hidden, the cover is visible only 0 → -90 (opening) and -90 → 0
+        // (closing); from -90 → -160 → -90 it's hidden, exposing the
+        // page stack inside the book.
+        riffleCover: {
+          '0%':   { transform: 'rotateY(0deg)' },
+          '20%':  { transform: 'rotateY(-160deg)' },
+          '80%':  { transform: 'rotateY(-160deg)' },
+          '100%': { transform: 'rotateY(0deg)' },
+        },
       },
       animation: {
         'fade-in':      'fadeIn 0.3s ease-out forwards',
@@ -232,6 +266,12 @@ const config: Config = {
         'book-breathe': 'bookBreathe 1.5s ease-in-out infinite',
         'page-sliver':  'pageSliver 1.5s ease-in-out infinite',
         'write-line':   'writeLine 2.4s ease-out infinite both',
+        // HeroSection book riffle — utilities exist so Tailwind emits
+        // the matching @keyframes rules to the output CSS. Per-element
+        // animation-delay is set inline as a separate property so the
+        // stagger doesn't require a utility class per page.
+        'riffle-flip':  'riffleFlip 0.5s ease-in-out both',
+        'riffle-cover': 'riffleCover 2s ease-in-out both',
       },
     },
   },

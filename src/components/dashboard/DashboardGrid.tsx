@@ -79,7 +79,7 @@ function CoverThumb({ url, title }: { url: string | null; title: string }) {
     return <img src={url} alt={`${title} cover`} className="w-10 h-14 rounded object-cover shrink-0" />
   }
   return (
-    <div className="w-10 h-14 rounded bg-ink-3 flex items-center justify-center text-gold shrink-0" aria-hidden="true">
+    <div className="w-10 h-14 rounded bg-cream-3 dark:bg-ink-3 flex items-center justify-center text-gold shrink-0" aria-hidden="true">
       <BookOpen className="w-4 h-4" />
     </div>
   )
@@ -95,7 +95,7 @@ function Card({ index, children, className }: RowProps) {
   return (
     <div
       style={{ ['--card-index' as string]: index } as React.CSSProperties}
-      className={`dash-card flex items-center gap-4 bg-ink-2 rounded-xl p-5 border border-ink-4 transition-colors duration-220 mb-3 ${className ?? ''}`}
+      className={`dash-card flex items-center gap-4 bg-cream-2 dark:bg-ink-2 rounded-xl p-5 border border-cream-3 dark:border-ink-4 transition-colors duration-220 mb-3 ${className ?? ''}`}
     >
       {children}
     </div>
@@ -137,8 +137,8 @@ export function DashboardGrid({
               >
                 <CoverThumb url={b.cover_image_url} title={b.title} />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold text-base truncate">{b.title}</h3>
-                  <p className="text-white/40 text-sm">
+                  <h3 className="text-ink-1 dark:text-white font-semibold text-base truncate">{b.title}</h3>
+                  <p className="text-ink-1/40 dark:text-white/40 text-sm">
                     {stats ? `${stats.total} chapter${stats.total === 1 ? '' : 's'} · All approved` : 'Ready'}
                   </p>
                 </div>
@@ -156,25 +156,25 @@ export function DashboardGrid({
 
       {published.length > 0 && (
         <section>
-          <p className="text-white/40 text-xs font-inter uppercase tracking-widest mb-4">Published</p>
+          <p className="text-ink-1/40 dark:text-white/40 text-xs font-inter uppercase tracking-widest mb-4">Published</p>
           {published.map((b) => {
             const pub = publishedByBook[b.id]!
             const leads = leadsByBook[b.id] ?? 0
             const i = cardIndex++
             return (
-              <Card key={b.id} index={i} className="hover:border-ink-3">
+              <Card key={b.id} index={i} className="hover:border-cream-3 dark:hover:border-ink-3">
                 <CoverThumb url={b.cover_image_url} title={b.title} />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold text-base truncate">{b.title}</h3>
+                  <h3 className="text-ink-1 dark:text-white font-semibold text-base truncate">{b.title}</h3>
                   {leads > 0 ? (
                     <p className="text-gold text-sm">{leads} reader{leads === 1 ? '' : 's'}</p>
                   ) : (
                     <>
-                      <p className="text-white/30 text-sm">No readers yet</p>
-                      <p className="text-white/30 text-xs">Share your link to get your first reader</p>
+                      <p className="text-ink-1/30 dark:text-white/30 text-sm">No readers yet</p>
+                      <p className="text-ink-1/30 dark:text-white/30 text-xs">Share your link to get your first reader</p>
                     </>
                   )}
-                  <p className="text-white/20 text-xs truncate">{landingDisplay(pub.slug)}</p>
+                  <p className="text-ink-1/20 dark:text-white/20 text-xs truncate">{landingDisplay(pub.slug)}</p>
                 </div>
                 <div className="flex gap-2 shrink-0 items-center">
                   <CopyLinkButton url={landingUrl(pub.slug)} prominent={leads === 0} />
@@ -183,7 +183,7 @@ export function DashboardGrid({
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Open published book"
-                    className="p-2 text-white/40 hover:text-white transition-colors duration-220"
+                    className="p-2 text-ink-1/40 hover:text-ink-1 dark:text-white/40 dark:hover:text-white transition-colors duration-220"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
@@ -196,16 +196,16 @@ export function DashboardGrid({
 
       {inProgress.length > 0 && (
         <section>
-          <p className="text-white/40 text-xs font-inter uppercase tracking-widest mb-4">In Progress</p>
+          <p className="text-ink-1/40 dark:text-white/40 text-xs font-inter uppercase tracking-widest mb-4">In Progress</p>
           {inProgress.map((b) => {
             const stats = chapterStats[b.id]
             const i = cardIndex++
             return (
-              <Card key={b.id} index={i} className="hover:border-ink-3">
+              <Card key={b.id} index={i} className="hover:border-cream-3 dark:hover:border-ink-3">
                 <CoverThumb url={b.cover_image_url} title={b.title} />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold text-base truncate">{b.title}</h3>
-                  <p className="text-white/40 text-sm">
+                  <h3 className="text-ink-1 dark:text-white font-semibold text-base truncate">{b.title}</h3>
+                  <p className="text-ink-1/40 dark:text-white/40 text-sm">
                     {stats
                       ? `${stats.approved}/${stats.total} chapter${stats.total === 1 ? '' : 's'} approved`
                       : 'Just getting started'}
@@ -213,7 +213,7 @@ export function DashboardGrid({
                 </div>
                 <Link
                   href={`/book/${b.id}/coauthor`}
-                  className="bg-ink-3 text-white text-sm font-inter font-semibold px-4 py-2 rounded-lg hover:bg-ink-4 transition-colors duration-220 whitespace-nowrap"
+                  className="bg-cream-3 text-ink-1 dark:bg-ink-3 dark:text-white text-sm font-inter font-semibold px-4 py-2 rounded-lg hover:bg-cream-line dark:hover:bg-ink-4 transition-colors duration-220 whitespace-nowrap"
                 >
                   Continue →
                 </Link>
@@ -225,14 +225,14 @@ export function DashboardGrid({
 
       {recentLeads.length > 0 && (
         <section>
-          <p className="text-white/40 text-xs font-inter uppercase tracking-widest mb-4">Recent Readers</p>
-          <div className="bg-ink-2 rounded-xl border border-ink-4">
+          <p className="text-ink-1/40 dark:text-white/40 text-xs font-inter uppercase tracking-widest mb-4">Recent Readers</p>
+          <div className="bg-cream-2 dark:bg-ink-2 rounded-xl border border-cream-3 dark:border-ink-4">
             {recentLeads.map((lead, i) => {
               const initial = (lead.email[0] ?? '?').toUpperCase()
               return (
                 <div
                   key={`${lead.email}-${lead.created_at}-${i}`}
-                  className="flex items-center gap-3 px-5 py-4 border-b border-ink-3 last:border-0"
+                  className="flex items-center gap-3 px-5 py-4 border-b border-cream-3 dark:border-ink-3 last:border-0"
                 >
                   <div
                     className="w-8 h-8 rounded-full bg-teal-800 flex items-center justify-center text-white text-xs font-semibold shrink-0"
@@ -240,9 +240,9 @@ export function DashboardGrid({
                   >
                     {initial}
                   </div>
-                  <p className="text-white text-sm flex-1 truncate">{lead.email}</p>
-                  <p className="text-white/40 text-xs max-w-[200px] truncate hidden sm:block">{lead.book_title}</p>
-                  <p className="text-white/30 text-xs whitespace-nowrap">{timeAgo(lead.created_at)}</p>
+                  <p className="text-ink-1 dark:text-white text-sm flex-1 truncate">{lead.email}</p>
+                  <p className="text-ink-1/40 dark:text-white/40 text-xs max-w-[200px] truncate hidden sm:block">{lead.book_title}</p>
+                  <p className="text-ink-1/30 dark:text-white/30 text-xs whitespace-nowrap">{timeAgo(lead.created_at)}</p>
                 </div>
               )
             })}

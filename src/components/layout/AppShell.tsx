@@ -106,12 +106,12 @@ export function AppShell({
             the leading control is the PanelLeft expand button; when
             expanded the sidebar's own header carries the toggle and the
             header has no leading control. */}
-        <header className="sticky top-0 z-30 h-14 flex items-center gap-3 px-4 border-b border-ink-3 bg-ink-1/80 backdrop-blur-md backdrop-saturate-150">
+        <header className="sticky top-0 z-30 h-14 flex items-center gap-3 px-4 border-b border-cream-3 dark:border-ink-3 bg-cream-1/80 dark:bg-ink-1/80 backdrop-blur-md backdrop-saturate-150">
           {/* Mobile-only hamburger */}
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open navigation"
-            className="lg:hidden p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors press-scale"
+            className="lg:hidden p-1.5 rounded-md text-ink-1/50 hover:text-ink-1 hover:bg-cream-3 dark:text-ink-subtle dark:hover:text-cream dark:hover:bg-ink-2 transition-colors press-scale"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -120,14 +120,14 @@ export function AppShell({
             <button
               onClick={toggleCollapsed}
               aria-label="Expand sidebar"
-              className="hidden lg:inline-flex p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors press-scale"
+              className="hidden lg:inline-flex p-1.5 rounded-md text-ink-1/50 hover:text-ink-1 hover:bg-cream-3 dark:text-ink-subtle dark:hover:text-cream dark:hover:bg-ink-2 transition-colors press-scale"
             >
               <PanelLeft className="w-4 h-4" />
             </button>
           )}
           <div className="flex-1 min-w-0">
             {pageTitle && (
-              <div className="font-inter text-sm text-cream truncate">{pageTitle}</div>
+              <div className="font-inter text-sm text-ink-1 dark:text-cream truncate">{pageTitle}</div>
             )}
           </div>
           {headerRight && <div className="flex items-center gap-2 shrink-0">{headerRight}</div>}

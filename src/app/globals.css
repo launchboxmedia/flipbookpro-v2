@@ -127,6 +127,36 @@ button:active {
     --radius: 0.5rem;
   }
 
+  /* ── Phase-1 light/dark semantic tokens ──────────────────────────────
+     Light is the default (no class on <html>). ThemeProvider adds the
+     `.dark` class to flip to the ink palette. Components mostly use the
+     Tailwind `dark:` prefix for simple swaps; these vars back the
+     surface-* / text-* / border-theme utilities for the cases where a
+     single semantic name reads better than a paired class. */
+  :root {
+    --surface-1: #F5F0E8;
+    --surface-2: #FAF7F2;
+    --surface-3: #EDE6D8;
+    --surface-4: #E8E0D0;
+    --text-primary: #1B2230;
+    --text-muted: rgba(27, 34, 48, 0.5);
+    --text-subtle: rgba(27, 34, 48, 0.3);
+    --border-color: #EDE6D8;
+    --border-subtle: rgba(27, 34, 48, 0.1);
+  }
+
+  .dark {
+    --surface-1: #0F1623;
+    --surface-2: #151C28;
+    --surface-3: #1C2333;
+    --surface-4: #2A3448;
+    --text-primary: #FFFFFF;
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --text-subtle: rgba(255, 255, 255, 0.3);
+    --border-color: #1C2333;
+    --border-subtle: rgba(255, 255, 255, 0.1);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

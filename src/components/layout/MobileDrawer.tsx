@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BookOpen, ImageIcon, Compass, AlignLeft, Radar,
   Layers, User, Building2, CreditCard, MessageCircle,
   Star, HelpCircle, Shield, X, BarChart3, Lock, Wand2, ShieldCheck, Globe, Eye, ExternalLink,
-  Users, Key,
+  Users, Key, Library,
 } from 'lucide-react'
 import type { BookContext } from './AppSidebar'
 import type { CoauthorStage } from '@/components/coauthor/CoauthorShell'
@@ -188,8 +188,8 @@ export function MobileDrawer({ open, onClose, isAdmin = false, bookContext }: Pr
               {linkRow('Dashboard', <LayoutDashboard className="w-4 h-4" />, '/dashboard')}
 
               {sectionLabel('Library')}
-              {linkRow('Books', <BookOpen className="w-4 h-4" />, '/dashboard')}
-              {linkRow('Media', <ImageIcon className="w-4 h-4" />, '/media')}
+              {linkRow('Library', <Library className="w-4 h-4" />, '/library')}
+              {linkRow('Media',   <ImageIcon className="w-4 h-4" />, '/media')}
 
               {bookContext && (
                 <>

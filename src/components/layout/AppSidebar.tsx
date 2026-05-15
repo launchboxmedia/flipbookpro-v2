@@ -1,22 +1,26 @@
 'use client'
 
-import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { motion } from 'framer-motion'
 import {
-  LayoutDashboard, BookOpen, Compass, AlignLeft, Palette,
-  Layers, User, Building2, CreditCard, MessageCircle,
-  Star, HelpCircle, Shield, ChevronDown, ChevronUp,
-  Crown, BarChart3, Loader2, RefreshCw, Upload, X, Wand2,
-  ImageIcon, FileText, Users, MessageSquare, Gauge, BookMarked, Type, Lock,
-  Radar, ShieldCheck, Globe, Eye, ExternalLink, Key,
+  ChevronLeft, BookOpen,
+  LayoutDashboard, Library as LibraryIcon, ImageIcon, Settings,
+  Radar, FileText, PenLine, Palette, CheckSquare, Globe,
+  CheckCircle2, Eye, ExternalLink, Shield, BarChart3,
 } from 'lucide-react'
 import type { BookPage } from '@/types/database'
 import type { CoauthorStage, ImageStatus } from '@/components/coauthor/CoauthorShell'
 import { UserMenu } from './UserMenu'
+import { NewBookButton } from '@/components/dashboard/NewBookButton'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
+/** BookContext preserved as-is from the old sidebar so CoauthorShell (and
+ *  anything else passing this prop) doesn't need to change. The new sidebar
+ *  only consumes a subset of the fields — the rest (cover panel, per-chapter
+ *  callbacks, image statuses) are dropped from this surface and surfaced
+ *  inside the Book Design / Chapters stages where they belong. */
 export interface BookContext {
   bookId: string
   bookTitle: string
@@ -27,8 +31,6 @@ export interface BookContext {
   imageStatuses: Record<string, ImageStatus>
   coverImageUrl: string | null
   coverImageStatus: ImageStatus
-  /** When true, the cover image already contains the title/author and the
-   *  renderer suppresses the overlay text. Toggleable from the cover panel. */
   coverHasText: boolean
   hasDiscover?: boolean
   onStageChange: (stage: CoauthorStage) => void
@@ -47,50 +49,24 @@ interface Props {
   onToggleCollapse?: () => void
 }
 
-interface Section {
-  key: string
-  label: string
-  icon: React.ReactNode
-  defaultOpen?: boolean
-}
-
-const SECTIONS: Section[] = [
-  { key: 'library', label: 'Library', icon: <BarChart3 className="w-4 h-4" />, defaultOpen: true },
-  { key: 'build', label: 'Build', icon: <Palette className="w-4 h-4" />, defaultOpen: true },
-  { key: 'account', label: 'Account', icon: <User className="w-4 h-4" />, defaultOpen: true },
-  { key: 'support', label: 'Support', icon: <MessageCircle className="w-4 h-4" />, defaultOpen: true },
-  { key: 'admin', label: 'Admin', icon: <Shield className="w-4 h-4" />, defaultOpen: false },
+// ── Workflow step mapping ─────────────────────────────────────────────────
+// The five user-facing groups in the spec map to CoauthorStage values like so:
+const STAGE_GROUPS: Array<{
+  group: string
+  steps: Array<{ label: string; stage: CoauthorStage; icon: React.ReactNode }>
+}> = [
+  { group: 'Research', steps: [{ label: 'Creator Radar',     stage: 'radar',       icon: <Radar       className="w-4 h-4" /> }] },
+  { group: 'Outline',  steps: [{ label: 'Outline',           stage: 'outline',     icon: <FileText    className="w-4 h-4" /> }] },
+  { group: 'Write',    steps: [{ label: 'Chapters',          stage: 'chapter',     icon: <PenLine     className="w-4 h-4" /> }] },
+  { group: 'Design',   steps: [{ label: 'Book Design',       stage: 'book-design', icon: <Palette     className="w-4 h-4" /> }] },
+  {
+    group: 'Publish',
+    steps: [
+      { label: 'Pre-Publish Check', stage: 'pre-publish', icon: <CheckSquare className="w-4 h-4" /> },
+      { label: 'Publish',           stage: 'publish',     icon: <Globe       className="w-4 h-4" /> },
+    ],
+  },
 ]
-
-// Section parent button. Hidden in collapsed mode (the items render flat as
-// icons with their own tooltips, so a label/chevron header would be noise).
-function sectionHeader(
-  key: string,
-  label: string,
-  icon: React.ReactNode,
-  collapsed: boolean,
-  open: Record<string, boolean>,
-  toggle: (k: string) => void,
-) {
-  if (collapsed) {
-    return (
-      <div key={`hdr-${key}`} className="my-1 mx-2 h-px bg-ink-3/60" aria-hidden="true" />
-    )
-  }
-  return (
-    <button
-      key={`hdr-${key}`}
-      onClick={() => toggle(key)}
-      className="w-full flex items-center justify-between px-3 py-2 text-xs font-inter font-medium text-ink-muted uppercase tracking-wider hover:text-ink-subtle transition-colors"
-    >
-      <span className="flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      {open[key] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-    </button>
-  )
-}
 
 export function AppSidebar({
   userEmail,
@@ -101,40 +77,21 @@ export function AppSidebar({
   onToggleCollapse,
 }: Props) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [open, setOpen] = useState<Record<string, boolean>>(
-    Object.fromEntries(SECTIONS.map((s) => [s.key, s.defaultOpen ?? false]))
-  )
-  const [showCoverPrompt, setShowCoverPrompt] = useState(false)
-  const [coverPrompt, setCoverPrompt] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  function toggleSection(key: string) {
-    setOpen((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
+  // bookId detection: prefer bookContext (coauthor explicit), fall back to
+  // URL parsing (wizard, preview, publish pages that don't pass context).
+  const pathBookId = pathname.match(/^\/book\/([^/]+)/)?.[1] ?? null
+  const bookId = bookContext?.bookId ?? pathBookId
+  const inBook = !!bookId
+  const onCoauthorPath = inBook && pathname.startsWith(`/book/${bookId}/coauthor`)
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + '/')
   }
 
-  const buildStage = bookContext?.stage
-  // Derive bookId from URL when bookContext isn't passed (e.g., on the wizard
-  // page, which doesn't own coauthor state) so wizard-step nav still works.
-  const pathBookId = pathname.match(/^\/book\/([^/]+)/)?.[1] ?? null
-  const bookId = bookContext?.bookId ?? pathBookId
-  const onWizardPath = !!bookId && pathname.startsWith(`/book/${bookId}/wizard`)
-  const onCoauthorPath = !!bookId && pathname.startsWith(`/book/${bookId}/coauthor`)
-  const wizardStepParam = searchParams.get('step')
-  const activeWizardStep = onWizardPath
-    ? (wizardStepParam ? Number.parseInt(wizardStepParam, 10) : 0)
-    : null
-
-  function gotoWizardStep(n: number) {
-    if (!bookId) return
-    window.location.href = `/book/${bookId}/wizard?step=${n}`
-  }
-
-  function gotoCoauthorStage(stage: CoauthorStage) {
+  /** Stage navigation — uses bookContext callback when available so the
+   *  switch is instantaneous within the coauthor SPA; falls back to a
+   *  full navigation for wizard/preview/other routes. */
+  function gotoStage(stage: CoauthorStage) {
     if (bookContext?.onStageChange && onCoauthorPath) {
       bookContext.onStageChange(stage)
       return
@@ -144,11 +101,7 @@ export function AppSidebar({
     }
   }
 
-  // Wraps a row in a Radix tooltip. Used for two purposes:
-  //   1) collapsed mode — shows the label as a tooltip on hover
-  //   2) locked items — explains the prerequisite ("Open a book first")
-  // The tooltip also fires for non-locked items in collapsed mode so the user
-  // always knows where they're pointing.
+  // ── Helpers for items ────────────────────────────────────────────────
   function withTooltip(child: React.ReactElement, tip: string | null) {
     if (!tip) return child
     return (
@@ -158,58 +111,13 @@ export function AppSidebar({
           <Tooltip.Content
             side="right"
             sideOffset={10}
-            className="z-50 px-2.5 py-1.5 rounded-md bg-ink-2 border border-ink-3 text-xs font-inter text-cream shadow-lg animate-fade-in"
+            className="z-50 px-2.5 py-1.5 rounded-md bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 text-xs font-inter text-ink-1 dark:text-cream shadow-lg animate-fade-in"
           >
             {tip}
-            <Tooltip.Arrow className="fill-ink-2" />
+            <Tooltip.Arrow className="fill-cream-2 dark:fill-ink-2" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>
-    )
-  }
-
-  // Active state uses a left gold border accent + ink-3 fill. Disabled state
-  // dims the text and replaces the icon with a small Lock cue. Tooltips only
-  // surface in collapsed mode (label preview) or when locked (reason).
-  function navItem(
-    label: string,
-    icon: React.ReactNode,
-    onClick: () => void,
-    active?: boolean,
-    disabled?: boolean,
-    sub?: React.ReactNode,
-    lockedReason?: string,
-  ) {
-    const showLock = disabled && !!lockedReason
-    const tip = collapsed ? (disabled && lockedReason ? `${label} — ${lockedReason}` : label) : (showLock ? lockedReason : null)
-    const button = (
-      <button
-        onClick={disabled ? undefined : onClick}
-        disabled={disabled}
-        aria-label={label}
-        className={`w-full flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2 rounded-md text-sm font-inter transition-colors text-left relative ${
-          active
-            ? 'bg-ink-3 text-gold'
-            : disabled
-            ? 'text-ink-muted/60 cursor-not-allowed'
-            : 'text-ink-subtle hover:text-cream hover:bg-ink-2'
-        }`}
-      >
-        {/* Left gold accent on active */}
-        {active && (
-          <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-gold rounded-r" aria-hidden="true" />
-        )}
-        <span className={active ? 'text-gold' : disabled ? 'text-ink-muted/40' : 'text-ink-muted'}>
-          {showLock ? <Lock className="w-3.5 h-3.5" /> : icon}
-        </span>
-        {!collapsed && <span className="truncate">{label}</span>}
-      </button>
-    )
-    return (
-      <div key={label}>
-        {withTooltip(button, tip)}
-        {!collapsed && sub}
-      </div>
     )
   }
 
@@ -219,396 +127,244 @@ export function AppSidebar({
       <Link
         href={href}
         aria-label={label}
-        className={`flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2 rounded-md text-sm font-inter transition-colors relative ${
+        className={`flex items-center gap-3 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2.5 rounded-lg text-sm font-inter font-medium transition-colors duration-150 ${
           active
-            ? 'bg-ink-3 text-gold'
-            : 'text-ink-subtle hover:text-cream hover:bg-ink-2'
+            ? 'bg-cream-3 text-ink-1 dark:bg-ink-3 dark:text-white'
+            : 'text-ink-1/50 hover:text-ink-1 hover:bg-cream-2 dark:text-white/50 dark:hover:text-white dark:hover:bg-ink-2/50'
         }`}
       >
-        {active && (
-          <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-gold rounded-r" aria-hidden="true" />
-        )}
-        <span className={active ? 'text-gold' : 'text-ink-muted'}>{icon}</span>
+        <span className={active ? 'text-gold' : 'text-ink-1/60 dark:text-white/60'}>{icon}</span>
         {!collapsed && <span className="truncate">{label}</span>}
       </Link>
     )
     return <div key={label}>{withTooltip(link, collapsed ? label : null)}</div>
   }
 
-  const chapterList = bookContext && bookContext.pages.length > 0 && !collapsed && (
-    <div className="mt-0.5 space-y-0.5 pb-1">
-      {bookContext.pages.map((page, i) => {
-        const isActive = onCoauthorPath && buildStage === 'chapter' && bookContext.activeChapterIndex === i
-        return (
-          <button
-            key={page.id}
-            onClick={() => bookContext.onChapterSelect(i)}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs font-inter transition-colors text-left truncate ${
-              isActive ? 'text-gold' : 'text-[#5A6478] hover:text-cream'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              page.approved ? 'bg-accent' : isActive ? 'bg-gold' : 'bg-[#3A4150]'
-            }`} />
-            <span className="truncate">{page.chapter_title}</span>
-            {(bookContext.imageStatuses[page.id] ?? (page.image_url ? 'done' : 'idle')) === 'generating' && (
-              <Loader2 className="w-2.5 h-2.5 animate-spin text-accent shrink-0" />
+  /** Indented child of a parent linkItem. Hidden when collapsed — sub-items
+   *  rely on visual indentation to show the parent relationship, which can't
+   *  survive the icon-only collapsed mode. Used for the Library group in
+   *  global mode. */
+  function subLinkItem(label: string, href: string) {
+    if (collapsed) return null
+    const active = isActive(href)
+    return (
+      <Link
+        key={`sub-${label}`}
+        href={href}
+        className={`flex items-center pl-9 py-1.5 text-xs font-inter transition-colors duration-150 ${
+          active
+            ? 'text-ink-1 font-medium dark:text-white'
+            : 'text-ink-1/40 hover:text-ink-1/60 dark:text-white/40 dark:hover:text-white/60'
+        }`}
+      >
+        {label}
+      </Link>
+    )
+  }
+
+  /** Render a workflow step. Completion + current-stage indicators come
+   *  from bookContext when available; on routes without it (wizard /
+   *  preview) the step still navigates but loses its status decoration. */
+  function stepItem(
+    label: string,
+    icon: React.ReactNode,
+    stage: CoauthorStage,
+    isCurrent: boolean,
+    isCompleted: boolean,
+    subLabel?: string,
+  ) {
+    const button = (
+      <button
+        onClick={() => gotoStage(stage)}
+        aria-label={label}
+        className={`relative w-full flex items-center gap-3 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2.5 rounded-lg text-sm font-inter font-medium text-left transition-colors duration-150 ${
+          isCurrent
+            ? 'bg-cream-3 text-ink-1 dark:bg-ink-3 dark:text-white'
+            : 'text-ink-1/50 hover:text-ink-1 hover:bg-cream-2 dark:text-white/50 dark:hover:text-white dark:hover:bg-ink-2/50'
+        }`}
+      >
+        {isCurrent && !collapsed && (
+          <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gold" aria-hidden="true" />
+        )}
+        <span className={isCurrent ? 'text-gold' : 'text-ink-1/60 dark:text-white/60'}>{icon}</span>
+        {!collapsed && (
+          <span className="flex-1 truncate">
+            {label}
+            {subLabel && (
+              <span className="block text-ink-1/30 dark:text-white/30 text-xs font-normal mt-0.5">{subLabel}</span>
             )}
-          </button>
-        )
-      })}
-    </div>
-  )
+          </span>
+        )}
+        {!collapsed && isCompleted && (
+          <CheckCircle2 className="w-3.5 h-3.5 text-gold shrink-0" aria-hidden="true" />
+        )}
+      </button>
+    )
+    return <div key={label}>{withTooltip(button, collapsed ? label : null)}</div>
+  }
+
+  // ── Completion + current derivation ──────────────────────────────────
+  // We can confidently mark Outline + Write from bookContext alone. The
+  // other groups don't have reliable signals in the current data layer,
+  // so they only get the "current" indicator (no checkmark) until the
+  // signals are wired through.
+  const chapterCount = bookContext?.pages.length ?? 0
+  const approvedCount = bookContext?.pages.filter((p) => p.approved).length ?? 0
+  const outlineComplete = chapterCount > 0
+  const writeComplete = !!bookContext?.allApproved
+  const currentStage = bookContext?.stage ?? null
 
   return (
     <motion.aside
-      animate={{ width: collapsed ? 64 : 220 }}
+      animate={{ width: collapsed ? 56 : 224 }}
       initial={false}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className="shrink-0 bg-ink-1 border-r border-ink-3 flex flex-col h-screen overflow-y-auto overflow-x-hidden"
+      className="shrink-0 bg-cream-1 dark:bg-ink-1 border-r border-cream-3 dark:border-ink-3 flex flex-col h-screen overflow-y-auto overflow-x-hidden"
     >
-      {/* Header — logo + collapse toggle. Avatar lives in the footer UserMenu. */}
-      <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-4 border-b border-ink-3`}>
-        {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-gold flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4 text-ink-1" />
-            </div>
-            <span className="font-playfair text-cream text-sm font-semibold truncate">FlipBookPro</span>
-          </Link>
-        )}
-        {collapsed && (
+      {/* Header — logo + collapse toggle. ChevronLeft when expanded so
+          the icon indicates the direction collapse will travel. */}
+      <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-4 border-b border-cream-3 dark:border-ink-3`}>
+        {!collapsed ? (
+          <>
+            <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-md bg-gold flex items-center justify-center shrink-0">
+                <BookOpen className="w-4 h-4 text-ink-1" />
+              </div>
+              <span className="font-playfair text-gold text-lg font-bold truncate">FlipBookPro</span>
+            </Link>
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                aria-label="Collapse sidebar"
+                className="p-1.5 rounded-md text-ink-1/40 hover:text-ink-1 hover:bg-cream-2 dark:text-white/40 dark:hover:text-white dark:hover:bg-ink-2 transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </>
+        ) : (
           <Link href="/dashboard" className="w-7 h-7 rounded-md bg-gold flex items-center justify-center" aria-label="FlipBookPro home">
             <BookOpen className="w-4 h-4 text-ink-1" />
           </Link>
         )}
-        {!collapsed && onToggleCollapse && (
-          <button
-            onClick={onToggleCollapse}
-            aria-label="Collapse sidebar"
-            className="p-1.5 rounded-md text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors"
-          >
-            <ChevronUp className="w-3.5 h-3.5 -rotate-90" />
-          </button>
-        )}
       </div>
 
-      {/* Upgrade CTA — hidden when collapsed (UserMenu's crown surfaces premium status) */}
-      {!collapsed && !isPremium && !isAdmin && (
-        <div className="px-3 pt-3 pb-1">
-          <Link
-            href="/settings/billing"
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold transition-colors press-scale"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            Upgrade to Premium
-          </Link>
-        </div>
-      )}
-
-      {/* Nav. Section parents become silent in collapsed mode — items render
-          flat as icons. Lock tooltips explain prerequisites for disabled items
-          (e.g. "Open a book to access"). Active items get a left gold border. */}
-      <nav className={`flex-1 ${collapsed ? 'px-2' : 'px-3'} py-2 space-y-0.5`}>
-        {linkItem('Dashboard', <LayoutDashboard className="w-4 h-4" />, '/dashboard')}
-
-        {/* Library */}
-        {sectionHeader('library', 'Library', <BarChart3 className="w-3.5 h-3.5" />, collapsed, open, toggleSection)}
-        {(collapsed || open.library) && (
-          <div className={collapsed ? 'space-y-0.5' : 'space-y-0.5 ml-1'}>
-            {linkItem('Books', <BookOpen className="w-4 h-4" />, '/dashboard')}
-            {linkItem('Media', <ImageIcon className="w-4 h-4" />, '/media')}
-          </div>
-        )}
-
-        {/* Build */}
-        {sectionHeader('build', 'Build', <Wand2 className="w-3.5 h-3.5" />, collapsed, open, toggleSection)}
-        {(collapsed || open.build) && (
-          <div className={collapsed ? 'space-y-0.5' : 'space-y-0.5 ml-1'}>
-            {(!bookContext || bookContext.hasDiscover) && navItem(
-              'Discover',
-              <Compass className="w-4 h-4" />,
-              () => {},
-              false,
-              !bookContext || !bookContext.hasDiscover,
-              undefined,
-              !bookContext ? 'Open a book to access' : !bookContext.hasDiscover ? 'This book uses outline mode' : undefined,
-            )}
-            {navItem(
-              'Outline',
-              <AlignLeft className="w-4 h-4" />,
-              () => gotoCoauthorStage('outline'),
-              onCoauthorPath && buildStage === 'outline',
-              !bookId,
-              undefined,
-              !bookId ? 'Open a book to access' : undefined,
-            )}
-            {/* Creator Radar lives between Outline and the Setup section so
-                it reads as a top-level workspace, not a setup step. Same
-                top-level visual treatment as Outline (no indent). Locked
-                when no book is open, same gating as Outline. */}
-            {navItem(
-              'Creator Radar',
-              <Radar className="w-4 h-4" />,
-              () => gotoCoauthorStage('radar'),
-              onCoauthorPath && buildStage === 'radar',
-              !bookId,
-              undefined,
-              !bookId ? 'Open a book to access' : undefined,
-            )}
-
-            {!collapsed && (
-              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
-                Setup
-              </p>
-            )}
-            {navItem('Details',  <FileText className="w-4 h-4" />,      () => gotoWizardStep(1), onWizardPath && activeWizardStep === 1, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-            {navItem('Audience', <Users className="w-4 h-4" />,         () => gotoWizardStep(2), onWizardPath && activeWizardStep === 2, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-            {navItem('Tone',     <MessageSquare className="w-4 h-4" />, () => gotoWizardStep(3), onWizardPath && activeWizardStep === 3, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-            {navItem('Reader',   <Gauge className="w-4 h-4" />,         () => gotoWizardStep(4), onWizardPath && activeWizardStep === 4, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-
-            {!collapsed && (
-              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
-                Theme
-              </p>
-            )}
-            {navItem('Illustrations', <Palette className="w-4 h-4" />,    () => gotoWizardStep(5), onWizardPath && activeWizardStep === 5, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-            {navItem('Cover',         <BookMarked className="w-4 h-4" />, () => gotoWizardStep(6), onWizardPath && activeWizardStep === 6, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-            {navItem('Typography',    <Type className="w-4 h-4" />,       () => gotoWizardStep(7), onWizardPath && activeWizardStep === 7, !bookId, undefined, !bookId ? 'Open a book to access' : undefined)}
-
-            {/* Chapters subsection — collapsed mode falls back to a single
-                Chapters nav item; full mode renders the label + the
-                per-chapter sub-list as flat items at the same indent as
-                Setup / Theme. */}
-            {!collapsed ? (
-              <>
-                <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
-                  Chapters
-                </p>
-                {!bookContext || bookContext.pages.length === 0
-                  ? navItem(
-                      'No chapters yet',
-                      <Layers className="w-4 h-4" />,
-                      () => {},
-                      false,
-                      true,
-                      undefined,
-                      !bookId ? 'Open a book to access' : 'Add chapters in the outline',
-                    )
-                  : chapterList}
-              </>
-            ) : (
-              navItem(
-                'Chapters',
-                <Layers className="w-4 h-4" />,
-                () => gotoCoauthorStage('chapter'),
-                onCoauthorPath && buildStage === 'chapter',
-                !bookId,
-                undefined,
-                !bookId ? 'Open a book to access' : undefined,
-              )
-            )}
-
-            {/* Finish — the three terminal stages replacing the old Review &
-                Export / Back Matter pair. Locked when no book is open; the
-                pre-publish check itself surfaces missing-coverage blockers,
-                so we no longer hard-gate on every chapter being approved. */}
-            {!collapsed && (
-              <p className="px-3 pt-2 pb-0.5 text-[9px] font-inter font-medium text-ink-muted/70 uppercase tracking-[0.14em]">
-                Finish
-              </p>
-            )}
-            {navItem(
-              'Book Design',
-              <Wand2 className="w-4 h-4" />,
-              () => gotoCoauthorStage('book-design'),
-              onCoauthorPath && buildStage === 'book-design',
-              !bookId,
-              undefined,
-              !bookId ? 'Open a book to access' : undefined,
-            )}
-            {navItem(
-              'Pre-Publish Check',
-              <ShieldCheck className="w-4 h-4" />,
-              () => gotoCoauthorStage('pre-publish'),
-              onCoauthorPath && buildStage === 'pre-publish',
-              !bookId,
-              undefined,
-              !bookId ? 'Open a book to access' : undefined,
-            )}
-            {navItem(
-              'Publish',
-              <Globe className="w-4 h-4" />,
-              () => gotoCoauthorStage('publish'),
-              onCoauthorPath && buildStage === 'publish',
-              !bookId,
-              undefined,
-              !bookId ? 'Open a book to access' : undefined,
-            )}
-          </div>
-        )}
-
-        {/* Account */}
-        {sectionHeader('account', 'Account', <User className="w-3.5 h-3.5" />, collapsed, open, toggleSection)}
-        {(collapsed || open.account) && (
-          <div className={collapsed ? 'space-y-0.5' : 'space-y-0.5 ml-1'}>
-            {linkItem('Profile', <User className="w-4 h-4" />, '/settings/profile')}
-            {linkItem('Brand Profile', <Building2 className="w-4 h-4" />, '/settings/brand')}
-            {linkItem('Billing', <CreditCard className="w-4 h-4" />, '/settings/billing')}
-            {linkItem('Leads', <Users className="w-4 h-4" />, '/settings/leads')}
-            {linkItem('API Keys', <Key className="w-4 h-4" />, '/settings/api-keys')}
-          </div>
-        )}
-
-        {/* Support */}
-        {sectionHeader('support', 'Support', <MessageCircle className="w-3.5 h-3.5" />, collapsed, open, toggleSection)}
-        {(collapsed || open.support) && (
-          <div className={collapsed ? 'space-y-0.5' : 'space-y-0.5 ml-1'}>
-            {linkItem('Chat', <MessageCircle className="w-4 h-4" />, '/support/chat')}
-            {linkItem('Feedback', <Star className="w-4 h-4" />, '/support/feedback')}
-            {linkItem('FAQ', <HelpCircle className="w-4 h-4" />, '/support/faq')}
-          </div>
-        )}
-
-        {/* Admin — only when isAdmin */}
-        {isAdmin && (
+      {/* Nav body — keys on the mode so React swaps the subtree and the
+          animate-fade-in utility fires on mode change. */}
+      <nav
+        key={inBook ? 'contextual' : 'global'}
+        className={`flex-1 ${collapsed ? 'px-2' : 'px-3'} py-3 space-y-0.5 animate-fade-in`}
+      >
+        {inBook ? (
+          // ── CONTEXTUAL MODE ──────────────────────────────────────
           <>
-            {sectionHeader('admin', 'Admin', <Shield className="w-3.5 h-3.5" />, collapsed, open, toggleSection)}
-            {(collapsed || open.admin) && (
-              <div className={collapsed ? 'space-y-0.5' : 'space-y-0.5 ml-1'}>
-                {linkItem('Dashboard', <BarChart3 className="w-4 h-4" />, '/admin')}
-                {linkItem('Users', <User className="w-4 h-4" />, '/admin/users')}
+            {/* Back to Library — small affordance at the very top. */}
+            <Link
+              href="/library"
+              className={`flex items-center gap-2 ${collapsed ? 'justify-center px-0' : 'px-3'} py-1.5 text-xs font-inter text-ink-1/40 hover:text-ink-1/60 dark:text-white/40 dark:hover:text-white/60 transition-colors`}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              {!collapsed && <span className="truncate">Back to Library</span>}
+            </Link>
+
+            {/* Book title — uses bookContext when available, otherwise a
+                generic label so the wizard/preview pages don't look broken. */}
+            {!collapsed && (
+              <div className="px-3 pt-1 pb-3">
+                <p className="text-ink-1 dark:text-white font-semibold text-sm truncate" title={bookContext?.bookTitle}>
+                  {bookContext?.bookTitle ?? 'Current book'}
+                </p>
               </div>
+            )}
+
+            {/* Five workflow groups. Each group renders a small overline
+                header then its step(s); the Publish group has two steps
+                because Pre-Publish Check + Publish are sequential phases
+                of the same act. */}
+            {STAGE_GROUPS.map((g) => (
+              <div key={g.group}>
+                {!collapsed && (
+                  <p className="text-[10px] uppercase tracking-widest text-ink-1/30 dark:text-white/30 font-medium px-3 mb-1 mt-4">
+                    {g.group}
+                  </p>
+                )}
+                {g.steps.map((s) => {
+                  const current = currentStage === s.stage
+                  const completed =
+                    (s.stage === 'outline' && outlineComplete) ||
+                    (s.stage === 'chapter' && writeComplete)
+                  // Chapter step gets a subtitle with approval count so
+                  // the user can see write-progress without expanding.
+                  const sub =
+                    s.stage === 'chapter' && chapterCount > 0
+                      ? `${approvedCount}/${chapterCount} approved`
+                      : undefined
+                  return stepItem(s.label, s.icon, s.stage, current, completed, sub)
+                })}
+              </div>
+            ))}
+          </>
+        ) : (
+          // ── GLOBAL MODE ──────────────────────────────────────────
+          <>
+            {linkItem('Dashboard', <LayoutDashboard className="w-4 h-4" />, '/dashboard')}
+
+            {/* Library parent + always-visible indented sub-items. Both
+                the parent linkItem and the Books sub-item route to
+                /library — the parent reads as a category header, the
+                sub-item as the specific view. Media lives at a sibling
+                route. */}
+            {linkItem('Library', <LibraryIcon className="w-4 h-4" />, '/library')}
+            {subLinkItem('Books', '/library')}
+            {subLinkItem('Media', '/library/media')}
+
+            {/* + New Book — wrapped in NewBookButton so plan-gate +
+                modal flow are reused. mx-3 wraps the inner button with
+                lateral margin; the arbitrary selector forces the
+                NewBookButton's trigger (first child of the fragment) to
+                go full-width inside the sidebar without changing the
+                component's signature, which keeps its auto-width
+                behaviour intact on the dashboard header. */}
+            {!collapsed && (
+              <div className="mx-3 mt-2 mb-4 [&>button:first-child]:w-full">
+                <NewBookButton />
+              </div>
+            )}
+
+            {/* Admin section — only renders for admin users; small footprint
+                so it doesn't pollute the global nav for everyone else. */}
+            {isAdmin && (
+              <>
+                {!collapsed && (
+                  <p className="text-[10px] uppercase tracking-widest text-ink-1/30 dark:text-white/30 font-medium px-3 mb-1 mt-5">
+                    Admin
+                  </p>
+                )}
+                {linkItem('Dashboard', <BarChart3 className="w-4 h-4" />, '/admin')}
+                {linkItem('Users',     <Shield     className="w-4 h-4" />, '/admin/users')}
+              </>
             )}
           </>
         )}
       </nav>
 
-      {/* Book cover section (only in book context, full mode only) */}
-      {!collapsed && bookContext && (
-        <div className="px-3 pb-2 border-t border-ink-3 pt-3">
-          <p className="text-[10px] font-inter font-medium text-[#5A6478] uppercase tracking-wider px-1 mb-2">Cover</p>
-
-          {bookContext.coverImageStatus === 'generating' ? (
-            <div className="aspect-[2/3] bg-[#151C28] rounded-md flex items-center justify-center gap-2 flex-col">
-              <Loader2 className="w-4 h-4 animate-spin text-accent" />
-              <span className="text-[10px] text-[#5A6478] font-inter">Generating…</span>
-            </div>
-          ) : bookContext.coverImageUrl ? (
-            <div className="relative group">
-              <img src={bookContext.coverImageUrl} alt="Cover" className="w-full aspect-[2/3] object-cover rounded-md" />
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center gap-2">
-                <button onClick={() => setShowCoverPrompt((v) => !v)} className="p-1.5 bg-[#0D1117]/80 rounded-md text-cream hover:text-accent" title="Regenerate">
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-[#0D1117]/80 rounded-md text-cream hover:text-accent" title="Upload">
-                  <Upload className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="aspect-[2/3] bg-[#151C28] rounded-md flex flex-col items-center justify-center gap-1 border border-dashed border-[#2A3448]">
-              <ImageIcon className="w-5 h-5 text-[#3A4150]" />
-              <span className="text-[10px] text-[#5A6478] font-inter">No cover yet</span>
-            </div>
-          )}
-
-          {showCoverPrompt && (
-            <div className="mt-2 space-y-2">
-              <textarea
-                value={coverPrompt}
-                onChange={(e) => setCoverPrompt(e.target.value)}
-                placeholder="Optional: describe the cover…"
-                rows={2}
-                className="w-full px-2 py-1.5 rounded-md bg-[#151C28] border border-[#2A3448] text-cream placeholder:text-[#5A6478] text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent resize-none"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { bookContext.onGenerateCover(coverPrompt.trim() || undefined); setShowCoverPrompt(false); setCoverPrompt('') }}
-                  className="flex-1 py-1.5 bg-accent hover:bg-accent/90 text-cream text-xs font-inter rounded-md transition-colors"
-                >
-                  Generate
-                </button>
-                <button onClick={() => { setShowCoverPrompt(false); setCoverPrompt('') }} className="p-1.5 text-[#5A6478] hover:text-cream">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!bookContext.coverImageUrl && bookContext.coverImageStatus !== 'generating' && !showCoverPrompt && (
-            <div className="flex gap-1.5 mt-2">
-              <button
-                onClick={() => setShowCoverPrompt(true)}
-                className="flex-1 py-1.5 border border-[#2A3448] hover:border-accent/40 text-[#5A6478] hover:text-cream text-xs font-inter rounded-md transition-colors flex items-center justify-center gap-1"
-              >
-                <Wand2 className="w-3 h-3" /> Generate
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 py-1.5 border border-[#2A3448] hover:border-accent/40 text-[#5A6478] hover:text-cream text-xs font-inter rounded-md transition-colors flex items-center justify-center gap-1"
-              >
-                <Upload className="w-3 h-3" /> Upload
-              </button>
-            </div>
-          )}
-
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) bookContext.onCoverUpload(f); e.target.value = '' }} className="hidden" />
-
-          {/* "Image already has text" toggle — only relevant when there's a
-              cover image. Suppresses the overlay text + scrim everywhere
-              the cover renders. */}
-          {bookContext.coverImageUrl && (
-            <label className="mt-2 flex items-start gap-2 px-1 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={bookContext.coverHasText}
-                onChange={(e) => bookContext.onToggleCoverHasText(e.target.checked)}
-                className="mt-0.5 w-3.5 h-3.5 rounded border-ink-3 bg-ink-2 text-gold focus:ring-gold/40 focus:ring-offset-0 cursor-pointer accent-gold"
-              />
-              <span className="text-[10px] font-inter leading-snug text-ink-subtle group-hover:text-cream transition-colors">
-                Image already has the title — hide overlay text
-              </span>
-            </label>
-          )}
-
-          {/* Chapter progress */}
-          {bookContext.pages.length > 0 && (
-            <div className="flex items-center gap-2 mt-3">
-              <div className="flex-1 bg-[#151C28] rounded-full h-1">
-                <div
-                  className="bg-accent h-1 rounded-full transition-all"
-                  style={{ width: `${(bookContext.pages.filter((p) => p.approved).length / bookContext.pages.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-inter text-[#5A6478]">
-                {bookContext.pages.filter((p) => p.approved).length}/{bookContext.pages.length}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Preview link — persistent, always visible when a book is open
-          (book context OR wizard URL). Opens the private preview in a new
-          tab so the author can sanity-check the flipbook without losing
-          their place in coauthor. Not a stage — never highlighted, never
-          changes the URL of the current tab. */}
-      {bookId && (
-        <div className="px-2 py-1 border-t border-ink-3">
+      {/* Preview link — persistent at the foot of the contextual nav,
+          opens in a new tab so the editor doesn't lose its place. */}
+      {inBook && bookId && (
+        <div className="px-2 py-1 border-t border-cream-3 dark:border-ink-3">
           {withTooltip(
             <a
               href={`/book/${bookId}/preview`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Preview Book"
-              className={`flex items-center gap-2.5 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2 rounded-md text-sm font-inter text-ink-subtle hover:text-cream hover:bg-ink-2 transition-colors`}
+              className={`flex items-center gap-3 ${collapsed ? 'justify-center px-0' : 'px-3'} py-2.5 rounded-lg text-sm font-inter text-ink-1/40 hover:text-ink-1 hover:bg-cream-2 dark:text-white/40 dark:hover:text-white dark:hover:bg-ink-2/50 transition-colors duration-150`}
             >
-              <Eye className={`w-4 h-4 ${collapsed ? '' : 'text-ink-muted'}`} />
+              <Eye className="w-4 h-4 text-ink-1/60 dark:text-white/60" />
               {!collapsed && (
                 <>
                   <span className="flex-1 truncate">Preview Book</span>
-                  <ExternalLink className="w-3 h-3 text-ink-muted" />
+                  <ExternalLink className="w-3 h-3 text-ink-1/40 dark:text-white/40" />
                 </>
               )}
             </a>,
@@ -617,8 +373,24 @@ export function AppSidebar({
         </div>
       )}
 
-      {/* Footer — avatar dropdown with profile / brand / billing / sign out */}
-      <div className="px-2 py-2 border-t border-ink-3">
+      {/* Settings — single link in both modes, just above the user menu. */}
+      <div className="px-2 py-1 border-t border-cream-3 dark:border-ink-3">
+        {linkItem('Settings', <Settings className="w-4 h-4" />, '/settings')}
+      </div>
+
+      {/* Theme toggle — sits directly above the user section. Row layout
+          when expanded (label + switch), centered switch when collapsed. */}
+      <div className={`px-2 py-2 border-t border-cream-3 dark:border-ink-3 flex items-center ${collapsed ? 'justify-center' : 'justify-between px-4'}`}>
+        {!collapsed && (
+          <span className="text-xs font-inter text-ink-1/50 dark:text-white/40">Theme</span>
+        )}
+        {collapsed
+          ? withTooltip(<div><ThemeToggle /></div>, 'Toggle theme')
+          : <ThemeToggle />}
+      </div>
+
+      {/* Footer — avatar dropdown owns profile / billing / sign out. */}
+      <div className="px-2 py-2 border-t border-cream-3 dark:border-ink-3">
         <UserMenu userEmail={userEmail} isPremium={isPremium} isAdmin={isAdmin} collapsed={collapsed} />
       </div>
     </motion.aside>
