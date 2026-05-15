@@ -37,7 +37,7 @@ const loadLanding = cache(async (slug: string) => {
   const [bookResult, chaptersResult, resourceCountResult, leadCountResult] = await Promise.all([
     supabase
       .from('books')
-      .select('id, title, subtitle, author_name, cover_image_url, back_cover_tagline, back_cover_description, palette, user_id')
+      .select('id, title, subtitle, author_name, cover_image_url, back_cover_tagline, back_cover_description, closing_pitch, palette, user_id')
       .eq('id', pub.book_id)
       .single(),
     supabase
@@ -61,7 +61,7 @@ const loadLanding = cache(async (slug: string) => {
       .eq('book_id', pub.book_id),
   ])
 
-  const book = bookResult.data as Pick<Book, 'id' | 'title' | 'subtitle' | 'author_name' | 'cover_image_url' | 'back_cover_tagline' | 'back_cover_description' | 'palette' | 'user_id'> | null
+  const book = bookResult.data as Pick<Book, 'id' | 'title' | 'subtitle' | 'author_name' | 'cover_image_url' | 'back_cover_tagline' | 'back_cover_description' | 'closing_pitch' | 'palette' | 'user_id'> | null
   if (!book) return null
 
   const { data: profile } = await supabase
@@ -322,12 +322,12 @@ export default async function GoPage({ params }: Props) {
               Join {leadCount.toLocaleString()} {leadCount === 1 ? 'reader' : 'readers'}
             </p>
           )}
-          {/* Closing headline. Reuses the book's own tagline when set —
-              it's already a sharper, book-specific pitch than any
-              generic closer we could write. Generic fallback covers
-              books that haven't filled in back_cover_tagline yet. */}
+          {/* Closing headline. Priority: the author-written closing_pitch
+              (a purpose-built final-CTA line), then back_cover_tagline
+              (already a sharp book-specific pitch), then a generic
+              closer for books that have set neither. */}
           <h2 className="font-playfair text-3xl md:text-4xl text-white mb-4">
-            {book.back_cover_tagline ?? 'Ready when you are.'}
+            {book.closing_pitch ?? book.back_cover_tagline ?? 'Ready when you are.'}
           </h2>
           <p className="font-source-serif text-white/50 text-lg mb-10">
             Get instant access and start reading today.

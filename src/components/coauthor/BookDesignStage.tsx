@@ -269,6 +269,40 @@ export function BookDesignStage({
   const [savedText,   setSavedText]   = useState(false)
   const [textError,   setTextError]   = useState('')
 
+  // ── Closing pitch ─────────────────────────────────────────────────────
+  // Final-CTA headline for the public landing page. Saves on blur via the
+  // client supabase (RLS protects us), only when changed — same pattern as
+  // author name above. Not part of saveBackCoverText() because that goes
+  // through the /back-cover API route which only knows the back_cover_*
+  // columns; closing_pitch is a plain books column.
+  const [closingPitch,       setClosingPitch]       = useState(book.closing_pitch ?? '')
+  const [closingPitchSaving, setClosingPitchSaving] = useState(false)
+  const [closingPitchSaved,  setClosingPitchSaved]  = useState(false)
+  const lastSavedClosingPitch = useRef(book.closing_pitch ?? '')
+
+  async function saveClosingPitchOnBlur() {
+    const trimmed = closingPitch.trim()
+    if (trimmed === lastSavedClosingPitch.current) return
+    setClosingPitchSaving(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('books')
+        .update({
+          closing_pitch: trimmed.length > 0 ? trimmed : null,
+          updated_at:    new Date().toISOString(),
+        })
+        .eq('id', book.id)
+      if (!error) {
+        lastSavedClosingPitch.current = trimmed
+        setClosingPitchSaved(true)
+        setTimeout(() => setClosingPitchSaved(false), 1800)
+      }
+    } finally {
+      setClosingPitchSaving(false)
+    }
+  }
+
   // ── AI back-cover critique ────────────────────────────────────────────
   const [analyzing,       setAnalyzing]       = useState(false)
   const [hasAnalyzed,     setHasAnalyzed]     = useState(false)
@@ -909,6 +943,34 @@ export function BookDesignStage({
               placeholder="What readers will learn or gain. Why they should read it now."
               className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
             />
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <label htmlFor="book-closing-pitch" className="text-xs font-inter text-muted-foreground">
+                Closing Pitch <span className="text-cream/30">(optional)</span>
+              </label>
+              {closingPitchSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+              {closingPitchSaved && !closingPitchSaving && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-inter text-accent">
+                  <Check className="w-3 h-3" />
+                  Saved
+                </span>
+              )}
+            </div>
+            <textarea
+              id="book-closing-pitch"
+              value={closingPitch}
+              onChange={(e) => setClosingPitch(e.target.value)}
+              onBlur={() => void saveClosingPitchOnBlur()}
+              rows={2}
+              maxLength={200}
+              placeholder="While you wait, a worse broker just stole your next client."
+              className="w-full px-3 py-2 rounded-md bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+            />
+            <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+              Used as the final CTA headline on your book&apos;s landing page. If empty, your tagline is used instead.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
