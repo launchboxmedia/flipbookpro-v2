@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Check, Loader2, Eye, EyeOff } from 'lucide-react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types/database'
 
@@ -38,6 +39,28 @@ export function ProfilePanel({ user, profile }: Props) {
     } finally {
       setSavingName(false)
     }
+  }
+
+  // Author bio — saved on blur via the client supabase, only when the
+  // value actually changed (mirrors the author-name pattern elsewhere).
+  // Stored trimmed; an emptied bio clears to null like full_name does.
+  const [authorBio, setAuthorBio] = useState(profile?.author_bio ?? '')
+  const lastSavedBio = useRef(profile?.author_bio ?? '')
+
+  async function saveAuthorBio() {
+    const value = authorBio.trim()
+    if (value === lastSavedBio.current) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ author_bio: value || null })
+      .eq('id', user.id)
+    if (error) {
+      toast.error('Failed to save bio')
+      return
+    }
+    lastSavedBio.current = value
+    toast.success('Bio saved')
   }
 
   async function changePassword() {
@@ -111,6 +134,29 @@ export function ProfilePanel({ user, profile }: Props) {
             {savedName ? 'Saved' : savingName ? 'Saving…' : 'Save Name'}
           </button>
         </div>
+      </div>
+
+      {/* Author bio */}
+      <div className="bg-white dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mb-5 space-y-2">
+        <div className="flex items-center justify-between">
+          <label htmlFor="author-bio" className="text-xs font-inter font-medium text-ink-1/60 dark:text-white/60 uppercase tracking-wider">
+            Author Bio
+          </label>
+          <span className="text-xs font-inter text-ink-1/40 dark:text-white/40">{authorBio.length}/500</span>
+        </div>
+        <textarea
+          id="author-bio"
+          value={authorBio}
+          onChange={(e) => setAuthorBio(e.target.value)}
+          onBlur={() => void saveAuthorBio()}
+          rows={4}
+          maxLength={500}
+          placeholder="Tell readers about yourself, your expertise, and what drives your work..."
+          className="bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-4 text-ink-1 dark:text-white rounded-lg p-3 w-full resize-none focus:border-gold/50 focus:outline-none transition-colors font-inter text-sm"
+        />
+        <p className="text-xs font-inter text-ink-1/50 dark:text-white/50">
+          Displayed on your book landing pages in the About the Author section.
+        </p>
       </div>
 
       {/* Password */}

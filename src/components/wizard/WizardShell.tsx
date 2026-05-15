@@ -356,7 +356,7 @@ export function WizardShell({
                       ? 'bg-gold text-ink-1 shadow-[0_0_18px_-4px_rgba(201,168,76,0.5)]'
                       : i === step
                       ? 'bg-gold text-ink-1 ring-2 ring-gold/40 ring-offset-2 ring-offset-canvas'
-                      : 'bg-ink-2 text-ink-subtle border border-ink-3'
+                      : 'bg-cream-2 dark:bg-ink-2 text-ink-subtle border border-cream-3 dark:border-ink-3'
                   }`}
                 >
                   {i < step ? <Check className="w-4 h-4" /> : i + 1}
@@ -382,7 +382,7 @@ export function WizardShell({
                     </span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-ink-3'}`} />
+                    <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-cream-3 dark:bg-ink-3'}`} />
                   )}
                 </div>
               )

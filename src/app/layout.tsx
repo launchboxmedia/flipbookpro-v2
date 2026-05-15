@@ -37,6 +37,26 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${sourceSerif.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        {/* Runs synchronously before first paint so returning dark-mode
+            users never see a light flash. Must be the FIRST element in
+            <head>, before any stylesheet. Mirrors ThemeProvider's mount
+            logic (localStorage 'theme', default light). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+  (function() {
+    try {
+      var theme = localStorage.getItem('theme');
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch(e) {}
+  })();
+`,
+          }}
+        />
+      </head>
       <body className="font-inter antialiased bg-canvas text-cream">
         <ThemeProvider>
           <AppProviders>

@@ -458,8 +458,8 @@ export function ChapterStage({
       {/* LEFT — chapter nav rail (280px). Quick switcher between chapters
           without leaving the writing surface. The global sidebar's chapter
           list is the same data; this is the "in-flow" view. */}
-      <aside className="w-[280px] shrink-0 bg-ink-2 border-r border-ink-3 flex flex-col overflow-hidden">
-        <div className="px-4 py-4 border-b border-ink-3 sticky top-0 bg-ink-2 z-10">
+      <aside className="w-[280px] shrink-0 bg-cream-2 dark:bg-ink-2 border-r border-cream-3 dark:border-ink-3 flex flex-col overflow-hidden">
+        <div className="px-4 py-4 border-b border-cream-3 dark:border-ink-3 sticky top-0 bg-cream-2 dark:bg-ink-2 z-10">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em] mb-1">
             Chapters
           </p>
@@ -475,7 +475,7 @@ export function ChapterStage({
             const dotColor =
               status === 'done'     ? 'bg-emerald-500' :
               status === 'drafting' ? 'bg-gold' :
-                                      'bg-ink-4'
+                                      'bg-[#E8E0D0] dark:bg-ink-4'
             const dotRing =
               status === 'done'     ? 'shadow-[0_0_0_3px_rgba(16,185,129,0.18)]' :
               status === 'drafting' ? 'shadow-[0_0_0_3px_rgba(201,168,76,0.18)]' :
@@ -487,7 +487,7 @@ export function ChapterStage({
                 aria-current={isActive ? 'page' : undefined}
                 className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors ${
                   isActive
-                    ? 'bg-ink-3 text-cream'
+                    ? 'bg-cream-3 dark:bg-ink-3 text-cream'
                     : 'text-ink-subtle hover:text-cream hover:bg-ink-2/80'
                 }`}
               >
@@ -563,7 +563,7 @@ export function ChapterStage({
               onClick={generateDraft}
               disabled={generating}
               title={approved ? 'Unapproves and regenerates this chapter' : undefined}
-              className="flex items-center gap-2 px-4 py-2 bg-ink-1 hover:bg-ink-2 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
               {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
@@ -663,7 +663,7 @@ export function ChapterStage({
               calls the same generateDraft() — research_facts is already saved
               to the page row, so the draft route picks it up automatically. */}
           {(researchOpen || researchError) && (
-            <div className="mb-6 bg-ink-2 border border-ink-3 rounded-xl p-4 text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
+            <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <FlaskConical className="w-4 h-4 text-gold" />
@@ -710,7 +710,7 @@ export function ChapterStage({
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-3 hover:bg-ink-4 border border-ink-4 text-gold hover:text-gold-soft text-[11px] font-inter transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cream-3 dark:bg-ink-3 hover:bg-[#E8E0D0] dark:hover:bg-ink-4 border border-[#E8E0D0] dark:border-ink-4 text-gold hover:text-gold-soft text-[11px] font-inter transition-colors"
                       >
                         {c.title}
                         <ExternalLink className="w-3 h-3" />
@@ -848,9 +848,9 @@ export function ChapterStage({
       {/* RIGHT — AI tools (320px, ink-1). Illustration + chat. The user
           spec puts AI assistance always on the right; this matches the
           OutlineStage critique-on-right pattern. */}
-      <aside className="w-[320px] shrink-0 bg-ink-1 border-l border-ink-3 flex flex-col overflow-hidden">
+      <aside className="w-[320px] shrink-0 bg-cream-1 dark:bg-ink-1 border-l border-cream-3 dark:border-ink-3 flex flex-col overflow-hidden">
         {/* Illustration section — top, scrollable on its own */}
-        <div className="p-4 border-b border-ink-3 overflow-y-auto" style={{ maxHeight: '60%' }}>
+        <div className="p-4 border-b border-cream-3 dark:border-ink-3 overflow-y-auto" style={{ maxHeight: '60%' }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">
               Illustration
@@ -999,7 +999,7 @@ export function ChapterStage({
         </div>
 
         {/* AI Chat — bottom of the right rail, takes the remaining space */}
-        <div className="px-4 py-3 border-b border-ink-3 bg-ink-1/60">
+        <div className="px-4 py-3 border-b border-cream-3 dark:border-ink-3 bg-ink-1/60">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em]">
             AI Chat
           </p>
