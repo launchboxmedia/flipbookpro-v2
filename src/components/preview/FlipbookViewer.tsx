@@ -1371,6 +1371,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
 
   const flipCardRef  = useRef<HTMLDivElement>(null)
   const touchStartX  = useRef(0)
+  const touchStartY  = useRef(0)
   const busy = flipState !== null || fadeState !== null
 
   // Track viewport for responsive scaling
@@ -1474,11 +1475,21 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   }, [next, prev])
 
   // Touch swipe
-  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
-  const onTouchEnd   = (e: React.TouchEvent) => {
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
     const dx = touchStartX.current - e.changedTouches[0].clientX
-    if (dx >  60) next()
-    if (dx < -60) prev()
+    const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY)
+    const absDx = Math.abs(dx)
+    // Direction-lock: ignore the gesture unless it's a deliberate
+    // horizontal swipe — past the 60px threshold AND more horizontal
+    // than vertical. Stops a vertical scroll-drag from flipping pages.
+    if (absDx > 60 && absDx > dy) {
+      if (dx > 0) next()
+      else prev()
+    }
   }
 
   // Chapter dropdown data
@@ -1539,7 +1550,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
       {/* ── Book stage ──────────────────────────────────────────────────── */}
       <div
         className="flex-1 flex flex-col items-center justify-center"
-        style={{ background: 'var(--canvas-bg)', padding: '32px 0' }}
+        style={{ background: 'var(--canvas-bg)', padding: '32px 0', touchAction: 'pan-y' }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -1676,10 +1687,30 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
             {!isSinglePage && <Spine />}
           </div>
         </div>
+
+        {/* Mobile tap zones — left third = prev, right third = next.
+            Middle third is intentionally inert (pointer-events-none on
+            the container) so the cover/art stays tappable-through for
+            future interactions. goTo() guards busy/bounds so taps mid
+            flip are no-ops. */}
+        {isSinglePage && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            <div
+              className="absolute left-0 top-0 h-full w-1/3 pointer-events-auto cursor-pointer"
+              onClick={prev}
+              aria-hidden="true"
+            />
+            <div
+              className="absolute right-0 top-0 h-full w-1/3 pointer-events-auto cursor-pointer"
+              onClick={next}
+              aria-hidden="true"
+            />
+          </div>
+        )}
         </div>{/* close responsive wrapper */}
 
         {/* ── Progress bar ─────────────────────────────────────────────── */}
-        <div style={{ width: BW, marginTop: 6 }}>
+        <div style={{ width: '100%', maxWidth: BW, marginTop: 6 }}>
           <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
@@ -1696,7 +1727,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
           <button
             onClick={prev}
             disabled={spreadIdx === 0 || busy}
-            className="w-9 h-9 rounded-full border border-[#2A2A2A] flex items-center justify-center text-cream/50 hover:text-cream hover:border-[#444] transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+            className="w-11 h-11 rounded-full border border-[#2A2A2A] flex items-center justify-center text-cream/50 hover:text-cream hover:border-[#444] transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -1710,14 +1741,14 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
           <button
             onClick={next}
             disabled={spreadIdx === spreads.length - 1 || busy}
-            className="w-9 h-9 rounded-full border border-[#2A2A2A] flex items-center justify-center text-cream/50 hover:text-cream hover:border-[#444] transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+            className="w-11 h-11 rounded-full border border-[#2A2A2A] flex items-center justify-center text-cream/50 hover:text-cream hover:border-[#444] transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
         <p className="text-[10px] font-inter mt-3 tracking-wide" style={{ color: 'rgba(255,255,255,0.2)' }}>
-          ← → arrow keys · swipe to navigate
+          {isSinglePage ? 'Tap sides or swipe to navigate' : '← → arrow keys · swipe to navigate'}
         </p>
       </div>
     </div>
