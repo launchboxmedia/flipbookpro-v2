@@ -83,6 +83,10 @@ export function AppSidebar({
   const bookId = bookContext?.bookId ?? pathBookId
   const inBook = !!bookId
   const onCoauthorPath = inBook && pathname.startsWith(`/book/${bookId}/coauthor`)
+  // Settings sub-items are route-scoped: they appear only while on a
+  // /settings route, so the footer stays compact everywhere else
+  // (unlike Library's always-visible sub-items in global mode).
+  const onSettingsPath = pathname.startsWith('/settings')
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + '/')
@@ -316,7 +320,7 @@ export function AppSidebar({
                 route. */}
             {linkItem('Library', <LibraryIcon className="w-4 h-4" />, '/library')}
             {subLinkItem('Books', '/library')}
-            {subLinkItem('Media', '/library/media')}
+            {subLinkItem('Media', '/media')}
 
             {/* + New Book — wrapped in NewBookButton so plan-gate +
                 modal flow are reused. mx-3 wraps the inner button with
@@ -373,9 +377,21 @@ export function AppSidebar({
         </div>
       )}
 
-      {/* Settings — single link in both modes, just above the user menu. */}
+      {/* Settings — single link in both modes, just above the user menu.
+          Sub-items render ONLY on /settings routes (route-scoped, unlike
+          Library's always-visible sub-items) to keep the footer compact.
+          subLinkItem already returns null when collapsed. */}
       <div className="px-2 py-1 border-t border-cream-3 dark:border-ink-3">
         {linkItem('Settings', <Settings className="w-4 h-4" />, '/settings')}
+        {onSettingsPath && (
+          <>
+            {subLinkItem('Profile', '/settings/profile')}
+            {subLinkItem('Brand', '/settings/brand')}
+            {subLinkItem('Billing', '/settings/billing')}
+            {subLinkItem('Leads', '/settings/leads')}
+            {subLinkItem('API Keys', '/settings/api-keys')}
+          </>
+        )}
       </div>
 
       {/* Theme toggle — sits directly above the user section. Row layout
