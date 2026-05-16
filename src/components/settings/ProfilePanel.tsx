@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Check, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Check, Loader2, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types/database'
@@ -61,6 +61,67 @@ export function ProfilePanel({ user, profile }: Props) {
     }
     lastSavedBio.current = value
     toast.success('Bio saved')
+  }
+
+  // ── AI bio generator ──────────────────────────────────────────────────
+  const [isAIPanelOpen,      setIsAIPanelOpen]      = useState(false)
+  const [aiPrompt,           setAiPrompt]           = useState('')
+  const [isGenerating,       setIsGenerating]       = useState(false)
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false)
+
+  /** Immediate explicit save of a known value (used after an AI fill).
+   *  Updates the on-blur baseline so the textarea's blur handler doesn't
+   *  redundantly re-save and double-toast. */
+  async function saveBioValue(value: string) {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ author_bio: value || null })
+      .eq('id', user.id)
+    if (!error) lastSavedBio.current = value
+    return !error
+  }
+
+  async function runGenerateBio() {
+    setShowReplaceConfirm(false)
+    setIsGenerating(true)
+    try {
+      const res = await fetch('/api/profile/generate-bio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt.trim(), name: profile?.display_name ?? '' }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.bio) {
+        toast.error('Couldn’t generate bio. Try again.')
+        return // keep panel open
+      }
+      const bio = String(json.bio).slice(0, 500)
+      setAuthorBio(bio)
+      await saveBioValue(bio)
+      setIsAIPanelOpen(false)
+      setAiPrompt('')
+      toast.success('Bio written — review and save any edits.')
+    } catch {
+      toast.error('Couldn’t generate bio. Try again.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  function handleGenerateClick() {
+    // Guard the existing bio behind an explicit confirm.
+    if (authorBio.trim() && !showReplaceConfirm) {
+      setShowReplaceConfirm(true)
+      return
+    }
+    void runGenerateBio()
+  }
+
+  function closeAIPanel() {
+    setIsAIPanelOpen(false)
+    setShowReplaceConfirm(false)
+    setAiPrompt('')
   }
 
   async function changePassword() {
@@ -154,6 +215,82 @@ export function ProfilePanel({ user, profile }: Props) {
           placeholder="Tell readers about yourself, your expertise, and what drives your work..."
           className="bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-4 text-ink-1 dark:text-white rounded-lg p-3 w-full resize-none focus:border-gold/50 focus:outline-none transition-colors font-inter text-sm"
         />
+
+        <button
+          type="button"
+          onClick={() => { setIsAIPanelOpen((o) => !o); setShowReplaceConfirm(false) }}
+          className="text-gold text-xs hover:text-gold-soft transition-colors cursor-pointer flex items-center gap-1"
+        >
+          <Sparkles className="w-3 h-3" />
+          Write with AI
+        </button>
+
+        {isAIPanelOpen && (
+          <div className="bg-cream-2 dark:bg-ink-3 rounded-xl p-4 border border-gold/20 mt-2 animate-slide-up">
+            <p className="text-ink-1/60 dark:text-white/40 text-xs mb-2">
+              Tell Claude about yourself
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. I'm a funding broker with 10 years experience helping small businesses get capital..."
+              className="bg-cream-1 dark:bg-ink-2 border border-cream-3 dark:border-ink-4 rounded-lg p-3 w-full text-sm resize-none text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
+            />
+
+            {showReplaceConfirm && (
+              <div className="mt-3 text-xs text-ink-1/50 dark:text-white/50">
+                <p className="mb-1.5">This will replace your existing bio.</p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void runGenerateBio()}
+                    className="text-gold hover:text-gold-soft transition-colors"
+                  >
+                    Yes, replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReplaceConfirm(false)}
+                    className="hover:text-ink-1 dark:hover:text-white transition-colors"
+                  >
+                    Keep current
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={handleGenerateClick}
+                disabled={isGenerating || !aiPrompt.trim()}
+                className="flex items-center gap-1.5 bg-gold text-ink-1 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-gold-soft transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Writing…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    Generate Bio
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={closeAIPanel}
+                className="text-ink-1/40 dark:text-white/30 text-xs px-4 py-2 hover:text-ink-1 dark:hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <p className="text-xs font-inter text-ink-1/50 dark:text-white/50">
           Displayed on your book landing pages in the About the Author section.
         </p>
