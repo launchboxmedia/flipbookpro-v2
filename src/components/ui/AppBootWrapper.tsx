@@ -98,7 +98,6 @@ export function AppBootWrapper({ children }: Props) {
     // Race the threshold timer against the page's load event. Whoever
     // fires first wins; the loser is cancelled via `decide`'s idempotent
     // guard and the cleanup function on unmount.
-    let timer: number | undefined
     function onLoad() { decide('skip') }
     function decide(outcome: 'skip' | 'show') {
       if (decidedRef.current) return
@@ -112,7 +111,7 @@ export function AppBootWrapper({ children }: Props) {
         setPhase('booted')
       }
     }
-    timer = window.setTimeout(() => decide('show'), SPLASH_THRESHOLD_MS)
+    const timer: number | undefined = window.setTimeout(() => decide('show'), SPLASH_THRESHOLD_MS)
     window.addEventListener('load', onLoad, { once: true })
 
     return () => {

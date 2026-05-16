@@ -6,7 +6,7 @@ import * as Tooltip from '@radix-ui/react-tooltip'
 import { motion } from 'framer-motion'
 import {
   ChevronLeft, BookOpen,
-  LayoutDashboard, Library as LibraryIcon, ImageIcon, Settings,
+  LayoutDashboard, Library as LibraryIcon, Settings,
   Radar, FileText, PenLine, Palette, CheckSquare, Globe,
   CheckCircle2, Eye, ExternalLink, Shield, BarChart3,
 } from 'lucide-react'
