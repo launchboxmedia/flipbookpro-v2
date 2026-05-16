@@ -14,7 +14,7 @@ interface Props {
 function statusBadge(book: BookWithMeta): { label: string; className: string } {
   if (book.isPublished) return { label: 'Live', className: 'bg-gold text-ink-1' }
   if (book.approvedCount > 0 && book.approvedCount === book.chapterCount) {
-    return { label: 'Ready', className: 'bg-white/20 text-white' }
+    return { label: 'Ready', className: 'bg-ink-1/10 text-ink-1 dark:bg-white/20 dark:text-white' }
   }
   return { label: 'Draft', className: 'bg-ink-3 text-white/60' }
 }

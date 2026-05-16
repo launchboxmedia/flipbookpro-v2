@@ -495,8 +495,8 @@ export function BookDesignStage({
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       <div>
-        <h2 className="font-playfair text-3xl text-cream">Book Design</h2>
-        <p className="text-muted-foreground text-sm font-source-serif mt-1">
+        <h2 className="font-playfair text-3xl text-ink-1 dark:text-cream">Book Design</h2>
+        <p className="text-ink-1/50 dark:text-white/50 text-sm font-source-serif mt-1">
           Cover, chapter illustrations, and back-cover copy. Finish the visual layer here before the pre-publish check.
         </p>
       </div>
@@ -505,7 +505,7 @@ export function BookDesignStage({
       <section className={CARD}>
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="w-4 h-4 text-gold" />
-          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+          <h3 className="font-inter font-semibold text-ink-1 dark:text-cream text-sm uppercase tracking-wider">
             Front Cover
           </h3>
         </div>
@@ -528,7 +528,7 @@ export function BookDesignStage({
             uploaded in Settings → Brand. */}
         {(mascotUrl || authorPhotoUrl) && (
           <div className="mb-4">
-            <p className="text-[10px] font-inter font-medium text-cream/55 uppercase tracking-[0.18em] mb-2">
+            <p className="text-[10px] font-inter font-medium text-ink-1/55 dark:text-cream/55 uppercase tracking-[0.18em] mb-2">
               Cover Style
             </p>
             <div className="flex flex-wrap gap-2">
@@ -574,7 +574,7 @@ export function BookDesignStage({
               </ImageLightbox>
             </div>
             <div className="flex-1 min-w-0 space-y-2.5">
-              <p className="text-cream/70 font-source-serif text-xs leading-relaxed">
+              <p className="text-ink-1/70 dark:text-cream/70 font-source-serif text-xs leading-relaxed">
                 Click the thumbnail to enlarge. Regenerate for a fresh AI cover, or upload your own.
               </p>
               <div className="flex flex-wrap gap-2">
@@ -591,7 +591,7 @@ export function BookDesignStage({
                   type="button"
                   onClick={() => coverFileInput.current?.click()}
                   disabled={coverBusy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-cream/80 hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-ink-1/80 dark:text-cream/80 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Upload Custom Cover
@@ -603,10 +603,10 @@ export function BookDesignStage({
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <div className="w-32 sm:w-40 shrink-0 aspect-[3/4] bg-cream-1 dark:bg-[#1A1A1A] border border-dashed border-[#333] rounded-lg flex flex-col items-center justify-center gap-1">
               <ImageIcon className="w-5 h-5 text-[#444]" />
-              <span className="text-[10px] font-inter text-muted-foreground">No cover</span>
+              <span className="text-[10px] font-inter text-ink-1/50 dark:text-white/50">No cover</span>
             </div>
             <div className="flex-1 min-w-0 space-y-3">
-              <p className="font-inter text-sm text-cream">Your book needs a cover.</p>
+              <p className="font-inter text-sm text-ink-1 dark:text-cream">Your book needs a cover.</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -621,7 +621,7 @@ export function BookDesignStage({
                   type="button"
                   onClick={() => coverFileInput.current?.click()}
                   disabled={coverBusy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-cream/80 hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-ink-1/80 dark:text-cream/80 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Upload Cover
@@ -641,17 +641,17 @@ export function BookDesignStage({
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-gold" />
-            <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+            <h3 className="font-inter font-semibold text-ink-1 dark:text-cream text-sm uppercase tracking-wider">
               Chapter Images
             </h3>
           </div>
-          <span className="text-[11px] font-inter text-muted-foreground tabular-nums">
+          <span className="text-[11px] font-inter text-ink-1/50 dark:text-white/50 tabular-nums">
             {withImages} of {chapters.length} chapter{chapters.length === 1 ? '' : 's'} have images
           </span>
         </div>
 
         {chapters.length === 0 ? (
-          <p className="text-xs font-source-serif text-muted-foreground">
+          <p className="text-xs font-source-serif text-ink-1/50 dark:text-white/50">
             Add chapters in Outline before generating illustrations.
           </p>
         ) : (
@@ -679,7 +679,7 @@ export function BookDesignStage({
       <section className={CARD}>
         <div className="flex items-center gap-2 mb-4">
           <ImageIcon className="w-4 h-4 text-gold" />
-          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+          <h3 className="font-inter font-semibold text-ink-1 dark:text-cream text-sm uppercase tracking-wider">
             Back Cover Image
           </h3>
         </div>
@@ -689,7 +689,7 @@ export function BookDesignStage({
             appear when the corresponding brand asset is uploaded. */}
         {(mascotUrl || authorPhotoUrl) && (
           <div className="mb-4">
-            <p className="text-[10px] font-inter font-medium text-cream/55 uppercase tracking-[0.18em] mb-2">
+            <p className="text-[10px] font-inter font-medium text-ink-1/55 dark:text-cream/55 uppercase tracking-[0.18em] mb-2">
               Back Cover Style
             </p>
             <div className="flex flex-wrap gap-2">
@@ -749,7 +749,7 @@ export function BookDesignStage({
               <button
                 onClick={removeBackImage}
                 disabled={backUploading || backGenerating}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] rounded-full flex items-center justify-center text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] rounded-full flex items-center justify-center text-ink-1/50 dark:text-white/50 hover:text-red-400 transition-colors disabled:opacity-40"
                 title="Remove image"
                 aria-label="Remove back cover image"
               >
@@ -759,7 +759,7 @@ export function BookDesignStage({
           ) : (
             <div className="w-24 h-32 bg-cream-1 dark:bg-[#1A1A1A] border border-dashed border-[#333] rounded-md flex flex-col items-center justify-center gap-1">
               <ImageIcon className="w-4 h-4 text-[#444]" />
-              <span className="text-[10px] font-inter text-muted-foreground">No image</span>
+              <span className="text-[10px] font-inter text-ink-1/50 dark:text-white/50">No image</span>
             </div>
           )}
 
@@ -780,13 +780,13 @@ export function BookDesignStage({
               <button
                 onClick={() => backImageInput.current?.click()}
                 disabled={backGenerating || backUploading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-cream/80 hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-ink-1/80 dark:text-cream/80 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
               >
                 {backUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                 {backImageUrl ? 'Replace' : 'Upload'} image
               </button>
             </div>
-            <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+            <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed">
               Atmospheric companion to the front cover, or upload your own. PNG/JPEG/WebP, up to 5 MB.
             </p>
             {backImageError && (
@@ -801,7 +801,7 @@ export function BookDesignStage({
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-gold" />
-            <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+            <h3 className="font-inter font-semibold text-ink-1 dark:text-cream text-sm uppercase tracking-wider">
               Back Cover Copy
             </h3>
           </div>
@@ -809,7 +809,7 @@ export function BookDesignStage({
             type="button"
             onClick={runAnalysis}
             disabled={analyzing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cream-1 dark:bg-[#1A1A1A] hover:bg-[#2A2A2A] border border-[#333] text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cream-1 dark:bg-[#1A1A1A] hover:bg-[#2A2A2A] border border-[#333] text-ink-1 dark:text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
           >
             {analyzing
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -836,13 +836,13 @@ export function BookDesignStage({
         {visibleFlags.length > 0 && (
           <div className="mb-5 space-y-2">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-inter font-medium text-cream/70 uppercase tracking-wider">
+              <p className="text-xs font-inter font-medium text-ink-1/70 dark:text-cream/70 uppercase tracking-wider">
                 AI Analysis · {visibleFlags.length} flag{visibleFlags.length !== 1 ? 's' : ''}
               </p>
               <button
                 type="button"
                 onClick={() => setDismissedFlags(new Set(flags.map((_, i) => i)))}
-                className="text-[11px] font-inter text-muted-foreground hover:text-cream transition-colors"
+                className="text-[11px] font-inter text-ink-1/50 dark:text-white/50 hover:text-ink-1 dark:hover:text-cream transition-colors"
               >
                 Dismiss all
               </button>
@@ -860,13 +860,13 @@ export function BookDesignStage({
                     <span className={`text-[10px] font-inter px-1.5 py-0.5 rounded ${
                       flag.severity === 'high'   ? 'bg-red-500/15 text-red-400'
                       : flag.severity === 'medium' ? 'bg-amber-500/15 text-amber-400'
-                      : 'bg-cream/10 text-cream/60'
+                      : 'bg-cream/10 text-ink-1/60 dark:text-cream/60'
                     }`}>
                       {flag.severity}
                     </span>
                   </div>
-                  <p className="text-cream/90 text-sm font-source-serif mb-1.5 leading-relaxed">{flag.issue}</p>
-                  <p className="text-cream/55 text-xs font-source-serif italic mb-3 leading-relaxed">
+                  <p className="text-ink-1/90 dark:text-cream/90 text-sm font-source-serif mb-1.5 leading-relaxed">{flag.issue}</p>
+                  <p className="text-ink-1/55 dark:text-cream/55 text-xs font-source-serif italic mb-3 leading-relaxed">
                     {canApply ? `Replace with: "${flag.suggestion}"` : flag.suggestion}
                   </p>
                   <div className="flex gap-2">
@@ -885,7 +885,7 @@ export function BookDesignStage({
                       type="button"
                       onClick={() => dismissFlag(originalIndex)}
                       disabled={isApplying}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2A2A2A] hover:bg-cream-3 dark:bg-[#333] text-muted-foreground text-[11px] font-inter rounded-md transition-colors disabled:opacity-40"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2A2A2A] hover:bg-cream-3 dark:bg-[#333] text-ink-1/50 dark:text-white/50 text-[11px] font-inter rounded-md transition-colors disabled:opacity-40"
                     >
                       <X className="w-3 h-3" />
                       Dismiss
@@ -900,10 +900,10 @@ export function BookDesignStage({
         <div className="space-y-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <label htmlFor="book-author-name" className="text-xs font-inter text-muted-foreground">
+              <label htmlFor="book-author-name" className="text-xs font-inter text-ink-1/50 dark:text-white/50">
                 Author name
               </label>
-              {authorNameSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+              {authorNameSaving && <Loader2 className="w-3 h-3 animate-spin text-ink-1/50 dark:text-white/50" />}
               {authorNameSaved  && !authorNameSaving && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-inter text-accent">
                   <Check className="w-3 h-3" />
@@ -917,40 +917,40 @@ export function BookDesignStage({
               onChange={(e) => setAuthorName(e.target.value)}
               onBlur={() => void saveAuthorNameOnBlur()}
               placeholder={authorNamePlaceholder || 'Your pen name'}
-              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             />
-            <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+            <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed">
               Appears on the cover and in search results. Can differ from your profile name.
             </p>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-inter text-muted-foreground">Tagline / subtitle</label>
+            <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Tagline / subtitle</label>
             <input
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               placeholder="The practical guide to decisions that matter"
-              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-playfair text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-playfair text-sm focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-inter text-muted-foreground">Description <span className="text-cream/30">(two sentences)</span></label>
+            <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Description <span className="text-ink-1/30 dark:text-cream/30">(two sentences)</span></label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="What readers will learn or gain. Why they should read it now."
-              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <label htmlFor="book-closing-pitch" className="text-xs font-inter text-muted-foreground">
-                Closing Pitch <span className="text-cream/30">(optional)</span>
+              <label htmlFor="book-closing-pitch" className="text-xs font-inter text-ink-1/50 dark:text-white/50">
+                Closing Pitch <span className="text-ink-1/30 dark:text-cream/30">(optional)</span>
               </label>
-              {closingPitchSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+              {closingPitchSaving && <Loader2 className="w-3 h-3 animate-spin text-ink-1/50 dark:text-white/50" />}
               {closingPitchSaved && !closingPitchSaving && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-inter text-accent">
                   <Check className="w-3 h-3" />
@@ -966,33 +966,33 @@ export function BookDesignStage({
               rows={2}
               maxLength={200}
               placeholder="While you wait, a worse broker just stole your next client."
-              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
             />
-            <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+            <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed">
               Used as the final CTA headline on your book&apos;s landing page. If empty, your tagline is used instead.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-inter text-muted-foreground">CTA button text</label>
+              <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">CTA button text</label>
               <input
                 value={ctaText}
                 onChange={(e) => setCtaText(e.target.value)}
                 placeholder="Get Instant Access"
-                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-inter text-muted-foreground">CTA URL</label>
+              <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">CTA URL</label>
               <input
                 value={ctaUrl}
                 onChange={(e) => setCtaUrl(e.target.value)}
                 placeholder="https://your-site.com"
                 type="url"
-                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
-              <p className="text-[10px] font-inter text-muted-foreground leading-relaxed">
+              <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed">
                 Where readers go after finishing — add before publishing.
               </p>
             </div>
@@ -1001,8 +1001,8 @@ export function BookDesignStage({
           {/* Testimonials — read-only when present, set during setup. */}
           {book.testimonials && book.testimonials.trim() && (
             <div className="space-y-1">
-              <label className="text-xs font-inter text-muted-foreground">Testimonials <span className="text-cream/30">(set in wizard)</span></label>
-              <div className="px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-cream/70 font-source-serif text-xs whitespace-pre-line leading-relaxed">
+              <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Testimonials <span className="text-ink-1/30 dark:text-cream/30">(set in wizard)</span></label>
+              <div className="px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1/70 dark:text-cream/70 font-source-serif text-xs whitespace-pre-line leading-relaxed">
                 {book.testimonials}
               </div>
             </div>
@@ -1012,7 +1012,7 @@ export function BookDesignStage({
             <button
               onClick={saveBackCoverText}
               disabled={savingText}
-              className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-ink-1 dark:text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
             >
               {savingText ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1030,11 +1030,11 @@ export function BookDesignStage({
       <section className={CARD}>
         <div className="flex items-center gap-2 mb-4">
           <FileText className="w-4 h-4 text-gold" />
-          <h3 className="font-inter font-semibold text-cream text-sm uppercase tracking-wider">
+          <h3 className="font-inter font-semibold text-ink-1 dark:text-cream text-sm uppercase tracking-wider">
             Optional Pages
           </h3>
         </div>
-        <p className="text-xs font-source-serif text-muted-foreground mb-4 leading-relaxed">
+        <p className="text-xs font-source-serif text-ink-1/50 dark:text-white/50 mb-4 leading-relaxed">
           Extra pages added to the very end of the flipbook — after your chapters and before the back cover. Each slot is independent; you can skip any of them.
         </p>
 
@@ -1056,9 +1056,9 @@ export function BookDesignStage({
                       : 'border-[#333] bg-cream-1 dark:bg-[#1A1A1A] hover:border-[#444]'
                 }`}
               >
-                <Icon className={`w-5 h-5 mb-2 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
-                <p className="text-sm font-inter font-medium text-cream">{t.label}</p>
-                <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">{t.description}</p>
+                <Icon className={`w-5 h-5 mb-2 ${isActive ? 'text-accent' : 'text-ink-1/50 dark:text-white/50'}`} />
+                <p className="text-sm font-inter font-medium text-ink-1 dark:text-cream">{t.label}</p>
+                <p className="text-xs font-source-serif text-ink-1/50 dark:text-white/50 mt-0.5 leading-snug">{t.description}</p>
                 {isSaved && (
                   <p className="text-[10px] font-inter text-accent mt-2 uppercase tracking-[0.18em]">Active</p>
                 )}
@@ -1069,28 +1069,28 @@ export function BookDesignStage({
 
         {activeOptional && (
           <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-[#2E2E2E] rounded-xl p-5 space-y-4">
-            <h4 className="font-inter font-medium text-cream text-sm">
+            <h4 className="font-inter font-medium text-ink-1 dark:text-cream text-sm">
               {OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.label}
             </h4>
 
             <div className="space-y-1">
-              <label className="text-xs font-inter text-muted-foreground">Page title</label>
+              <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Page title</label>
               <input
                 value={optionalTitles[activeOptional] ?? ''}
                 onChange={(e) => setOptionalTitles((prev) => ({ ...prev, [activeOptional]: e.target.value }))}
                 placeholder={OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.label}
-                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-inter text-muted-foreground">Content</label>
+              <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Content</label>
               <textarea
                 value={optionalContents[activeOptional] ?? ''}
                 onChange={(e) => setOptionalContents((prev) => ({ ...prev, [activeOptional]: e.target.value }))}
                 rows={6}
                 placeholder={OPTIONAL_TYPES.find((t) => t.id === activeOptional)?.placeholder}
-                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-ink-1 dark:text-cream font-source-serif text-sm focus:outline-none focus:ring-1 focus:ring-accent resize-none"
               />
             </div>
 
@@ -1099,7 +1099,7 @@ export function BookDesignStage({
                 type="button"
                 onClick={() => saveOptional(activeOptional)}
                 disabled={!optionalContents[activeOptional]?.trim() || savingOptional === activeOptional}
-                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-ink-1 dark:text-cream font-inter text-sm font-medium rounded-md transition-colors disabled:opacity-40"
               >
                 {savingOptional === activeOptional ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1165,7 +1165,7 @@ function ChapterImageCard({
         <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.18em] mb-0.5">
           Chapter {chapter.chapter_index + 1}
         </p>
-        <p className="font-source-serif text-sm text-cream leading-snug line-clamp-2">
+        <p className="font-source-serif text-sm text-ink-1 dark:text-cream leading-snug line-clamp-2">
           {chapter.chapter_title}
         </p>
         {error && (
@@ -1184,7 +1184,7 @@ function ChapterImageCard({
           <button
             onClick={() => fileInput.current?.click()}
             disabled={busy}
-            className="inline-flex items-center gap-1 px-2 py-1 border border-[#333] hover:border-cream/40 text-cream/70 hover:text-cream font-inter text-[10px] rounded-md transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2 py-1 border border-[#333] hover:border-cream/40 text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-[10px] rounded-md transition-colors disabled:opacity-50"
           >
             <Upload className="w-3 h-3" />
             Upload
@@ -1223,7 +1223,7 @@ function CoverModePill({
       className={`px-3 py-1.5 rounded-full text-xs font-inter transition-colors ${
         active
           ? 'bg-gold text-ink-1 font-semibold'
-          : 'border border-[#333] hover:border-gold/40 text-cream/70 hover:text-cream'
+          : 'border border-[#333] hover:border-gold/40 text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream'
       }`}
     >
       {label}

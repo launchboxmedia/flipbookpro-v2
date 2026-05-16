@@ -50,10 +50,10 @@ export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collap
       <DropdownMenu.Trigger asChild>
         <button
           aria-label="User menu"
-          className={`group w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-ink-2 transition-colors ${collapsed ? 'justify-center' : ''}`}
+          className={`group w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-cream-2 dark:hover:bg-ink-2 transition-colors ${collapsed ? 'justify-center' : ''}`}
         >
-          <div className="relative w-8 h-8 rounded-full bg-ink-3 border border-ink-4 flex items-center justify-center shrink-0">
-            <span className="text-xs font-inter font-semibold text-cream">{userInitials}</span>
+          <div className="relative w-8 h-8 rounded-full bg-cream-3 border border-[#E8E0D0] dark:bg-ink-3 dark:border-ink-4 flex items-center justify-center shrink-0">
+            <span className="text-xs font-inter font-semibold text-ink-1 dark:text-cream">{userInitials}</span>
             {isPremium && (
               <span
                 aria-label="Premium"
@@ -66,12 +66,12 @@ export function UserMenu({ userEmail, isPremium = false, isAdmin = false, collap
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-xs font-inter text-cream truncate">{local}</p>
-                <p className="text-[10px] font-inter text-ink-subtle truncate">
+                <p className="text-xs font-inter text-ink-1 dark:text-cream truncate">{local}</p>
+                <p className="text-[10px] font-inter text-ink-1/60 dark:text-ink-subtle truncate">
                   {isAdmin ? 'Admin' : isPremium ? 'Premium' : 'Free'}
                 </p>
               </div>
-              <ChevronUp className="w-3.5 h-3.5 text-ink-subtle shrink-0 group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronUp className="w-3.5 h-3.5 text-ink-1/60 dark:text-ink-subtle shrink-0 group-data-[state=open]:rotate-180 transition-transform" />
             </>
           )}
         </button>
