@@ -1,10 +1,7 @@
 'use client'
 
-import { type MouseEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
-import { deleteBook } from '@/app/dashboard/actions'
+import { BookContextMenu } from './BookContextMenu'
 import type { BookWithMeta } from './types'
 
 interface Props {
@@ -41,22 +38,12 @@ function statusLabel(book: BookWithMeta): { text: string; className: string } {
 }
 
 export function BookSpine({ book, index }: Props) {
-  const router = useRouter()
   const { w, h } = spineSize(book.chapterCount)
   const bg = spineBackground(book)
   const status = statusLabel(book)
 
-  async function handleDelete(e: MouseEvent) {
-    // The spine is wrapped in a <Link>; without these the click also
-    // navigates to the editor.
-    e.preventDefault()
-    e.stopPropagation()
-    if (!confirm(`Delete "${book.title}"? This cannot be undone.`)) return
-    await deleteBook(book.id)
-    router.refresh()
-  }
-
   return (
+    <BookContextMenu book={book}>
     <Link
       href={`/book/${book.id}/coauthor`}
       aria-label={`Open ${book.title}`}
@@ -109,17 +96,6 @@ export function BookSpine({ book, index }: Props) {
         )}
       </div>
 
-      {/* Delete — hover-only, top of the spine. preventDefault stops
-          the wrapping Link from opening the editor on click. */}
-      <button
-        type="button"
-        onClick={handleDelete}
-        aria-label={`Delete ${book.title}`}
-        className="absolute top-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20"
-      >
-        <X className="w-3 h-3" />
-      </button>
-
       {/* Tooltip — only appears on hover (group-hover from the Link
           wrapper), absolutely positioned above the spine, fades in. */}
       <div
@@ -140,5 +116,6 @@ export function BookSpine({ book, index }: Props) {
         </div>
       </div>
     </Link>
+    </BookContextMenu>
   )
 }

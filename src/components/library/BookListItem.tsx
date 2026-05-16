@@ -1,10 +1,8 @@
 'use client'
 
-import { type MouseEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { BookOpen, Trash2 } from 'lucide-react'
-import { deleteBook } from '@/app/dashboard/actions'
+import { BookOpen } from 'lucide-react'
+import { BookContextMenu } from './BookContextMenu'
 import type { BookWithMeta } from './types'
 
 interface Props {
@@ -39,18 +37,9 @@ function timeAgo(iso: string): string {
  *  enough books that scanning a grid would take real effort. */
 export function BookListItem({ book }: Props) {
   const pill = statusPill(book)
-  const router = useRouter()
-
-  async function handleDelete(e: MouseEvent) {
-    // Row is wrapped in a <Link>; stop the click from also opening it.
-    e.preventDefault()
-    e.stopPropagation()
-    if (!confirm(`Delete "${book.title}"? This cannot be undone.`)) return
-    await deleteBook(book.id)
-    router.refresh()
-  }
 
   return (
+    <BookContextMenu book={book}>
     <Link
       href={`/book/${book.id}/coauthor`}
       aria-label={`Open ${book.title}`}
@@ -88,15 +77,8 @@ export function BookListItem({ book }: Props) {
           {pill.label}
         </span>
         <span className="text-ink-1/30 dark:text-white/30 text-sm">Open →</span>
-        <button
-          type="button"
-          onClick={handleDelete}
-          aria-label={`Delete ${book.title}`}
-          className="text-white/20 hover:text-red-400 transition-colors duration-200 cursor-pointer"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
       </div>
     </Link>
+    </BookContextMenu>
   )
 }

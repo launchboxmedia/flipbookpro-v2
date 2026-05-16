@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, type MouseEvent } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { BookOpen, Trash2 } from 'lucide-react'
-import { deleteBook } from '@/app/dashboard/actions'
+import { BookOpen } from 'lucide-react'
+import { BookContextMenu } from './BookContextMenu'
 import type { BookWithMeta } from './types'
 
 interface Props {
@@ -36,18 +35,9 @@ function formatDate(iso: string): string {
 export function BookCard3D({ book, index }: Props) {
   const [hovered, setHovered] = useState(false)
   const badge = statusBadge(book)
-  const router = useRouter()
-
-  async function handleDelete(e: MouseEvent) {
-    // Card is wrapped in a <Link>; stop the click from also opening it.
-    e.preventDefault()
-    e.stopPropagation()
-    if (!confirm(`Delete "${book.title}"? This cannot be undone.`)) return
-    await deleteBook(book.id)
-    router.refresh()
-  }
 
   return (
+    <BookContextMenu book={book}>
     <Link
       href={`/book/${book.id}/coauthor`}
       aria-label={`Open ${book.title}`}
@@ -82,17 +72,6 @@ export function BookCard3D({ book, index }: Props) {
         {/* Bottom gradient — always present so the title remains
             readable regardless of the underlying cover image. */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" aria-hidden="true" />
-
-        {/* Delete — hover-only, top-left. preventDefault stops the
-            wrapping Link from opening the editor on click. */}
-        <button
-          type="button"
-          onClick={handleDelete}
-          aria-label={`Delete ${book.title}`}
-          className="absolute top-2 left-2 z-20 w-7 h-7 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/60 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
 
         {/* Status pill, top-right. */}
         <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${badge.className}`}>
@@ -155,5 +134,6 @@ export function BookCard3D({ book, index }: Props) {
         <p className="text-ink-1/30 dark:text-white/30 text-xs">Updated {formatDate(book.updated_at)}</p>
       </div>
     </Link>
+    </BookContextMenu>
   )
 }
