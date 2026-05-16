@@ -1,6 +1,10 @@
 'use client'
 
+import { type MouseEvent } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { X } from 'lucide-react'
+import { deleteBook } from '@/app/dashboard/actions'
 import type { BookWithMeta } from './types'
 
 interface Props {
@@ -14,7 +18,9 @@ interface Props {
 function spineSize(chapters: number): { w: string; h: string } {
   if (chapters >= 9) return { w: 'w-12', h: 'h-48' }
   if (chapters >= 5) return { w: 'w-10', h: 'h-40' }
-  return { w: 'w-8', h: 'h-32' }
+  // w-9 = 36px — the legibility floor; never narrower regardless of
+  // chapter count so short-chapter books still show a readable title.
+  return { w: 'w-9', h: 'h-32' }
 }
 
 function spineBackground(book: BookWithMeta): string {
@@ -35,9 +41,20 @@ function statusLabel(book: BookWithMeta): { text: string; className: string } {
 }
 
 export function BookSpine({ book, index }: Props) {
+  const router = useRouter()
   const { w, h } = spineSize(book.chapterCount)
   const bg = spineBackground(book)
   const status = statusLabel(book)
+
+  async function handleDelete(e: MouseEvent) {
+    // The spine is wrapped in a <Link>; without these the click also
+    // navigates to the editor.
+    e.preventDefault()
+    e.stopPropagation()
+    if (!confirm(`Delete "${book.title}"? This cannot be undone.`)) return
+    await deleteBook(book.id)
+    router.refresh()
+  }
 
   return (
     <Link
@@ -73,7 +90,10 @@ export function BookSpine({ book, index }: Props) {
           className="absolute inset-0 flex items-center justify-center px-1 py-2"
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
-          <span className="font-source-serif text-xs text-white/90 font-medium overflow-hidden text-ellipsis max-h-full">
+          <span
+            className="font-source-serif text-[11px] text-white dark:text-white font-semibold overflow-hidden text-ellipsis max-h-full"
+            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+          >
             {book.title}
           </span>
         </div>
@@ -88,6 +108,17 @@ export function BookSpine({ book, index }: Props) {
           />
         )}
       </div>
+
+      {/* Delete — hover-only, top of the spine. preventDefault stops
+          the wrapping Link from opening the editor on click. */}
+      <button
+        type="button"
+        onClick={handleDelete}
+        aria-label={`Delete ${book.title}`}
+        className="absolute top-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20"
+      >
+        <X className="w-3 h-3" />
+      </button>
 
       {/* Tooltip — only appears on hover (group-hover from the Link
           wrapper), absolutely positioned above the spine, fades in. */}
