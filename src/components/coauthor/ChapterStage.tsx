@@ -488,7 +488,7 @@ export function ChapterStage({
                 className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors ${
                   isActive
                     ? 'bg-cream-3 dark:bg-ink-3 text-cream'
-                    : 'text-ink-subtle hover:text-cream hover:bg-ink-2/80'
+                    : 'text-ink-subtle hover:text-cream hover:bg-ink-2/20 dark:hover:bg-ink-2/80'
                 }`}
               >
                 {isActive && (
@@ -999,7 +999,7 @@ export function ChapterStage({
         </div>
 
         {/* AI Chat — bottom of the right rail, takes the remaining space */}
-        <div className="px-4 py-3 border-b border-cream-3 dark:border-ink-3 bg-ink-1/60">
+        <div className="px-4 py-3 border-b border-cream-3 dark:border-ink-3 bg-ink-1/15 dark:bg-ink-1/60">
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.2em]">
             AI Chat
           </p>

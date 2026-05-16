@@ -121,7 +121,7 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
       <div className="flex items-start justify-between gap-4 mb-8">
         <div>
-          <h2 className="font-playfair text-3xl text-cream">Pre-Publish Check</h2>
+          <h2 className="font-playfair text-3xl text-ink-1 dark:text-cream">Pre-Publish Check</h2>
           <p className="text-muted-foreground text-sm font-source-serif mt-1">
             Final review before the book goes live.
           </p>
@@ -129,7 +129,7 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
         {!checking && result && (
           <button
             onClick={run}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#2A2A2A] hover:border-[#444] text-cream/70 hover:text-cream font-inter text-xs rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-cream-3 dark:border-[#2A2A2A] hover:border-[#E8E0D0] dark:hover:border-[#444] text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Re-run
@@ -141,7 +141,7 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
       {checking && (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <Loader2 className="w-7 h-7 animate-spin text-gold" />
-          <p className="text-cream/80 font-inter text-sm">Reviewing your book…</p>
+          <p className="text-ink-1/80 dark:text-cream/80 font-inter text-sm">Reviewing your book…</p>
           <p className="text-muted-foreground text-xs font-source-serif max-w-xs">
             Checking cover, chapters, back-cover copy, and consistency across the manuscript.
           </p>
@@ -169,8 +169,8 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
           {flags.length === 0 && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-6 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-3" />
-              <h3 className="font-playfair text-xl text-cream mb-1">Your book is ready to publish.</h3>
-              <p className="text-cream/70 font-source-serif text-sm">
+              <h3 className="font-playfair text-xl text-ink-1 dark:text-cream mb-1">Your book is ready to publish.</h3>
+              <p className="text-ink-1/70 dark:text-cream/70 font-source-serif text-sm">
                 Everything checks out. You can go live whenever you&rsquo;re ready.
               </p>
             </div>
@@ -225,7 +225,7 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
             <section>
               <button
                 onClick={() => setHintsOpen((v) => !v)}
-                className="flex items-center gap-2 text-xs font-inter font-medium text-cream/60 hover:text-cream uppercase tracking-wider mb-3 transition-colors"
+                className="flex items-center gap-2 text-xs font-inter font-medium text-ink-1/60 dark:text-cream/60 hover:text-ink-1 dark:hover:text-cream uppercase tracking-wider mb-3 transition-colors"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Nice to have · {visibleHints.length}
@@ -259,7 +259,7 @@ export function PrePublishStage({ book, onPublish, onNavigate }: Props) {
                 <ArrowRight className="w-5 h-5" />
               </button>
             ) : (
-              <div className="inline-flex items-center gap-2 px-6 py-3 bg-[#2A2A2A] text-cream/60 font-inter text-sm font-medium rounded-md cursor-not-allowed border border-[#333]">
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-cream-2 dark:bg-[#2A2A2A] text-ink-1/60 dark:text-cream/60 font-inter text-sm font-medium rounded-md cursor-not-allowed border border-cream-3 dark:border-[#333]">
                 Fix Issues First
               </div>
             )}
@@ -310,9 +310,9 @@ function FlagCard({
           {flag.category}
         </span>
       </div>
-      <p className="text-cream font-source-serif text-sm leading-relaxed">{flag.message}</p>
+      <p className="text-ink-1 dark:text-cream font-source-serif text-sm leading-relaxed">{flag.message}</p>
       {flag.suggestion && (
-        <p className="mt-1.5 text-cream/55 font-source-serif italic text-xs leading-relaxed">
+        <p className="mt-1.5 text-ink-1/55 dark:text-cream/55 font-source-serif italic text-xs leading-relaxed">
           {flag.suggestion}
         </p>
       )}
@@ -327,7 +327,7 @@ function FlagCard({
         {onIgnore && (
           <button
             onClick={onIgnore}
-            className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#333] hover:border-cream/40 text-cream/60 hover:text-cream font-inter text-[11px] rounded-md transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1.5 border border-cream-3 dark:border-[#333] hover:border-cream/40 text-ink-1/60 dark:text-cream/60 hover:text-ink-1 dark:hover:text-cream font-inter text-[11px] rounded-md transition-colors"
           >
             Ignore
           </button>

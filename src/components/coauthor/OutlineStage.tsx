@@ -1232,7 +1232,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
         <div className="bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-2xl overflow-hidden flex flex-col">
           {/* Header — gold accent so it reads as a distinct workspace,
               not a passing widget */}
-          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-cream-3 dark:border-ink-3 bg-ink-1/40">
+          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-cream-3 dark:border-ink-3 bg-ink-1/10 dark:bg-ink-1/40">
             <Sparkles className="w-4 h-4 text-gold" />
             <h3 className="font-playfair text-cream text-lg font-semibold">AI Critique</h3>
             {visibleFlags.length > 0 && (
@@ -1270,7 +1270,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                   return (
                     <div
                       key={originalIndex}
-                      className="bg-ink-3/70 border border-[#E8E0D0] dark:border-ink-4 rounded-xl p-4"
+                      className="bg-ink-3/20 dark:bg-ink-3/70 border border-[#E8E0D0] dark:border-ink-4 rounded-xl p-4"
                     >
                       <div className="flex items-center gap-2 mb-2.5">
                         <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-inter font-semibold border ${meta.color}`}>

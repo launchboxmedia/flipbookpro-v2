@@ -294,7 +294,7 @@ export function WizardShell({
   }
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-hidden">
+    <div className="min-h-screen bg-cream-1 dark:bg-canvas relative overflow-hidden">
       {/* Subtle gold radial accent */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.08)_0%,transparent_55%)]" />
 
@@ -316,7 +316,7 @@ export function WizardShell({
             }
           }}
           aria-label={step > 0 ? 'Previous step' : 'Back to dashboard'}
-          className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6"
+          className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-1/60 dark:text-ink-subtle hover:text-ink-1 dark:hover:text-cream transition-colors mb-6"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           {step > 0 ? 'Back' : 'Back to dashboard'}
@@ -325,7 +325,7 @@ export function WizardShell({
         {isEditing && (
           <Link
             href={`/book/${bookId}/coauthor`}
-            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-subtle hover:text-cream transition-colors mb-6 ml-4"
+            className="inline-flex items-center gap-1.5 text-xs font-inter text-ink-1/60 dark:text-ink-subtle hover:text-ink-1 dark:hover:text-cream transition-colors mb-6 ml-4"
           >
             Back to book
           </Link>
@@ -334,16 +334,16 @@ export function WizardShell({
           <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.22em] mb-2 text-center">
             {isEditing ? 'Edit Book' : 'New Book'}
           </p>
-          <h1 className="font-playfair text-4xl text-cream font-semibold mb-7 text-center">
+          <h1 className="font-playfair text-4xl text-ink-1 dark:text-cream font-semibold mb-7 text-center">
             Set the foundations
           </h1>
 
           {/* Mobile-only condensed step indicator. Below sm the full
               pill row gets unreadable in 320px viewports — show
               "Step N of M" instead. The pill row reappears at sm+. */}
-          <p className="sm:hidden text-center text-sm font-inter text-ink-subtle">
+          <p className="sm:hidden text-center text-sm font-inter text-ink-1/60 dark:text-ink-subtle">
             Step {step + 1} of {STEPS.length}
-            <span className="text-ink-muted/60 mx-1.5" aria-hidden="true">·</span>
+            <span className="text-ink-1/40 dark:text-ink-muted/60 mx-1.5" aria-hidden="true">·</span>
             <span className="text-gold">{STEPS[step]}</span>
           </p>
 
@@ -356,7 +356,7 @@ export function WizardShell({
                       ? 'bg-gold text-ink-1 shadow-[0_0_18px_-4px_rgba(201,168,76,0.5)]'
                       : i === step
                       ? 'bg-gold text-ink-1 ring-2 ring-gold/40 ring-offset-2 ring-offset-canvas'
-                      : 'bg-cream-2 dark:bg-ink-2 text-ink-subtle border border-cream-3 dark:border-ink-3'
+                      : 'bg-cream-2 dark:bg-ink-2 text-ink-1/60 dark:text-ink-subtle border border-cream-3 dark:border-ink-3'
                   }`}
                 >
                   {i < step ? <Check className="w-4 h-4" /> : i + 1}
@@ -377,7 +377,7 @@ export function WizardShell({
                     ) : (
                       pill
                     )}
-                    <span className={`text-[10px] font-inter tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-subtle'}`}>
+                    <span className={`text-[10px] font-inter tracking-wide ${i === step ? 'text-gold font-medium' : 'text-ink-1/60 dark:text-ink-subtle'}`}>
                       {label}
                     </span>
                   </div>

@@ -123,7 +123,7 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-10">
-      <h2 className="font-playfair text-3xl text-cream mb-1">Publish</h2>
+      <h2 className="font-playfair text-3xl text-ink-1 dark:text-cream mb-1">Publish</h2>
       <p className="text-muted-foreground font-source-serif text-sm mb-8">
         Share your flipbook with a public link.
       </p>
@@ -140,25 +140,25 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
           />
         ) : (
           <div
-            className="w-24 rounded-lg bg-[#1E1E1E] border border-[#333] flex items-center justify-center"
+            className="w-24 rounded-lg bg-cream-2 dark:bg-[#1E1E1E] border border-cream-3 dark:border-[#333] flex items-center justify-center"
             style={{ aspectRatio: '3/4' }}
           >
-            <span className="font-playfair text-[10px] text-cream/30 text-center px-2">{book.title}</span>
+            <span className="font-playfair text-[10px] text-ink-1/30 dark:text-cream/30 text-center px-2">{book.title}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="font-playfair text-cream text-lg leading-tight">{book.title}</p>
+          <p className="font-playfair text-ink-1 dark:text-cream text-lg leading-tight">{book.title}</p>
           {book.subtitle && (
             <p className="text-muted-foreground font-source-serif text-sm mt-1 italic">{book.subtitle}</p>
           )}
           {book.author_name && (
-            <p className="text-cream/50 font-inter text-xs mt-2 tracking-widest uppercase">{book.author_name}</p>
+            <p className="text-ink-1/50 dark:text-cream/50 font-inter text-xs mt-2 tracking-widest uppercase">{book.author_name}</p>
           )}
         </div>
       </div>
 
       {/* Access type ──────────────────────────────────────────────────── */}
-      <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
+      <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-cream-3 dark:border-[#2A2A2A] rounded-xl p-5 mb-5">
         <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-3">
           Access Type
         </p>
@@ -172,7 +172,7 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   selected
                     ? 'border-gold/50 bg-gold/5'
-                    : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
+                    : 'border-cream-3 dark:border-[#2A2A2A] hover:border-[#E8E0D0] dark:hover:border-[#3A3A3A]'
                 }`}
               >
                 <input
@@ -185,7 +185,7 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
                 />
                 <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? 'text-gold' : 'text-muted-foreground'}`} />
                 <div className="flex-1">
-                  <p className={`font-inter text-sm font-medium ${selected ? 'text-cream' : 'text-cream/80'}`}>
+                  <p className={`font-inter text-sm font-medium ${selected ? 'text-ink-1 dark:text-cream' : 'text-ink-1/80 dark:text-cream/80'}`}>
                     {opt.label}
                   </p>
                   <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">
@@ -198,19 +198,19 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
         </div>
 
         {accessType === 'paid' && (
-          <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
+          <div className="mt-4 pt-4 border-t border-cream-3 dark:border-[#2A2A2A]">
             <label className="block text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-2">
               Price (USD, minimum $1)
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/60 font-inter text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-1/60 dark:text-cream/60 font-inter text-sm">$</span>
               <input
                 type="number"
                 min={1}
                 step="0.01"
                 value={priceDollars}
                 onChange={(e) => setPriceDollars(e.target.value)}
-                className="w-32 pl-7 pr-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
+                className="w-32 pl-7 pr-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-cream-3 dark:border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
               />
             </div>
             <p className="text-[11px] font-inter text-muted-foreground mt-2">
@@ -239,14 +239,14 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
       </div>
 
       {/* CTA URL ──────────────────────────────────────────────────────── */}
-      <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
+      <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-cream-3 dark:border-[#2A2A2A] rounded-xl p-5 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <Megaphone className="w-3.5 h-3.5 text-gold" />
           <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">
             Reader Next Step
           </p>
         </div>
-        <label className="block text-xs font-inter text-cream/80 mb-2">
+        <label className="block text-xs font-inter text-ink-1/80 dark:text-cream/80 mb-2">
           Where should readers go after the book?
         </label>
         <input
@@ -255,7 +255,7 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
           placeholder="https://yoursite.com/book-readers"
           value={ctaUrl}
           onChange={(e) => setCtaUrl(e.target.value)}
-          className="w-full px-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm placeholder:text-cream/30 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
+          className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-cream-3 dark:border-[#333] text-ink-1 dark:text-cream font-inter text-sm placeholder:text-ink-1/30 dark:placeholder:text-cream/30 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
         />
         <p className="text-[11px] font-inter text-muted-foreground mt-2 leading-relaxed">
           Drives the button on your back cover and the closing CTA chapter
@@ -278,22 +278,22 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
 
       {/* Live URL (post-publish) ──────────────────────────────────────── */}
       {published && shareUrl && (
-        <div className="bg-[#1A1A1A] border border-emerald-500/30 rounded-xl p-5 mb-5">
+        <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-emerald-500/30 rounded-xl p-5 mb-5">
           <p className="text-[11px] font-inter font-semibold text-emerald-400 uppercase tracking-wider mb-2">
             Your book is live
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 font-mono text-xs text-accent truncate">
+            <code className="flex-1 bg-cream-1 dark:bg-[#111] border border-cream-3 dark:border-[#333] rounded-lg px-3 py-2 font-mono text-xs text-accent truncate">
               {shareUrl}
             </code>
-            <button onClick={copyLink} className="p-2 text-muted-foreground hover:text-cream transition-colors" title="Copy link">
+            <button onClick={copyLink} className="p-2 text-muted-foreground hover:text-ink-1 dark:hover:text-cream transition-colors" title="Copy link">
               {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
             </button>
             <a
               href={shareUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-muted-foreground hover:text-cream transition-colors"
+              className="p-2 text-muted-foreground hover:text-ink-1 dark:hover:text-cream transition-colors"
               title="View book"
             >
               <ExternalLink className="w-4 h-4" />
@@ -317,7 +317,7 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
       </button>
 
       {/* Export — secondary actions ─────────────────────────────────── */}
-      <div className="mt-8 pt-6 border-t border-[#2A2A2A]">
+      <div className="mt-8 pt-6 border-t border-cream-3 dark:border-[#2A2A2A]">
         <p className="text-[11px] font-inter font-medium text-muted-foreground uppercase tracking-wider mb-3">
           Export
         </p>
@@ -326,14 +326,14 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
             href={`/api/books/${book.id}/export-pdf`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 border border-[#333] hover:border-[#444] text-cream/70 hover:text-cream font-inter text-xs rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 border border-cream-3 dark:border-[#333] hover:border-[#E8E0D0] dark:hover:border-[#444] text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors"
           >
             <FileText className="w-3.5 h-3.5" />
             Export PDF
           </a>
           <a
             href={`/api/books/${book.id}/export-html`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 border border-[#333] hover:border-[#444] text-cream/70 hover:text-cream font-inter text-xs rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 border border-cream-3 dark:border-[#333] hover:border-[#E8E0D0] dark:hover:border-[#444] text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Export HTML
