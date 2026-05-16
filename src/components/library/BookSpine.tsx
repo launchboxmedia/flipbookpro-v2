@@ -20,13 +20,17 @@ function spineSize(chapters: number): { w: string; h: string } {
   return { w: 'w-9', h: 'h-32' }
 }
 
-function spineBackground(book: BookWithMeta): string {
-  if (book.isPublished) return 'bg-gradient-to-b from-gold/80 to-gold/40'
+/** Solid status color + matching title color. Flat fill (no gradient,
+ *  no cover image) keeps the vertical title highly legible. Published
+ *  gold uses dark text and needs no text-shadow; the dark spines keep
+ *  the shadow for contrast over the solid fill. */
+function spineStyle(book: BookWithMeta): { bg: string; title: string; shadow?: string } {
+  if (book.isPublished) return { bg: 'bg-gold', title: 'text-ink-1' }
   // "Ready" books — all chapters approved but not yet pushed live.
   if (book.approvedCount > 0 && book.approvedCount === book.chapterCount) {
-    return 'bg-gradient-to-b from-ink-4 to-ink-3'
+    return { bg: 'bg-ink-3', title: 'text-white', shadow: '0 1px 3px rgba(0,0,0,0.5)' }
   }
-  return 'bg-gradient-to-b from-teal-800 to-teal-900/70'
+  return { bg: 'bg-teal-800', title: 'text-white', shadow: '0 1px 3px rgba(0,0,0,0.5)' }
 }
 
 function statusLabel(book: BookWithMeta): { text: string; className: string } {
@@ -39,7 +43,7 @@ function statusLabel(book: BookWithMeta): { text: string; className: string } {
 
 export function BookSpine({ book, index }: Props) {
   const { w, h } = spineSize(book.chapterCount)
-  const bg = spineBackground(book)
+  const spine = spineStyle(book)
   const status = statusLabel(book)
 
   return (
@@ -50,25 +54,15 @@ export function BookSpine({ book, index }: Props) {
       className={`group relative ${w} ${h} cursor-pointer transition-transform duration-200 ease-out hover:-translate-y-3 hover:z-10 animate-slide-up`}
       style={{ animationDelay: `${index * 0.04}s` }}
     >
-      {/* The spine body — rounded top edge for a real-book silhouette,
-          gradient background per status, faded cover image behind. */}
-      <div className={`relative h-full w-full rounded-t-sm overflow-hidden ${bg}`}>
-        {book.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={book.cover_image_url}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-60"
-          />
-        )}
-
-        {/* Edge details — a hairline highlight on the left, a deeper
-            shadow on the right, and a softer top edge so the spine has
-            visual roundness without leaving the flat-fill aesthetic. */}
+      {/* The spine body — solid status color with a rounded top edge for
+          a real-book silhouette. No cover image or gradient overlay so
+          the vertical title stays highly legible. */}
+      <div className={`relative h-full w-full rounded-t-sm overflow-hidden ${spine.bg}`}>
+        {/* Edge details — a hairline highlight on the left and a deeper
+            shadow on the right give the spine subtle roundness without
+            any gradient overlay. */}
         <div className="absolute left-0 top-0 bottom-0 w-px bg-white/20" aria-hidden="true" />
         <div className="absolute right-0 top-0 bottom-0 w-px bg-black/40" aria-hidden="true" />
-        <div className="absolute left-0 right-0 top-0 h-2 bg-gradient-to-r from-white/10 via-white/20 to-white/10 rounded-t-sm" aria-hidden="true" />
 
         {/* Title — set in writing-mode: vertical-rl + rotate(180deg) so
             it reads bottom-to-top like a real book spine. Truncates with
@@ -78,8 +72,8 @@ export function BookSpine({ book, index }: Props) {
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
           <span
-            className="font-source-serif text-[11px] text-white dark:text-white font-semibold overflow-hidden text-ellipsis max-h-full"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+            className={`font-source-serif text-[11px] ${spine.title} font-semibold overflow-hidden text-ellipsis max-h-full`}
+            style={spine.shadow ? { textShadow: spine.shadow } : undefined}
           >
             {book.title}
           </span>
