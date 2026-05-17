@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -15,4 +17,13 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+// org/project come from env (SENTRY_ORG / SENTRY_PROJECT) so no
+// account-specific slug is committed. Source-map upload only runs when
+// SENTRY_AUTH_TOKEN is also present in the build env (Vercel); without
+// it the plugin silently skips upload and the build still succeeds.
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+})
+
