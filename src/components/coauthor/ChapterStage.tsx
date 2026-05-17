@@ -487,8 +487,8 @@ export function ChapterStage({
                 aria-current={isActive ? 'page' : undefined}
                 className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors ${
                   isActive
-                    ? 'bg-cream-3 dark:bg-ink-3 text-cream'
-                    : 'text-ink-subtle hover:text-cream hover:bg-ink-2/20 dark:hover:bg-ink-2/80'
+                    ? 'bg-cream-3 dark:bg-ink-3 text-ink-1 dark:text-cream'
+                    : 'text-ink-subtle hover:text-ink-1 dark:hover:text-cream hover:bg-ink-2/20 dark:hover:bg-ink-2/80'
                 }`}
               >
                 {isActive && (
@@ -563,7 +563,7 @@ export function ChapterStage({
               onClick={generateDraft}
               disabled={generating}
               title={approved ? 'Unapproves and regenerates this chapter' : undefined}
-              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
             >
               {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
               {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
@@ -663,16 +663,16 @@ export function ChapterStage({
               calls the same generateDraft() — research_facts is already saved
               to the page row, so the draft route picks it up automatically. */}
           {(researchOpen || researchError) && (
-            <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
+            <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-ink-1 dark:text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <FlaskConical className="w-4 h-4 text-gold" />
-                  <p className="font-inter font-semibold text-cream-1 text-sm tracking-wide uppercase">Research Facts</p>
+                  <p className="font-inter font-semibold text-ink-1 dark:text-cream-1 text-sm tracking-wide uppercase">Research Facts</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setResearchOpen(false)}
-                  className="text-cream-1/50 hover:text-cream-1 transition-colors"
+                  className="text-ink-1/50 dark:text-cream-1/50 hover:text-ink-1 dark:hover:text-cream-1 transition-colors"
                   aria-label="Close research panel"
                 >
                   <X className="w-4 h-4" />
@@ -692,7 +692,7 @@ export function ChapterStage({
               {researchFacts.length > 0 && (
                 <ul className="space-y-2 mb-4">
                   {researchFacts.map((fact, i) => (
-                    <li key={i} className="flex gap-2 text-xs leading-relaxed font-source-serif text-cream-1/85">
+                    <li key={i} className="flex gap-2 text-xs leading-relaxed font-source-serif text-ink-1/85 dark:text-cream-1/85">
                       <span className="text-gold mt-1 shrink-0">•</span>
                       <span>{fact}</span>
                     </li>
@@ -702,7 +702,7 @@ export function ChapterStage({
 
               {researchCitations.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-[11px] font-inter font-medium text-cream-1/55 uppercase tracking-wider mb-2">Sources</p>
+                  <p className="text-[11px] font-inter font-medium text-ink-1/55 dark:text-cream-1/55 uppercase tracking-wider mb-2">Sources</p>
                   <div className="flex flex-wrap gap-2">
                     {researchCitations.map((c, i) => (
                       <a
@@ -865,7 +865,7 @@ export function ChapterStage({
               value={selectedStyle}
               onChange={(e) => onChangeStyle(e.target.value)}
               disabled={isGeneratingImage}
-              className="w-full px-2 py-1.5 rounded-md bg-[#2A2A2A] border border-[#333] text-cream text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+              className="w-full px-2 py-1.5 rounded-md bg-cream-2 dark:bg-[#2A2A2A] border border-[#333] text-ink-1 dark:text-cream text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
             >
               {STYLE_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>{opt.label}</option>
@@ -881,7 +881,7 @@ export function ChapterStage({
               value={selectedPalette}
               onChange={(e) => onChangePalette(e.target.value)}
               disabled={isGeneratingImage}
-              className="w-full px-2 py-1.5 rounded-md bg-[#2A2A2A] border border-[#333] text-cream text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+              className="w-full px-2 py-1.5 rounded-md bg-cream-2 dark:bg-[#2A2A2A] border border-[#333] text-ink-1 dark:text-cream text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
             >
               {PALETTES.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -891,7 +891,7 @@ export function ChapterStage({
           </div>
 
           {isGeneratingImage ? (
-            <div className="w-full aspect-video bg-[#2A2A2A] rounded-md flex items-center justify-center gap-2">
+            <div className="w-full aspect-video bg-cream-2 dark:bg-[#2A2A2A] rounded-md flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-accent" />
               <span className="text-xs text-muted-foreground font-inter">Generating…</span>
             </div>
@@ -904,7 +904,7 @@ export function ChapterStage({
               />
             </ImageLightbox>
           ) : (
-            <div className="w-full aspect-video bg-[#2A2A2A] rounded-md flex flex-col items-center justify-center gap-2 border border-dashed border-[#444]">
+            <div className="w-full aspect-video bg-cream-2 dark:bg-[#2A2A2A] rounded-md flex flex-col items-center justify-center gap-2 border border-dashed border-[#444]">
               <ImageIcon className="w-5 h-5 text-[#555]" />
               <span className="text-xs text-muted-foreground font-inter text-center px-4">
                 {hasImageError ? 'Generation failed' : 'Auto-generates on approve'}
@@ -929,7 +929,7 @@ export function ChapterStage({
           <div className="mt-3 space-y-2">
             <label className="block text-[10px] font-inter text-muted-foreground uppercase tracking-wider">
               Image prompt
-              <span className="ml-1 normal-case tracking-normal text-cream/40 text-[10px]">— leave blank for AI auto-scene</span>
+              <span className="ml-1 normal-case tracking-normal text-ink-1/40 dark:text-cream/40 text-[10px]">— leave blank for AI auto-scene</span>
             </label>
             <textarea
               value={imagePrompt}
@@ -937,7 +937,7 @@ export function ChapterStage({
               placeholder="Describe what you want, or leave blank to let the AI pick a scene from the chapter…"
               rows={3}
               disabled={isGeneratingImage}
-              className="w-full px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent resize-none disabled:opacity-50"
+              className="w-full px-3 py-2 rounded-md bg-cream-2 dark:bg-[#2A2A2A] border border-[#333] text-ink-1 dark:text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent resize-none disabled:opacity-50"
             />
 
             <div className="flex flex-wrap gap-1">
@@ -946,7 +946,7 @@ export function ChapterStage({
                   key={mod}
                   onClick={() => appendModifier(mod)}
                   disabled={isGeneratingImage}
-                  className="px-2 py-0.5 text-[10px] font-inter text-cream/60 bg-[#2A2A2A] hover:bg-[#333] hover:text-cream border border-[#333] rounded-full transition-colors disabled:opacity-40"
+                  className="px-2 py-0.5 text-[10px] font-inter text-ink-1/60 dark:text-cream/60 bg-cream-2 dark:bg-[#2A2A2A] hover:bg-[#333] hover:text-ink-1 dark:hover:text-cream border border-[#333] rounded-full transition-colors disabled:opacity-40"
                   title={`Append: ${mod}`}
                 >
                   + {mod}
@@ -956,7 +956,7 @@ export function ChapterStage({
                 <button
                   onClick={() => setImagePrompt('')}
                   disabled={isGeneratingImage}
-                  className="px-2 py-0.5 text-[10px] font-inter text-cream/40 hover:text-red-400 transition-colors disabled:opacity-40"
+                  className="px-2 py-0.5 text-[10px] font-inter text-ink-1/40 dark:text-cream/40 hover:text-red-400 transition-colors disabled:opacity-40"
                 >
                   Clear
                 </button>
@@ -967,7 +967,7 @@ export function ChapterStage({
               <button
                 onClick={handleGenerateImage}
                 disabled={isGeneratingImage}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-accent hover:bg-accent/90 text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-accent hover:bg-accent/90 text-ink-1 dark:text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
               >
                 {isGeneratingImage ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -982,7 +982,7 @@ export function ChapterStage({
                 onClick={() => imageFileInputRef.current?.click()}
                 disabled={isGeneratingImage}
                 title="Upload your own image (PNG, JPEG, or WebP, up to 5 MB)"
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-[#333] hover:border-accent/40 text-muted-foreground hover:text-ink-1 dark:hover:text-cream text-xs font-inter rounded-md transition-colors disabled:opacity-50"
               >
                 <Upload className="w-3 h-3" />
                 Upload
@@ -1015,15 +1015,15 @@ export function ChapterStage({
               key={i}
               className={`text-xs font-source-serif leading-relaxed rounded-lg p-3 ${
                 msg.role === 'user'
-                  ? 'bg-accent/10 text-cream/90 ml-4'
-                  : 'bg-[#2A2A2A] text-cream/70 mr-4'
+                  ? 'bg-accent/10 text-ink-1/90 dark:text-cream/90 ml-4'
+                  : 'bg-cream-2 dark:bg-[#2A2A2A] text-ink-1/70 dark:text-cream/70 mr-4'
               }`}
             >
               {msg.content}
             </div>
           ))}
           {chatLoading && (
-            <div className="bg-[#2A2A2A] rounded-lg p-3 mr-4 flex items-center gap-2">
+            <div className="bg-cream-2 dark:bg-[#2A2A2A] rounded-lg p-3 mr-4 flex items-center gap-2">
               <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Writing...</span>
             </div>
@@ -1045,12 +1045,12 @@ export function ChapterStage({
               placeholder="Ask for changes…  (Enter to send, Shift+Enter for new line)"
               disabled={!draft || approved}
               rows={3}
-              className="flex-1 px-3 py-2 rounded-md bg-[#2A2A2A] border border-[#333] text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40 resize-y min-h-[64px] max-h-[200px] leading-relaxed"
+              className="flex-1 px-3 py-2 rounded-md bg-cream-2 dark:bg-[#2A2A2A] border border-[#333] text-ink-1 dark:text-cream placeholder:text-muted-foreground text-xs font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-40 resize-y min-h-[64px] max-h-[200px] leading-relaxed"
             />
             <button
               onClick={sendChat}
               disabled={!chatInput.trim() || chatLoading || !draft || approved}
-              className="p-2 bg-accent hover:bg-accent/90 text-cream rounded-md transition-colors disabled:opacity-40 shrink-0"
+              className="p-2 bg-accent hover:bg-accent/90 text-ink-1 dark:text-cream rounded-md transition-colors disabled:opacity-40 shrink-0"
               title="Send (Enter)"
               aria-label="Send"
             >

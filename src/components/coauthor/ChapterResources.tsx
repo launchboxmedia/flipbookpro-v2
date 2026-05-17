@@ -125,14 +125,14 @@ export function ChapterResources({
 
   return (
     <>
-      <div className="mb-6 bg-ink-2 border border-ink-3 rounded-xl p-4 text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
+      <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-ink-1 dark:text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
         <div className="flex items-center gap-2 mb-2">
           <Paperclip className="w-4 h-4 text-gold" />
-          <p className="font-inter font-semibold text-cream-1 text-sm tracking-wide uppercase">
+          <p className="font-inter font-semibold text-ink-1 dark:text-cream-1 text-sm tracking-wide uppercase">
             Chapter Resources
           </p>
         </div>
-        <p className="text-xs font-source-serif text-cream-1/60 mb-4 leading-relaxed">
+        <p className="text-xs font-source-serif text-ink-1/60 dark:text-cream-1/60 mb-4 leading-relaxed">
           These resources were referenced in this chapter. Generate them to make them available to your readers.
         </p>
 
@@ -144,7 +144,7 @@ export function ChapterResources({
             return (
               <div
                 key={key}
-                className="bg-ink-3 border border-ink-4 rounded-lg p-3"
+                className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-lg p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -163,11 +163,11 @@ export function ChapterResources({
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-source-serif text-cream-1 leading-snug">
+                    <p className="text-sm font-source-serif text-ink-1 dark:text-cream-1 leading-snug">
                       {marker.name}
                     </p>
                     {existing && (
-                      <p className="text-[11px] font-source-serif text-cream-1/55 mt-1 line-clamp-2">
+                      <p className="text-[11px] font-source-serif text-ink-1/55 dark:text-cream-1/55 mt-1 line-clamp-2">
                         {existing.content.replace(/^#\s*.*\n+/, '').slice(0, PREVIEW_CHAR_LIMIT)}
                         {existing.content.length > PREVIEW_CHAR_LIMIT ? '…' : ''}
                       </p>
@@ -191,7 +191,7 @@ export function ChapterResources({
                           type="button"
                           onClick={() => generate(marker)}
                           disabled={state.generating}
-                          className="flex items-center gap-1 text-[11px] font-inter text-cream-1/60 hover:text-cream-1 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
                         >
                           {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                           Regenerate
@@ -393,7 +393,7 @@ ${bodyHtml}
       role="dialog"
       aria-modal="true"
       aria-label={`Resource: ${resource.resource_name}`}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-1/80 backdrop-blur-sm px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-cream-1/80 dark:bg-ink-1/80 backdrop-blur-sm px-4 py-8"
       onClick={onClose}
     >
       <div
@@ -438,7 +438,7 @@ ${bodyHtml}
           <button
             type="button"
             onClick={downloadPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ink-1 hover:bg-ink-2 text-cream text-xs font-inter rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-xs font-inter rounded-md transition-colors"
           >
             <Printer className="w-3.5 h-3.5" />
             Download as PDF

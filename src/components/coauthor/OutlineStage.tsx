@@ -782,7 +782,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               <button
                 type="button"
                 onClick={retryAutoGeneration}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-cream text-xs font-inter font-medium rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-xs font-inter font-medium rounded-md transition-colors"
               >
                 <RefreshCw className="w-3 h-3" />
                 Try Again
@@ -878,7 +878,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
             <div className="mb-4 rounded-lg border-l-4 border-emerald-400 bg-cream-3 dark:bg-ink-3 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <p className="font-source-serif text-sm text-cream-1">
+                <p className="font-source-serif text-sm text-ink-1 dark:text-cream-1">
                   All chapters reviewed. Ready to start.
                 </p>
               </div>
@@ -913,10 +913,10 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
             <div className="mb-4 rounded-lg border-l-4 border-gold bg-cream-3 dark:bg-ink-3 px-4 py-3 flex items-start gap-3">
               <Sparkles className="w-4 h-4 text-gold shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="font-inter text-sm font-semibold text-cream-1">
+                <p className="font-inter text-sm font-semibold text-ink-1 dark:text-cream-1">
                   Creator Radar suggested these chapters
                 </p>
-                <p className="font-source-serif text-xs text-cream-1/75 mt-0.5">
+                <p className="font-source-serif text-xs text-ink-1/75 dark:text-cream-1/75 mt-0.5">
                   Review each one before you start writing.
                 </p>
               </div>
@@ -1234,7 +1234,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               not a passing widget */}
           <div className="flex items-center gap-2.5 px-6 py-4 border-b border-cream-3 dark:border-ink-3 bg-ink-1/10 dark:bg-ink-1/40">
             <Sparkles className="w-4 h-4 text-gold" />
-            <h3 className="font-playfair text-cream text-lg font-semibold">AI Critique</h3>
+            <h3 className="font-playfair text-ink-1 dark:text-cream text-lg font-semibold">AI Critique</h3>
             {visibleFlags.length > 0 && (
               <span className="ml-auto text-[11px] font-inter font-medium px-2 py-0.5 rounded-full bg-gold/15 text-gold">
                 {visibleFlags.length} flag{visibleFlags.length !== 1 ? 's' : ''}
@@ -1283,10 +1283,10 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                           </span>
                         )}
                       </div>
-                      <p className="text-cream text-sm font-source-serif mb-1.5 leading-relaxed">
+                      <p className="text-ink-1 dark:text-cream text-sm font-source-serif mb-1.5 leading-relaxed">
                         {flag.issue}
                       </p>
-                      <p className="text-cream/60 text-xs font-source-serif italic mb-3 leading-relaxed">
+                      <p className="text-ink-1/60 dark:text-cream/60 text-xs font-source-serif italic mb-3 leading-relaxed">
                         {flag.suggestion}
                       </p>
                       <div className="flex gap-2">
@@ -1302,7 +1302,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
                         <button
                           onClick={() => dismissFlag(originalIndex)}
                           disabled={applyingFlagIndex !== null}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E0D0] dark:bg-ink-4 hover:bg-cream-3 dark:hover:bg-ink-3 text-ink-subtle hover:text-cream text-xs font-inter rounded-md transition-colors press-scale disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E0D0] dark:bg-ink-4 hover:bg-cream-3 dark:hover:bg-ink-3 text-ink-subtle hover:text-ink-1 dark:hover:text-cream text-xs font-inter rounded-md transition-colors press-scale disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X className="w-3 h-3" />
                           Dismiss
@@ -1326,7 +1326,7 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               <button
                 onClick={runCritique}
                 disabled={critiquing}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-cream-3 dark:bg-ink-3 hover:bg-[#E8E0D0] dark:hover:bg-ink-4 border border-[#E8E0D0] dark:border-ink-4 text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 press-scale"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-cream-3 dark:bg-ink-3 hover:bg-[#E8E0D0] dark:hover:bg-ink-4 border border-[#E8E0D0] dark:border-ink-4 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 press-scale"
               >
                 {critiquing ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
