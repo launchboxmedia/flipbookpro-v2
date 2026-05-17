@@ -9,7 +9,11 @@ import { BookDesignStage } from './BookDesignStage'
 import { PrePublishStage } from './PrePublishStage'
 import { PublishStage } from './PublishStage'
 import { CreatorRadarStage } from './CreatorRadarStage'
-import type { Book, BookPage, BookResource, PublishedBook } from '@/types/database'
+import type { Book, BookPage, BookResource, PublishedBook, EmailSequence } from '@/types/database'
+
+/** The slice of a book's welcome sequence the PublishStage needs to render
+ *  its status / upgrade card. Null when no sequence exists yet. */
+export type PublishEmailSequence = Pick<EmailSequence, 'status' | 'emails' | 'activated_at'> | null
 
 export type CoauthorStage =
   | 'outline'
@@ -54,6 +58,12 @@ interface Props {
   isAdmin?: boolean
   /** Plan tier as Creator Radar sees it (admin collapsed to 'pro'). */
   radarPlan?: 'free' | 'standard' | 'pro'
+  /** This book's welcome sequence (status/emails/activated_at), or null.
+   *  Drives the PublishStage sequence card. */
+  emailSequence?: PublishEmailSequence
+  /** Plan tier for the email-sequence gate (admin collapsed to 'pro').
+   *  Email sequences are Pro-only. */
+  emailSequencePlan?: 'free' | 'standard' | 'pro'
   initialStage?: CoauthorStage
 }
 
@@ -71,6 +81,8 @@ export function CoauthorShell({
   isPremium,
   isAdmin,
   radarPlan = 'free',
+  emailSequence = null,
+  emailSequencePlan = 'free',
   initialStage = 'outline',
 }: Props) {
   const [pages, setPages] = useState<BookPage[]>(initialPages)
@@ -454,6 +466,8 @@ export function CoauthorShell({
                 publishedBook={publishedBook}
                 hasStripeConnect={hasStripeConnect}
                 hasCtaChapter={hasCtaChapter}
+                emailSequence={emailSequence}
+                plan={emailSequencePlan}
               />
             )}
           </motion.div>

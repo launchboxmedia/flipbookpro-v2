@@ -6,7 +6,21 @@ import {
   Globe, Copy, Check, ExternalLink, Loader2, Lock, Mail, BookOpen,
   AlertTriangle, Megaphone, Download, FileText,
 } from 'lucide-react'
-import type { AccessType, Book, PublishedBook } from '@/types/database'
+import type { AccessType, Book, PublishedBook, EmailSequence } from '@/types/database'
+
+type SequenceCard = Pick<EmailSequence, 'status' | 'emails' | 'activated_at'> | null
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'just now'
+  const ms = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(ms / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d} day${d === 1 ? '' : 's'} ago`
+}
 
 interface Props {
   book: Book
@@ -16,6 +30,10 @@ interface Props {
    *  Drives the warning if a paid/gated book is being published without a
    *  destination URL — the closing chapter would point at nothing. */
   hasCtaChapter: boolean
+  /** This book's welcome sequence (status/emails/activated_at) or null. */
+  emailSequence?: SequenceCard
+  /** Plan tier for the Pro gate (admin already collapsed to 'pro'). */
+  plan?: 'free' | 'standard' | 'pro'
 }
 
 const ACCESS_OPTIONS: ReadonlyArray<{
@@ -37,7 +55,7 @@ function initialAccessType(p: PublishedBook | null): AccessType {
   return 'email'
 }
 
-export function PublishStage({ book, publishedBook: initial, hasStripeConnect, hasCtaChapter }: Props) {
+export function PublishStage({ book, publishedBook: initial, hasStripeConnect, hasCtaChapter, emailSequence = null, plan = 'free' }: Props) {
   const [published]  = useState<PublishedBook | null>(initial)
   const [accessType, setAccessType] = useState<AccessType>(initialAccessType(initial))
   const [priceDollars, setPriceDollars] = useState<string>(
@@ -315,6 +333,44 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
             ? 'Update Published Book'
             : 'Publish Book'}
       </button>
+
+      {/* Welcome email sequence — Pro feature ───────────────────────── */}
+      {plan !== 'pro' ? (
+        <div className="mt-5 bg-ink-1/5 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Mail className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-ink-1 dark:text-white">Automated Email Sequences</p>
+              <p className="text-ink-1/50 dark:text-white/40 text-xs mt-1 leading-relaxed">
+                Automatically send readers a 5-email welcome sequence written by AI. Available on Pro.
+              </p>
+              <Link
+                href="/settings/billing"
+                className="inline-block bg-gold text-ink-1 text-xs font-semibold px-3 py-1.5 rounded-lg mt-3 hover:bg-gold-soft transition-colors"
+              >
+                Upgrade to Pro →
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : emailSequence?.status === 'active' ? (
+        <div className="mt-5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-600 dark:text-emerald-400">
+          <p className="font-inter text-sm font-semibold">✓ Welcome sequence active</p>
+          <p className="font-source-serif text-xs mt-1 opacity-90">
+            Readers automatically receive 5 emails over 14 days
+          </p>
+          <p className="font-inter text-[11px] mt-1 opacity-70">
+            {emailSequence.emails?.length ?? 5} emails · Activated {timeAgo(emailSequence.activated_at)}
+          </p>
+        </div>
+      ) : emailSequence?.status === 'draft' ? (
+        <div className="mt-5 bg-gold/10 border border-gold/20 rounded-xl p-4 text-gold">
+          <p className="font-inter text-sm font-semibold">⟳ Preparing your welcome sequence…</p>
+          <p className="font-source-serif text-xs mt-1 opacity-80">
+            Claude is writing your 5-email reader sequence. This takes about 30 seconds.
+          </p>
+        </div>
+      ) : null}
 
       {/* Export — secondary actions ─────────────────────────────────── */}
       <div className="mt-8 pt-6 border-t border-cream-3 dark:border-[#2A2A2A]">

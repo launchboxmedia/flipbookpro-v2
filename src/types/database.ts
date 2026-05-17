@@ -406,4 +406,38 @@ export interface Lead {
   name: string | null
   source: string
   created_at: string
+  /** Resend message IDs for THIS reader's 5 scheduled welcome emails.
+   *  Per-reader (not per-book) so unsubscribe can cancel exactly this
+   *  reader's pending sends. Empty until the sequence is scheduled. */
+  welcome_resend_ids?: string[]
+  /** Set true when the reader unsubscribes — also used to skip
+   *  re-scheduling if they somehow re-submit. */
+  welcome_unsubscribed?: boolean
+}
+
+/** One email in a book's AI-written welcome sequence. Stored as the
+ *  `emails` jsonb array on email_sequences; rendered per-reader by
+ *  WelcomeSequenceEmail and scheduled via Resend `scheduledAt`. */
+export interface EmailItem {
+  position: number      // 1-5
+  subject: string
+  preview_text: string
+  body: string          // HTML (<p> tags)
+  delay_days: number    // 0, 2, 4, 7, 14
+}
+
+/** Per-book welcome sequence. One row per book. `resend_ids`/`activated_at`
+ *  are a coarse "this book's sequence has been built/activated" marker —
+ *  the authoritative per-reader Resend IDs live on leads.welcome_resend_ids
+ *  (a single sequence row is shared across all readers). */
+export interface EmailSequence {
+  id: string
+  book_id: string
+  user_id: string
+  emails: EmailItem[]
+  resend_ids: string[]
+  status: 'draft' | 'active'
+  activated_at: string | null
+  created_at: string
+  updated_at: string
 }

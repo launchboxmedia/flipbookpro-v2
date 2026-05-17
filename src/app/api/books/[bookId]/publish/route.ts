@@ -128,6 +128,21 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .update({ status: 'published', slug: published.slug, published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', params.bookId)
 
+  // Generate the AI welcome sequence asynchronously. The route is Pro-gated
+  // (non-Pro gets a harmless 403) and idempotent (updates the existing
+  // sequence row). Cookie is forwarded so it runs as this author under RLS.
+  // NOT awaited — must never block or fail the publish response.
+  void fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/books/${params.bookId}/generate-email-sequence`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: req.headers.get('cookie') ?? '',
+      },
+    },
+  ).catch((err) => console.error('[publish] email sequence generation failed:', err))
+
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/read/${published.slug}`
   return NextResponse.json({ slug: published.slug, shareUrl })
 }

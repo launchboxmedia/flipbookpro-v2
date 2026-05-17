@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { scheduleWelcomeSequence } from '@/lib/emailSequence'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_EMAIL = 254
@@ -76,6 +77,16 @@ export async function POST(req: NextRequest) {
     .from('leads')
     .select('id', { count: 'exact', head: true })
     .eq('published_book_id', publishedBookId)
+
+  // Welcome sequence — fire-and-forget. Schedules the reader's 5 emails
+  // via Resend. Never awaited and never throws (the lib swallows + logs)
+  // so lead capture cannot be blocked or failed by email scheduling.
+  void scheduleWelcomeSequence({
+    bookId: pub.book_id,
+    leadEmail: cleanEmail,
+    leadName: cleanName,
+    bookSlug: pub.slug,
+  }).catch((err) => console.error('[leads] welcome sequence scheduling failed:', err))
 
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/read/${pub.slug}`
 

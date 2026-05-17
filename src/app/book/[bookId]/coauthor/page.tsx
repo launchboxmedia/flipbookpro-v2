@@ -23,6 +23,7 @@ export default async function CoauthorPage({
     { data: publishedBook },
     { data: profile },
     { count: ctaCount },
+    { data: emailSequence },
     planInfo,
   ] = await Promise.all([
     supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
@@ -35,6 +36,13 @@ export default async function CoauthorPage({
       .select('id', { count: 'exact', head: true })
       .eq('book_id', params.bookId)
       .eq('chapter_index', 99),
+    supabase
+      .from('email_sequences')
+      .select('status, emails, activated_at')
+      .eq('book_id', params.bookId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     getEffectivePlan(supabase, user.id),
   ])
 
@@ -74,6 +82,8 @@ export default async function CoauthorPage({
       // Creator Radar gates content by plan. Admins see everything,
       // collapsing to the 'pro' tier from the panel's perspective.
       radarPlan={planInfo.plan === 'admin' ? 'pro' : planInfo.plan}
+      emailSequence={emailSequence ?? null}
+      emailSequencePlan={planInfo.plan === 'admin' ? 'pro' : planInfo.plan}
       initialStage={initialStage}
     />
   )
