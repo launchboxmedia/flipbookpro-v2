@@ -327,7 +327,7 @@ export function Step1Radar({ data, onNext }: Props) {
             context feels like a failure, but framed as a pivot it's
             actionable. */}
         {radarResult && radarResult.low_opportunity && !pivotRevealed && (
-          <div className="bg-ink-3/5 border border-ink-4/30 border-l-2 border-l-amber-400 rounded-lg p-5 space-y-4">
+          <div className="bg-cream-3/5 dark:bg-ink-3/5 border border-[#E8E0D0]/30 dark:border-ink-4/30 border-l-2 border-l-amber-400 rounded-lg p-5 space-y-4">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
               <p className="font-inter font-semibold text-ink-1 text-sm leading-snug">
@@ -468,7 +468,7 @@ export function Step1Radar({ data, onNext }: Props) {
           type="button"
           onClick={handleContinue}
           disabled={!canContinue || scanning || continuingViaScan}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-6 py-3 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm rounded-md transition-colors disabled:bg-ink-4/30 disabled:text-ink-1/40 disabled:cursor-not-allowed"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-6 py-3 bg-gold hover:bg-gold-soft text-ink-1 font-semibold font-inter text-sm rounded-md transition-colors disabled:bg-[#E8E0D0]/30 dark:disabled:bg-ink-4/30 disabled:text-ink-1/40 disabled:cursor-not-allowed"
         >
           {continuingViaScan ? (
             <>
@@ -486,7 +486,7 @@ export function Step1Radar({ data, onNext }: Props) {
 
       {toast && (
         <div
-          className="fixed bottom-6 right-6 z-50 px-3 py-2 rounded-lg bg-ink-1 border border-gold/40 text-cream-1 font-inter text-xs shadow-2xl flex items-center gap-2"
+          className="fixed bottom-6 right-6 z-50 px-3 py-2 rounded-lg bg-cream-1 dark:bg-ink-1 border border-gold/40 text-ink-1 dark:text-cream-1 font-inter text-xs shadow-2xl flex items-center gap-2"
           role="status"
           aria-live="polite"
         >
