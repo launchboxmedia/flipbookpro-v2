@@ -101,7 +101,7 @@ function timeAgo(iso: string | null): string {
 const URGENCY_STYLES: Record<NonNullable<RadarMarketSignal['urgency']>, { dot: string; label: string; text: string }> = {
   high:   { dot: 'bg-rose-400',   label: 'HIGH',   text: 'text-rose-300' },
   medium: { dot: 'bg-amber-400',  label: 'MEDIUM', text: 'text-amber-300' },
-  low:    { dot: 'bg-ink-subtle', label: 'LOW',    text: 'text-ink-subtle' },
+  low:    { dot: 'bg-ink-1/40 dark:bg-ink-subtle', label: 'LOW',    text: 'text-ink-1/50 dark:text-ink-subtle' },
 }
 
 // Persona-specific labels for the middle progress step. The first/last
@@ -299,15 +299,15 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
   function LockedSection({ tier, children, copy }: { tier: 'standard' | 'pro'; copy: string; children: React.ReactNode }) {
     const tierLabel = tier === 'pro' ? 'PRO FEATURE' : 'STANDARD FEATURE'
     return (
-      <div className="relative rounded-lg overflow-hidden border border-ink-3 bg-ink-3/40">
+      <div className="relative rounded-lg overflow-hidden border border-cream-3 dark:border-ink-3 bg-ink-3/10 dark:bg-ink-3/40">
         <div className="blur-sm opacity-40 pointer-events-none select-none p-4">
           {children}
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-1/80 backdrop-blur-sm px-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-1/20 dark:bg-ink-1/80 backdrop-blur-sm px-4">
           <span className="flex items-center gap-1.5 text-gold font-playfair text-sm font-semibold mb-1.5">
             <Lock className="w-3.5 h-3.5" /> {tierLabel}
           </span>
-          <span className="text-cream-1/70 text-xs text-center mb-3 font-source-serif leading-snug max-w-[260px]">
+          <span className="text-ink-1/70 dark:text-cream-1/70 text-xs text-center mb-3 font-source-serif leading-snug max-w-[260px]">
             {copy}
           </span>
           <a
@@ -361,13 +361,13 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
     && !showBusinessContext
 
   return (
-    <div className="bg-ink-2 border border-ink-3 rounded-2xl overflow-hidden flex flex-col">
+    <div className="bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-2xl overflow-hidden flex flex-col">
       {/* Header bar */}
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-ink-3 bg-ink-1/40">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-cream-3 dark:border-ink-3 bg-ink-1/10 dark:bg-ink-1/40">
         <Zap className="w-4 h-4 text-gold" />
-        <h3 className="font-playfair text-cream text-base font-semibold flex-1">Creator Radar</h3>
+        <h3 className="font-playfair text-ink-1 dark:text-cream text-base font-semibold flex-1">Creator Radar</h3>
         {result && !running && (
-          <span className="text-[10px] font-inter text-ink-subtle">
+          <span className="text-[10px] font-inter text-ink-1/40 dark:text-ink-subtle">
             Last run: {timeAgo(ranAt)}
           </span>
         )}
@@ -440,7 +440,7 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
             {/* Summary — always visible */}
             {result.summary && (
               <Section icon={<Sparkles className="w-3.5 h-3.5" />} label="Market Summary">
-                <p className="text-cream font-source-serif text-sm leading-relaxed">{result.summary}</p>
+                <p className="text-ink-1 dark:text-cream font-source-serif text-sm leading-relaxed">{result.summary}</p>
               </Section>
             )}
 
@@ -535,15 +535,15 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
                 divider + Website Analysis + Conversion Recommendation)
                 without persisting the choice. */}
             {showBusinessContextBlock && (
-              <div className="border-t border-ink-4 pt-6 mt-2 flex items-center justify-between mb-6">
-                <p className="text-xs font-inter tracking-widest uppercase text-ink-subtle">
+              <div className="border-t border-[#E8E0D0] dark:border-ink-4 pt-6 mt-2 flex items-center justify-between mb-6">
+                <p className="text-xs font-inter tracking-widest uppercase text-ink-1/40 dark:text-ink-subtle">
                   Your Business Context
                 </p>
                 {showBusinessContextHideLink && (
                   <button
                     type="button"
                     onClick={() => setHideBusinessContext(true)}
-                    className="text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors"
+                    className="text-xs font-inter text-ink-1/40 dark:text-ink-subtle hover:text-ink-1 dark:hover:text-cream-1 transition-colors"
                   >
                     Not relevant to this book? Hide
                   </button>
@@ -559,8 +559,8 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
             {showBusinessContextBlock && (
               <Section icon={<Globe className="w-3.5 h-3.5" />} label="Website Analysis" tier="PRO">
                 {!hasWebsiteExtraction
-                  ? <div className="bg-ink-3 border border-ink-4 rounded-md p-4 text-center space-y-3">
-                      <p className="text-cream-1/80 font-source-serif text-xs leading-relaxed">
+                  ? <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-4 text-center space-y-3">
+                      <p className="text-ink-1/80 dark:text-cream-1/80 font-source-serif text-xs leading-relaxed">
                         Run Creator Radar again to include your website analysis in these results.
                       </p>
                       <button
@@ -597,11 +597,11 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
                 see whatever extraction data is on the result (or, when
                 the route stripped it entirely, a refresh prompt). */}
             {showBusinessContextAddLink && (
-              <div className="border-t border-ink-4 pt-4">
+              <div className="border-t border-[#E8E0D0] dark:border-ink-4 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowBusinessContext(true)}
-                  className="inline-flex items-center gap-1 text-xs font-inter text-ink-subtle hover:text-cream-1 transition-colors"
+                  className="inline-flex items-center gap-1 text-xs font-inter text-ink-1/40 dark:text-ink-subtle hover:text-ink-1 dark:hover:text-cream-1 transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   Add your business context to this analysis
@@ -619,7 +619,7 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] font-inter text-gold hover:text-gold-soft px-2 py-1 bg-ink-3 rounded-md truncate max-w-[180px] transition-colors"
+                      className="text-[11px] font-inter text-gold hover:text-gold-soft px-2 py-1 bg-cream-3 dark:bg-ink-3 rounded-md truncate max-w-[180px] transition-colors"
                       title={url}
                     >
                       {new URL(url).hostname.replace(/^www\./, '')}
@@ -642,7 +642,7 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
         )}
 
         {!result && !running && !error && (
-          <p className="text-ink-subtle text-xs font-source-serif leading-relaxed">
+          <p className="text-ink-1/40 dark:text-ink-subtle text-xs font-source-serif leading-relaxed">
             Run a market intelligence scan to surface trends, audience pain points, and positioning opportunities for this book.
           </p>
         )}
@@ -651,7 +651,7 @@ export function CreatorRadarPanel({ bookId, plan, persona, ranAt: initialRanAt, 
       {/* Copy toast — bottom-right, fades after 2s */}
       {toast && (
         <div
-          className="fixed bottom-6 right-6 z-50 px-3 py-2 rounded-lg bg-ink-1 border border-gold/40 text-cream-1 font-inter text-xs shadow-2xl"
+          className="fixed bottom-6 right-6 z-50 px-3 py-2 rounded-lg bg-cream-1 dark:bg-ink-1 border border-gold/40 text-ink-1 dark:text-cream-1 font-inter text-xs shadow-2xl"
           role="status"
           aria-live="polite"
         >
@@ -671,8 +671,8 @@ function ProgressStep({ done, active, label }: { done: boolean; active: boolean;
         ? <Check className="w-3.5 h-3.5 text-gold" />
         : active
           ? <span className="w-2 h-2 rounded-full bg-gold animate-pulse" />
-          : <span className="w-2 h-2 rounded-full bg-ink-3" />}
-      <span className={done ? 'text-cream/70' : active ? 'text-cream' : 'text-ink-subtle'}>{label}</span>
+          : <span className="w-2 h-2 rounded-full bg-cream-3 dark:bg-ink-3" />}
+      <span className={done ? 'text-ink-1/70 dark:text-cream/70' : active ? 'text-ink-1 dark:text-cream' : 'text-ink-1/40 dark:text-ink-subtle'}>{label}</span>
     </div>
   )
 }
@@ -682,7 +682,7 @@ function Section({ icon, label, tier, children }: { icon: React.ReactNode; label
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-gold">{icon}</span>
-        <h4 className="text-[10px] font-inter font-semibold text-cream uppercase tracking-[0.15em]">{label}</h4>
+        <h4 className="text-[10px] font-inter font-semibold text-ink-1 dark:text-cream uppercase tracking-[0.15em]">{label}</h4>
         {tier && (
           <span className="ml-auto text-[9px] font-inter font-semibold text-gold/70 px-1.5 py-0.5 rounded bg-gold/10">
             {tier}
@@ -697,32 +697,32 @@ function Section({ icon, label, tier, children }: { icon: React.ReactNode; label
 function SignalCard({ signal }: { signal: RadarMarketSignal }) {
   const u = signal.urgency ? URGENCY_STYLES[signal.urgency] : null
   return (
-    <div className="bg-ink-3 border border-ink-4 rounded-md p-3">
+    <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3">
       {u && (
         <div className="flex items-center gap-1.5 mb-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${u.dot}`} />
           <span className={`text-[9px] font-inter font-semibold tracking-[0.15em] ${u.text}`}>{u.label}</span>
         </div>
       )}
-      <p className="text-cream font-source-serif text-xs leading-relaxed">{signal.signal}</p>
+      <p className="text-ink-1 dark:text-cream font-source-serif text-xs leading-relaxed">{signal.signal}</p>
       {signal.why_it_matters && (
-        <p className="text-ink-subtle font-source-serif text-[11px] mt-1.5 italic leading-relaxed">{signal.why_it_matters}</p>
+        <p className="text-ink-1/40 dark:text-ink-subtle font-source-serif text-[11px] mt-1.5 italic leading-relaxed">{signal.why_it_matters}</p>
       )}
     </div>
   )
 }
 
 function AnglesList({ angles }: { angles: RadarContentAngle[] }) {
-  if (!angles.length) return <p className="text-ink-subtle text-xs italic">No angles yet…</p>
+  if (!angles.length) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No angles yet…</p>
   return (
     <div className="space-y-2">
       {angles.map((a, i) => (
-        <div key={i} className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-1">
-          <p className="text-cream text-xs font-inter font-semibold leading-snug">{a.angle}</p>
-          <p className="text-ink-subtle text-[11px] font-source-serif leading-snug">
+        <div key={i} className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-1">
+          <p className="text-ink-1 dark:text-cream text-xs font-inter font-semibold leading-snug">{a.angle}</p>
+          <p className="text-ink-1/40 dark:text-ink-subtle text-[11px] font-source-serif leading-snug">
             <span className="text-gold/80">Differentiator:</span> {a.differentiator}
           </p>
-          <p className="text-ink-subtle text-[11px] font-source-serif leading-snug">
+          <p className="text-ink-1/40 dark:text-ink-subtle text-[11px] font-source-serif leading-snug">
             <span className="text-gold/80">Audience fit:</span> {a.audience_fit}
           </p>
         </div>
@@ -732,9 +732,9 @@ function AnglesList({ angles }: { angles: RadarContentAngle[] }) {
 }
 
 function AudienceBlock({ insights }: { insights: RadarAudienceInsights | null }) {
-  if (!insights) return <p className="text-ink-subtle text-xs italic">No insights yet…</p>
+  if (!insights) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No insights yet…</p>
   return (
-    <div className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-cream/90 leading-relaxed">
+    <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-ink-1/90 dark:text-cream/90 leading-relaxed">
       <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Biggest pain</span><br />{insights.biggestPain}</p>
       {insights.alreadyTried?.length > 0 && (
         <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Already tried</span><br />{insights.alreadyTried.join(' · ')}</p>
@@ -748,9 +748,9 @@ function AudienceBlock({ insights }: { insights: RadarAudienceInsights | null })
 }
 
 function CompetitorBlock({ landscape }: { landscape: RadarCompetitorLandscape | null }) {
-  if (!landscape) return <p className="text-ink-subtle text-xs italic">No competitor data yet…</p>
+  if (!landscape) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No competitor data yet…</p>
   return (
-    <div className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-cream/90 leading-relaxed">
+    <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-ink-1/90 dark:text-cream/90 leading-relaxed">
       {landscape.crowded_areas?.length > 0 && (
         <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Crowded</span><br />{landscape.crowded_areas.join(' · ')}</p>
       )}
@@ -763,9 +763,9 @@ function CompetitorBlock({ landscape }: { landscape: RadarCompetitorLandscape | 
 }
 
 function RecsBlock({ recs }: { recs: RadarBookRecommendations | null }) {
-  if (!recs) return <p className="text-ink-subtle text-xs italic">No recommendations yet…</p>
+  if (!recs) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No recommendations yet…</p>
   return (
-    <div className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-cream/90 leading-relaxed">
+    <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-ink-1/90 dark:text-cream/90 leading-relaxed">
       <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Positioning</span><br />{recs.positioning}</p>
       <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Suggested hook</span><br />{recs.suggested_hook}</p>
       <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Ideal length</span><br />{recs.ideal_length}</p>
@@ -783,12 +783,12 @@ function ConversionRecBlock({
   reason: string | null
 }) {
   if (!recommendation) {
-    return <p className="text-ink-subtle text-xs italic">No recommendation yet…</p>
+    return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No recommendation yet…</p>
   }
   const styles: Record<typeof recommendation, { bg: string; border: string; text: string; label: string }> = {
     lead_magnet: { bg: 'bg-gold/15',     border: 'border-gold/50',         text: 'text-gold-soft',   label: 'Lead Magnet' },
     paid:        { bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-300', label: 'Paid Book' },
-    free:        { bg: 'bg-ink-3',       border: 'border-ink-4',           text: 'text-cream/80',    label: 'Free Book' },
+    free:        { bg: 'bg-cream-3 dark:bg-ink-3',       border: 'border-[#E8E0D0] dark:border-ink-4',           text: 'text-ink-1/80 dark:text-cream/80',    label: 'Free Book' },
   }
   const s = styles[recommendation]
   return (
@@ -798,7 +798,7 @@ function ConversionRecBlock({
         {s.label}
       </span>
       {reason && (
-        <p className="text-cream/80 font-source-serif text-[11px] leading-relaxed">{reason}</p>
+        <p className="text-ink-1/80 dark:text-cream/80 font-source-serif text-[11px] leading-relaxed">{reason}</p>
       )}
     </div>
   )
@@ -812,10 +812,10 @@ function ReaderLanguageBlock({
   phrases: string[]
   onCopy: (text: string) => void
 }) {
-  if (!phrases.length) return <p className="text-ink-subtle text-xs italic">No reader language yet…</p>
+  if (!phrases.length) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No reader language yet…</p>
   return (
     <div className="space-y-2">
-      <p className="text-ink-subtle text-[11px] font-source-serif italic">Words your readers actually use:</p>
+      <p className="text-ink-1/40 dark:text-ink-subtle text-[11px] font-source-serif italic">Words your readers actually use:</p>
       <div className="flex flex-wrap gap-1.5">
         {phrases.map((phrase, i) => (
           <button
@@ -823,7 +823,7 @@ function ReaderLanguageBlock({
             type="button"
             onClick={() => onCopy(phrase)}
             title="Click to copy"
-            className="px-2.5 py-1 rounded-full bg-ink-4 hover:bg-ink-3 border border-ink-3 text-cream-1 font-inter text-[11px] transition-colors cursor-pointer"
+            className="px-2.5 py-1 rounded-full bg-[#E8E0D0] dark:bg-ink-4 hover:bg-cream-3 dark:hover:bg-ink-3 border border-cream-3 dark:border-ink-3 text-ink-1 dark:text-cream-1 font-inter text-[11px] transition-colors cursor-pointer"
           >
             {phrase}
           </button>
@@ -837,17 +837,17 @@ function ReaderLanguageBlock({
 // strengths in green, weaknesses in rose. Empty arrays simply omit their
 // row rather than showing "(none)".
 function CompetitorBreakdownList({ entries }: { entries: RadarCompetitorEntry[] }) {
-  if (!entries.length) return <p className="text-ink-subtle text-xs italic">No competitor breakdowns yet…</p>
+  if (!entries.length) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No competitor breakdowns yet…</p>
   return (
     <div className="space-y-2">
       {entries.map((c, i) => (
-        <div key={i} className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-2">
+        <div key={i} className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-2">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-cream text-xs font-inter font-semibold leading-snug truncate">{c.title}</p>
+            <p className="text-ink-1 dark:text-cream text-xs font-inter font-semibold leading-snug truncate">{c.title}</p>
             {c.price && <span className="text-gold-soft text-[11px] font-inter shrink-0">{c.price}</span>}
           </div>
           {c.promise && (
-            <p className="text-cream/80 font-source-serif text-[11px] leading-snug">
+            <p className="text-ink-1/80 dark:text-cream/80 font-source-serif text-[11px] leading-snug">
               <span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Promise: </span>
               {c.promise}
             </p>
@@ -875,9 +875,9 @@ function CompetitorBreakdownList({ entries }: { entries: RadarCompetitorEntry[] 
 // summarised as a count rather than rendered (they live on the back-cover
 // in the actual book).
 function WebsiteAnalysisBlock({ extraction }: { extraction: RadarWebsiteExtraction | null }) {
-  if (!extraction) return <p className="text-ink-subtle text-xs italic">No website analysis yet…</p>
+  if (!extraction) return <p className="text-ink-1/40 dark:text-ink-subtle text-xs italic">No website analysis yet…</p>
   return (
-    <div className="bg-ink-3 border border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-cream/90 leading-relaxed">
+    <div className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-md p-3 space-y-2 text-[11px] font-source-serif text-ink-1/90 dark:text-cream/90 leading-relaxed">
       {extraction.companyName && (
         <p><span className="text-gold/80 font-inter font-semibold uppercase text-[9px] tracking-wider">Company</span><br />{extraction.companyName}</p>
       )}
@@ -977,17 +977,17 @@ function ApplyToBookCard({
   const alreadyApplied = appliedAt !== null
 
   return (
-    <div className="bg-ink-2 border border-ink-3 rounded-xl p-6 mt-4 space-y-4 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
+    <div className="bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-6 mt-4 space-y-4 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
       <div className="flex items-center gap-2">
         <Sparkles className="w-4 h-4 text-gold" />
-        <p className="font-playfair text-cream text-base font-semibold">
+        <p className="font-playfair text-ink-1 dark:text-cream text-base font-semibold">
           Ready to use these insights?
         </p>
       </div>
-      <p className="text-cream-1/70 text-xs font-source-serif leading-relaxed">
+      <p className="text-ink-1/70 dark:text-cream-1/70 text-xs font-source-serif leading-relaxed">
         Apply to Book will:
       </p>
-      <ul className="space-y-1.5 text-cream-1 text-xs font-source-serif">
+      <ul className="space-y-1.5 text-ink-1 dark:text-cream-1 text-xs font-source-serif">
         {[
           'Enrich your chapter briefs with audience context',
           'Draft your back cover copy',
@@ -1018,7 +1018,7 @@ function ApplyToBookCard({
       </button>
 
       {alreadyApplied && (
-        <p className="text-ink-subtle text-[11px] font-inter">
+        <p className="text-ink-1/40 dark:text-ink-subtle text-[11px] font-inter">
           Applied {days === null ? 'recently' : days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'} ago`}.
         </p>
       )}

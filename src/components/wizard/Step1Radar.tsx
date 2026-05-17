@@ -576,9 +576,17 @@ function CompetitionBadge({ level }: { level: 'low' | 'medium' | 'high' }) {
     medium: 'text-amber-700   bg-amber-100',
     high:   'text-rose-700    bg-rose-100',
   }
+  const labels: Record<typeof level, string> = {
+    low:    'LOW COMP',
+    medium: 'MED COMP',
+    high:   'HIGH COMP',
+  }
   return (
-    <span className={`text-[10px] font-inter font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${styles[level]}`}>
-      {level}
+    <span
+      title="Competition level — lower is better"
+      className={`text-[10px] font-inter font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${styles[level]}`}
+    >
+      {labels[level]}
     </span>
   )
 }
