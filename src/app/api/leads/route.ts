@@ -90,29 +90,6 @@ export async function POST(req: NextRequest) {
 
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/read/${pub.slug}`
 
-  // MailerLite enrollment — log on failure so a silent outage is visible.
-  if (process.env.MAILERLITE_API_KEY && process.env.MAILERLITE_API_KEY !== 'your_mailerlite_api_key_here') {
-    try {
-      const res = await fetch('https://connect.mailerlite.com/api/subscribers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.MAILERLITE_API_KEY}`,
-        },
-        body: JSON.stringify({
-          email: cleanEmail,
-          fields: { name: cleanName ?? '' },
-          groups: [],
-        }),
-      })
-      if (!res.ok) {
-        console.error('[leads] MailerLite enroll failed:', res.status, await res.text().catch(() => ''))
-      }
-    } catch (e) {
-      console.error('[leads] MailerLite enroll error', e)
-    }
-  }
-
   if (
     process.env.TELEGRAM_BOT_TOKEN &&
     process.env.TELEGRAM_CHAT_ID &&

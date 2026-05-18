@@ -4,9 +4,8 @@ import { resend, isResendConfigured } from '@/lib/resend'
 import { WelcomeSequenceEmail } from '@/emails/WelcomeSequenceEmail'
 import type { EmailItem } from '@/types/database'
 
-// Resend's shared test sender — works without domain verification. Switch
-// to "noreply@bookbuilderpro.app" once that domain is verified in Resend.
-const FROM_ADDRESS = 'onboarding@resend.dev'
+// Verified sending domain in Resend.
+const FROM_ADDRESS = 'noreply@bookbuilderpro.app'
 
 interface ScheduleArgs {
   bookId: string
