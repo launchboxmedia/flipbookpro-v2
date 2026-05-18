@@ -7,6 +7,7 @@ import {
   AlertTriangle, Megaphone, Download, FileText,
 } from 'lucide-react'
 import type { AccessType, Book, PublishedBook, EmailSequence } from '@/types/database'
+import { GenerateSequenceButton } from './GenerateSequenceButton'
 
 type SequenceCard = Pick<EmailSequence, 'status' | 'emails' | 'activated_at'> | null
 
@@ -370,7 +371,20 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
             Claude is writing your 5-email reader sequence. This takes about 30 seconds.
           </p>
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-5 bg-ink-1/5 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Mail className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-ink-1 dark:text-white">Email Welcome Sequence</p>
+              <p className="text-ink-1/50 dark:text-white/40 text-xs mt-1 leading-relaxed">
+                Generate a 5-email welcome sequence for your readers.
+              </p>
+              <GenerateSequenceButton bookId={book.id} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export — secondary actions ─────────────────────────────────── */}
       <div className="mt-8 pt-6 border-t border-cream-3 dark:border-[#2A2A2A]">
