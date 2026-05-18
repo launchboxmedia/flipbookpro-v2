@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   Globe, Copy, Check, ExternalLink, Loader2, Lock, Mail, BookOpen,
-  AlertTriangle, Megaphone, Download, FileText,
+  AlertTriangle, Download, FileText,
 } from 'lucide-react'
 import type { AccessType, Book, PublishedBook, EmailSequence } from '@/types/database'
 import { GenerateSequenceButton } from './GenerateSequenceButton'
@@ -56,7 +56,7 @@ function initialAccessType(p: PublishedBook | null): AccessType {
   return 'email'
 }
 
-export function PublishStage({ book, publishedBook: initial, hasStripeConnect, hasCtaChapter, emailSequence = null, plan = 'free' }: Props) {
+export function PublishStage({ book, publishedBook: initial, hasStripeConnect, emailSequence = null, plan = 'free' }: Props) {
   const [published]  = useState<PublishedBook | null>(initial)
   const [accessType, setAccessType] = useState<AccessType>(initialAccessType(initial))
   const [priceDollars, setPriceDollars] = useState<string>(
@@ -64,7 +64,6 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
       ? (initial.price_cents / 100).toFixed(2)
       : '7.00',
   )
-  const [ctaUrl, setCtaUrl] = useState<string>(book.back_cover_cta_url ?? '')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
   const [copied,  setCopied]  = useState(false)
@@ -84,30 +83,6 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
 
       if (accessType === 'paid' && (!Number.isFinite(priceCents) || priceCents < 100)) {
         throw new Error('Paid books require a price of at least $1.')
-      }
-
-      // Light client-side URL check before save — avoids a round-trip just
-      // to bounce a typo. The back-cover route validates again server-side.
-      const trimmedCta = ctaUrl.trim()
-      if (trimmedCta) {
-        try {
-          const u = new URL(trimmedCta)
-          if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad-protocol')
-        } catch {
-          throw new Error('CTA URL must be a valid http(s) URL.')
-        }
-      }
-
-      // Persist the CTA URL first so the share link reflects it. Failure
-      // here aborts publish — the user expects the URL they typed to land.
-      const ctaRes = await fetch(`/api/books/${book.id}/back-cover`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ back_cover_cta_url: trimmedCta || null }),
-      })
-      if (!ctaRes.ok) {
-        const j = await ctaRes.json().catch(() => ({}))
-        throw new Error(j?.error || 'Could not save CTA URL.')
       }
 
       const res = await fetch(`/api/books/${book.id}/publish`, {
@@ -253,42 +228,6 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, h
                 </div>
               </div>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* CTA URL ──────────────────────────────────────────────────────── */}
-      <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-cream-3 dark:border-[#2A2A2A] rounded-xl p-5 mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Megaphone className="w-3.5 h-3.5 text-gold" />
-          <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">
-            Reader Next Step
-          </p>
-        </div>
-        <label className="block text-xs font-inter text-ink-1/80 dark:text-cream/80 mb-2">
-          Where should readers go after the book?
-        </label>
-        <input
-          type="url"
-          inputMode="url"
-          placeholder="https://yoursite.com/book-readers"
-          value={ctaUrl}
-          onChange={(e) => setCtaUrl(e.target.value)}
-          className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-cream-3 dark:border-[#333] text-ink-1 dark:text-cream font-inter text-sm placeholder:text-ink-1/30 dark:placeholder:text-cream/30 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
-        />
-        <p className="text-[11px] font-inter text-muted-foreground mt-2 leading-relaxed">
-          Drives the button on your back cover and the closing CTA chapter
-          (if you added one). Leave blank to publish without a link.
-        </p>
-        {hasCtaChapter && !ctaUrl.trim() && (
-          <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-amber-200 font-inter text-xs leading-relaxed">
-              Your book has a closing CTA chapter but no destination URL.
-              Readers will reach a chapter that asks them to take action with
-              nowhere to go. Add a link or remove the CTA chapter before
-              publishing.
-            </p>
           </div>
         )}
       </div>

@@ -433,7 +433,7 @@ export function CoauthorShell({
                 coverImageUrl={coverImageUrl}
                 coverImageStatus={coverImageStatus}
                 coverImageError={coverImageError}
-                onGenerateCover={(mode) => generateCoverImage({ mode })}
+                onGenerateCover={(mode, customPrompt) => generateCoverImage({ mode, customPrompt })}
                 onUploadCover={handleCoverUpload}
                 imageStatuses={imageStatuses}
                 imageErrors={imageErrors}

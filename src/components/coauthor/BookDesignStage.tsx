@@ -88,7 +88,7 @@ interface Props {
   /** Generate the cover via the selected mode. 'ai' uses Haiku scene
    *  extraction + the typography prompt; 'mascot' / 'photo' edit the
    *  uploaded brand asset into a cover layout. */
-  onGenerateCover: (mode: CoverMode) => void
+  onGenerateCover: (mode: CoverMode, customPrompt?: string) => void
   onUploadCover: (file: File) => void
 
   /** Profile-side asset URLs that gate the Mascot / Photo cover modes.
@@ -142,6 +142,11 @@ export function BookDesignStage({
   // between AI / Mascot / Photo at any time; once selected, the next
   // click of Generate uses that mode.
   const [coverMode, setCoverMode] = useState<CoverMode>('ai')
+
+  // Optional custom cover prompt. When set + AI mode, overrides automatic
+  // scene extraction (the route ignores customPrompt for mascot/photo).
+  const [showCoverPrompt, setShowCoverPrompt] = useState(false)
+  const [coverPrompt, setCoverPrompt] = useState('')
 
   // If the user previously selected a brand-asset mode but the asset got
   // removed in settings, snap back to 'ai' so we never POST a mode whose
@@ -264,7 +269,12 @@ export function BookDesignStage({
   const [tagline,     setTagline]     = useState(book.back_cover_tagline     ?? '')
   const [description, setDescription] = useState(book.back_cover_description ?? '')
   const [ctaText,     setCtaText]     = useState(book.back_cover_cta_text    ?? '')
-  const [ctaUrl,      setCtaUrl]      = useState(book.back_cover_cta_url     ?? '')
+  // Smart default: when the author hasn't set a CTA URL, point it at the
+  // book's own landing page (the natural "what's next" destination). They
+  // can override to send readers elsewhere. Only when a slug exists.
+  const [ctaUrl,      setCtaUrl]      = useState(
+    book.back_cover_cta_url ?? (book.slug ? `https://go.bookbuilderpro.app/${book.slug}` : ''),
+  )
   const [savingText,  setSavingText]  = useState(false)
   const [savedText,   setSavedText]   = useState(false)
   const [textError,   setTextError]   = useState('')
@@ -631,6 +641,52 @@ export function BookDesignStage({
           </div>
         )}
 
+        {/* Custom cover prompt — optional. Overrides automatic scene
+            extraction (AI mode only; ignored for Mascot/Photo). */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowCoverPrompt((v) => !v)}
+            className="text-xs text-ink-1/40 dark:text-white/30 hover:text-ink-1/60 dark:hover:text-white/50 cursor-pointer transition-colors"
+          >
+            ✏️ Custom prompt
+          </button>
+          {showCoverPrompt && (
+            <div className="mt-2 space-y-2">
+              <textarea
+                value={coverPrompt}
+                onChange={(e) => setCoverPrompt(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Describe the cover — style, mood, subject, colors..."
+                className="bg-cream-2 dark:bg-ink-3 border border-cream-3 dark:border-ink-4 rounded-lg p-3 w-full text-sm resize-none text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
+              />
+              {coverMode !== 'ai' && (
+                <p className="text-[10px] font-inter text-ink-1/40 dark:text-white/30">
+                  Custom prompts apply to AI covers only — switch Cover Style to AI Generated.
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onGenerateCover(coverMode, coverPrompt)}
+                  disabled={coverBusy || !coverPrompt.trim()}
+                  className="bg-gold text-ink-1 text-xs px-4 py-2 rounded-lg font-semibold hover:bg-gold-soft transition-colors disabled:opacity-50"
+                >
+                  Generate with prompt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverPrompt('')}
+                  className="text-ink-1/40 dark:text-white/30 text-xs px-3 py-2 hover:text-ink-1/60 dark:hover:text-white/50 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {coverImageError && (
           <p className="mt-3 text-red-400 text-xs font-inter">{coverImageError}</p>
         )}
@@ -655,7 +711,7 @@ export function BookDesignStage({
             Add chapters in Outline before generating illustrations.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {chapters.map((ch) => {
               const status = imageStatuses[ch.id] ?? (ch.image_url ? 'done' : 'idle')
               const err    = imageErrors[ch.id]
@@ -982,6 +1038,19 @@ export function BookDesignStage({
                 placeholder="Get Instant Access"
                 className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="text-[10px] font-inter text-ink-1/40 dark:text-white/30">Quick fill:</span>
+                {['Grab Your Free Copy', "Read Now — It's Free", 'Get Instant Access', 'Work With Me', 'Book a Free Call'].map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setCtaText(label)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-gold/20 text-gold/60 hover:border-gold/50 hover:text-gold cursor-pointer transition-colors"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">CTA URL</label>
@@ -992,9 +1061,15 @@ export function BookDesignStage({
                 type="url"
                 className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#1A1A1A] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
-              <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed">
-                Where readers go after finishing — add before publishing.
-              </p>
+              {book.slug ? (
+                <p className="text-xs font-inter text-ink-1/40 dark:text-white/30 leading-relaxed">
+                  Defaults to your book&apos;s landing page. Change to send readers somewhere else.
+                </p>
+              ) : (
+                <p className="text-xs font-inter text-ink-1/30 dark:text-white/20 leading-relaxed">
+                  Publish your book first to auto-populate this with your landing page.
+                </p>
+              )}
             </div>
           </div>
 
@@ -1141,42 +1216,46 @@ function ChapterImageCard({
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   return (
-    <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg p-3 flex gap-3">
+    <div className="bg-cream-1 dark:bg-[#1A1A1A] border border-cream-3 dark:border-[#2A2A2A] rounded-xl p-3 flex flex-col gap-3">
       {busy ? (
-        <div className="w-16 h-20 shrink-0 bg-cream-1 dark:bg-[#111] border border-dashed border-gold/40 rounded-md flex items-center justify-center">
-          <Loader2 className="w-4 h-4 animate-spin text-gold" />
+        <div className="aspect-[3/4] w-full rounded-xl bg-cream-1 dark:bg-[#111] border border-dashed border-gold/40 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-gold" />
         </div>
       ) : chapter.image_url ? (
-        <ImageLightbox src={chapter.image_url} alt={chapter.chapter_title}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={chapter.image_url}
-            alt=""
-            className="w-16 h-20 shrink-0 object-cover rounded-md border border-[#333]"
-          />
-        </ImageLightbox>
+        <div className="aspect-[3/4] w-full rounded-xl overflow-hidden border border-[#333]">
+          <ImageLightbox src={chapter.image_url} alt={chapter.chapter_title}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={chapter.image_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </ImageLightbox>
+        </div>
       ) : (
-        <div className="w-16 h-20 shrink-0 bg-cream-1 dark:bg-[#111] border border-dashed border-[#333] rounded-md flex items-center justify-center">
-          <ImageIcon className="w-4 h-4 text-[#444]" />
+        <div className="aspect-[3/4] w-full rounded-xl border-2 border-dashed border-cream-3 dark:border-ink-3 flex items-center justify-center">
+          <span className="text-xs font-inter font-semibold text-ink-1/40 dark:text-white/30 uppercase tracking-[0.18em]">
+            Chapter {chapter.chapter_index + 1}
+          </span>
         </div>
       )}
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <p className="text-[10px] font-inter font-semibold text-gold-dim uppercase tracking-[0.18em] mb-0.5">
+      <div className="min-w-0">
+        <p className="text-xs text-gold/60 font-inter font-semibold uppercase tracking-[0.18em]">
           Chapter {chapter.chapter_index + 1}
         </p>
-        <p className="font-source-serif text-sm text-ink-1 dark:text-cream leading-snug line-clamp-2">
+        <p className="text-sm font-medium text-ink-1 dark:text-white truncate font-source-serif">
           {chapter.chapter_title}
         </p>
         {error && (
           <p className="text-[10px] text-red-400 font-inter mt-1 line-clamp-2">{error}</p>
         )}
 
-        <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
+        <div className="flex gap-2 mt-2">
           <button
             onClick={onGenerate}
             disabled={busy}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-gold/10 hover:bg-gold/20 border border-gold/40 text-gold font-inter text-[10px] font-semibold rounded-md transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-gold/10 hover:bg-gold/20 border border-gold/40 text-gold font-inter text-xs font-semibold rounded-md transition-colors disabled:opacity-50"
           >
             {chapter.image_url ? <RefreshCw className="w-3 h-3" /> : <Wand2 className="w-3 h-3" />}
             {chapter.image_url ? 'Regenerate' : 'Generate'}
@@ -1184,7 +1263,7 @@ function ChapterImageCard({
           <button
             onClick={() => fileInput.current?.click()}
             disabled={busy}
-            className="inline-flex items-center gap-1 px-2 py-1 border border-[#333] hover:border-cream/40 text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-[10px] rounded-md transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-[#333] hover:border-cream/40 text-ink-1/70 dark:text-cream/70 hover:text-ink-1 dark:hover:text-cream font-inter text-xs rounded-md transition-colors disabled:opacity-50"
           >
             <Upload className="w-3 h-3" />
             Upload
