@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, ExternalLink } from 'lucide-react'
+import { BookOpen, ExternalLink, Eye, PenLine } from 'lucide-react'
 import { CopyLinkButton } from './CopyLinkButton'
 
 type BookRow = {
@@ -142,12 +142,32 @@ export function DashboardGrid({
                     {stats ? `${stats.total} chapter${stats.total === 1 ? '' : 's'} · All approved` : 'Ready'}
                   </p>
                 </div>
-                <Link
-                  href={`/book/${b.id}/coauthor`}
-                  className="bg-gold text-ink-1 text-sm font-semibold font-inter px-4 py-2 rounded-lg whitespace-nowrap hover:bg-gold-soft transition-colors duration-220"
-                >
-                  Publish Now →
-                </Link>
+                <div className="shrink-0 flex flex-col items-end gap-0">
+                  <Link
+                    href={`/book/${b.id}/coauthor`}
+                    className="bg-gold text-ink-1 text-sm font-semibold font-inter px-4 py-2 rounded-lg whitespace-nowrap hover:bg-gold-soft transition-colors duration-220"
+                  >
+                    Publish Now →
+                  </Link>
+                  <div className="flex items-center gap-4 mt-2">
+                    <a
+                      href={`/book/${b.id}/preview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-ink-1/30 dark:text-white/40 hover:text-ink-1/60 dark:hover:text-white/70 transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Preview
+                    </a>
+                    <Link
+                      href={`/book/${b.id}/coauthor`}
+                      className="flex items-center gap-1.5 text-xs text-ink-1/30 dark:text-white/40 hover:text-ink-1/60 dark:hover:text-white/70 transition-colors"
+                    >
+                      <PenLine className="w-3.5 h-3.5" />
+                      Edit
+                    </Link>
+                  </div>
+                </div>
               </Card>
             )
           })}
@@ -176,17 +196,27 @@ export function DashboardGrid({
                   )}
                   <p className="text-ink-1/20 dark:text-white/20 text-xs truncate">{landingDisplay(pub.slug)}</p>
                 </div>
-                <div className="flex gap-2 shrink-0 items-center">
-                  <CopyLinkButton url={landingUrl(pub.slug)} prominent={leads === 0} />
+                <div className="flex items-center gap-4 shrink-0">
+                  <a
+                    href={`/read/${pub.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Read
+                  </a>
                   <a
                     href={landingUrl(pub.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Open published book"
-                    className="p-2 text-ink-1/40 hover:text-ink-1 dark:text-white/40 dark:hover:text-white transition-colors duration-220"
+                    aria-label="Open landing page"
+                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Landing Page
                   </a>
+                  <CopyLinkButton url={landingUrl(pub.slug)} prominent={leads === 0} />
                 </div>
               </Card>
             )
@@ -211,12 +241,25 @@ export function DashboardGrid({
                       : 'Just getting started'}
                   </p>
                 </div>
-                <Link
-                  href={`/book/${b.id}/coauthor`}
-                  className="bg-cream-3 text-ink-1 dark:bg-ink-3 dark:text-white text-sm font-inter font-semibold px-4 py-2 rounded-lg hover:bg-cream-line dark:hover:bg-ink-4 transition-colors duration-220 whitespace-nowrap"
-                >
-                  Continue →
-                </Link>
+                <div className="shrink-0 flex flex-col items-end gap-0">
+                  <Link
+                    href={`/book/${b.id}/coauthor`}
+                    className="bg-cream-3 text-ink-1 dark:bg-ink-3 dark:text-white text-sm font-inter font-semibold px-4 py-2 rounded-lg hover:bg-cream-line dark:hover:bg-ink-4 transition-colors duration-220 whitespace-nowrap"
+                  >
+                    Continue →
+                  </Link>
+                  <div className="flex items-center gap-4 mt-2">
+                    <a
+                      href={`/book/${b.id}/preview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-ink-1/30 dark:text-white/40 hover:text-ink-1/60 dark:hover:text-white/70 transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Preview
+                    </a>
+                  </div>
+                </div>
               </Card>
             )
           })}
