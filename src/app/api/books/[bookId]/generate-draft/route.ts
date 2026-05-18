@@ -285,6 +285,11 @@ ${(radarCtx.reader_language ?? []).length > 0 ? `Language your readers actually 
     // wizard Step 2 — sharper than offer_type alone, sits between the
     // category and the social proof. Same xml-tag-wrapped data treatment.
     isBusiness && book.offer_description ? `  <offer>${book.offer_description}</offer>`                  : '',
+    // target_audience / website_url are the author's own fields (distinct
+    // from the radar block). Tag-wrapped like everything else so user input
+    // stays data, never instructions.
+    isBusiness && book.target_audience   ? `  <target_reader>${book.target_audience}</target_reader>`     : '',
+    isBusiness && book.website_url        ? `  <website>${book.website_url}</website>`                     : '',
     isBusiness && book.cta_intent        ? `  <cta_intent>${book.cta_intent}</cta_intent>`               : '',
     isBusiness && book.testimonials      ? `  <testimonials>${book.testimonials}</testimonials>`         : '',
   ].filter(Boolean)
@@ -295,8 +300,11 @@ ${businessLines.join('\n')}
 </author_business_context>
 Usage rules:
 1. Inform the chapter's framing — keep the topic anchored to what the author actually sells.
-2. Land the closing sentence with momentum toward the cta_intent when (and only when) it fits the chapter's argument. Never write a hard "click here" or sales line; treat it as a natural next step the reader might take.
-3. Testimonials are background only — you may paraphrase the *kind* of result they describe, but never quote them, never name the customer, and never format anything as a testimonial block. The back cover handles proof; the manuscript stays in the author's voice.`
+2. This book exists to attract ideal clients for the author's <offer>. Every chapter should subtly build the case that the reader needs this kind of solution — let the argument and evidence do the work; never pitch, never write a salesy line.
+3. When <target_reader> is set, write to that specific reader, not a generic audience — their situation, vocabulary, and stakes.
+4. When <website> is set, you MAY reference it naturally at most once, and only where it genuinely serves the reader (e.g. "there's more on this at …"). Never as an ad or a call to action.
+5. Land the closing sentence with momentum toward the cta_intent when (and only when) it fits the chapter's argument. Never write a hard "click here" or sales line; treat it as a natural next step the reader might take.
+6. Testimonials are background only — you may paraphrase the *kind* of result they describe, but never quote them, never name the customer, and never format anything as a testimonial block. The back cover handles proof; the manuscript stays in the author's voice.`
     : ''
 
   const encoder = new TextEncoder()
