@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { consumeRateLimit } from '@/lib/rateLimit'
 import { generateText } from '@/lib/textGeneration'
-import { checkSubscriptionPlan } from '@/lib/stripe'
+import { getEffectivePlan, planAtLeast } from '@/lib/auth'
 import type { EmailItem } from '@/types/database'
 
 // Shared welcome-sequence generation. Called two ways:
@@ -90,17 +90,21 @@ export interface GenerateSequenceResult {
 export async function generateEmailSequence(
   { bookId, userId, supabase }: GenerateSequenceArgs,
 ): Promise<GenerateSequenceResult> {
-  // 1. Pro plan — authoritative Stripe check.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('stripe_customer_id, display_name, author_bio')
-    .eq('id', userId)
-    .single()
-
-  const plan = await checkSubscriptionPlan(profile?.stripe_customer_id ?? null)
-  if (plan !== 'pro') {
+  // 1. Pro gate — use the SAME resolver as the rest of the app
+  // (getEffectivePlan: admin role → active Stripe sub → profiles.plan
+  // comp fallback). Calling checkSubscriptionPlan directly here was the
+  // bug: it ignored admins and DB-gifted comps, so the UI showed the
+  // button but the API 403'd. planAtLeast lets admin pass too.
+  const { plan } = await getEffectivePlan(supabase, userId)
+  if (!planAtLeast(plan, 'pro')) {
     return { success: false, error: 'Email sequences require a Pro plan', status: 403 }
   }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name, author_bio')
+    .eq('id', userId)
+    .single()
 
   // 2. Rate limit — 3/hr per user.
   const rl = await consumeRateLimit(supabase, {
