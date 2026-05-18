@@ -9,54 +9,90 @@ interface Props {
   books: BookWithMeta[]
 }
 
-const LABEL_COLOR: Record<ShelfKey, string> = {
-  published:  'text-gold',
-  ready:      'text-ink-1/60 dark:text-white/60',
-  inProgress: 'text-ink-1/30 dark:text-white/30',
-}
+const GRAIN_BACKWALL =
+  'repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,0.02) 80px, rgba(255,255,255,0.02) 82px)'
 
-/** A single bookshelf — three of these stack inside the Library shell.
- *  Hides itself when its group is empty so the page doesn't render a
- *  parade of "no books" placeholders. */
-export function Bookshelf({ shelfKey, label, books }: Props) {
+const GRAIN_SHELF =
+  'repeating-linear-gradient(90deg, transparent, transparent 30px, rgba(0,0,0,0.15) 30px, rgba(0,0,0,0.15) 31px, transparent 31px, transparent 55px, rgba(255,255,255,0.04) 55px, rgba(255,255,255,0.04) 56px)'
+
+const ROOM_LIGHT =
+  'radial-gradient(ellipse 120% 60% at 50% 100%, rgba(201,168,76,0.05) 0%, transparent 70%)'
+
+/** A single bookshelf — a real wooden bookcase. Three stack inside the
+ *  Library shell. Hides itself when its group is empty. Light mode reads
+ *  as warm oak; dark mode as deep mahogany. */
+export function Bookshelf({ label, books }: Props) {
   if (books.length === 0) return null
 
-  const labelColor = LABEL_COLOR[shelfKey]
-
   return (
-    <section className="mb-8" aria-label={`${label} shelf`}>
-      {/* Shelf label row — small overline + count + a hairline rule that
-          carries the eye across to the next shelf, separating groups
-          without a heavy divider. */}
-      <div className="flex items-center gap-3 mb-3">
-        <span className={`text-xs uppercase tracking-widest font-semibold ${labelColor}`}>
-          {label}
-        </span>
-        <span className="text-ink-1/20 dark:text-white/20 text-xs">({books.length})</span>
-        <div className="flex-1 h-px bg-cream-3 dark:bg-ink-3/50" />
-      </div>
+    <section className="mb-10" aria-label={`${label} shelf`}>
+      {/* Room lighting — a soft warm pool behind the case so it reads as
+          furniture in a room, not a card on a canvas. */}
+      <div className="relative" style={{ background: ROOM_LIGHT }}>
+        {/* Bookcase frame */}
+        <div className="relative rounded-2xl overflow-hidden border-4 border-[#3D2512] bg-[#6B3D1A] dark:bg-[#2C1A0E] shadow-2xl shadow-black/60">
+          {/* Top cornice */}
+          <div
+            className="h-6 w-full bg-gradient-to-b from-[#3D2512] to-[#2C1A0E] border-b-2 border-[#1A0E06]"
+            aria-hidden="true"
+          />
 
-      {/* Shelf container — the back wall + a wood-toned bottom strip
-          + a soft shadow under the shelf. The books stand on the wood
-          strip; rounded corners on the container give the bookshelf
-          its silhouette without a heavy frame. */}
-      <div className="bg-cream-2 dark:bg-ink-2/40 rounded-2xl border border-cream-3 dark:border-ink-3 overflow-hidden">
-        {/* Books — flex items-end so books of varying heights all stand
-            on the same baseline. flex-wrap so a shelf with 30 books
-            wraps onto a second row gracefully. */}
-        <div className="flex items-end gap-1.5 flex-wrap px-6 pt-8 pb-0 min-h-[160px]">
-          {books.map((book, i) => (
-            <BookSpine key={book.id} book={book} index={i} />
-          ))}
+          {/* Back wall + interior */}
+          <div
+            className="relative bg-[#4A2810] dark:bg-[#1A0E06]"
+            style={{ backgroundImage: GRAIN_BACKWALL }}
+          >
+            {/* Bookcase side panels */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-4 z-20 bg-gradient-to-r from-[#1A0E06] to-[#2C1A0E]"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute right-0 top-0 bottom-0 w-4 z-20 bg-gradient-to-l from-[#1A0E06] to-[#2C1A0E]"
+              aria-hidden="true"
+            />
+
+            {/* Library section label — engraved on the shelf, inside the case */}
+            <p className="px-6 pt-3 pb-1 text-[10px] uppercase tracking-widest font-medium text-[#C9A84C]/60">
+              {label} · {books.length}
+            </p>
+
+            {/* Books standing area — packed tightly, varying heights all
+                resting on the shelf baseline. */}
+            <div className="relative z-0 px-6 pt-4 pb-0 min-h-[200px] flex items-end gap-[2px] flex-wrap">
+              {books.map((book, i) => (
+                <BookSpine key={book.id} book={book} index={i} />
+              ))}
+            </div>
+
+            {/* Shelf surface — the thick wood the books stand on */}
+            <div className="relative h-6 w-full bg-gradient-to-b from-[#A07030] via-[#8B5E1A] to-[#7A5015] dark:from-[#8B5E1A] dark:via-[#7A5015] dark:to-[#6B4410]">
+              <div className="absolute inset-0" style={{ backgroundImage: GRAIN_SHELF }} aria-hidden="true" />
+              {/* Front edge highlight */}
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-[#C9A84C]/20" aria-hidden="true" />
+              {/* Shelf brackets, left + right */}
+              <div
+                className="absolute bottom-0 left-4 w-4 h-10 bg-gradient-to-b from-[#4A2E10] to-[#2C1A0E]"
+                style={{ borderRadius: '2px 2px 0 0' }}
+                aria-hidden="true"
+              />
+              <div
+                className="absolute bottom-0 right-4 w-4 h-10 bg-gradient-to-b from-[#4A2E10] to-[#2C1A0E]"
+                style={{ borderRadius: '2px 2px 0 0' }}
+                aria-hidden="true"
+              />
+            </div>
+
+            {/* Shelf drop shadow — the underside catching ambient light */}
+            <div className="h-4 w-full bg-gradient-to-b from-black/50 to-transparent" aria-hidden="true" />
+          </div>
+
+          {/* Bottom plinth */}
+          <div
+            className="h-5 w-full bg-gradient-to-b from-[#2C1A0E] to-[#1A0E06] border-t-2 border-[#1A0E06]"
+            aria-hidden="true"
+          />
         </div>
-
-        {/* The shelf surface — horizontal wood strip the books stand on.
-            Gradient from ink-4 to ink-3 to ink-4 gives the strip a
-            warmer, slightly polished feel against the cooler back wall. */}
-        <div className="h-4 w-full bg-[#D4C5A9] dark:bg-gradient-to-r dark:from-ink-4 dark:via-ink-3 dark:to-ink-4 border-t border-[#E8E0D0] dark:border-ink-4/80" aria-hidden="true" />
-        {/* Shadow below the shelf — the underside of the wood catching
-            ambient light. Sells the volume. */}
-        <div className="h-2 w-full bg-gradient-to-b from-black/30 to-transparent" aria-hidden="true" />
       </div>
     </section>
   )

@@ -90,6 +90,7 @@ export function LibraryShell({ published, ready, inProgress }: Props) {
   const noMatches = totalAll > 0 && totalShown === 0
 
   return (
+    <div className="min-h-screen bg-[#F0E8D8] dark:bg-[#0D0905]">
     <div className="max-w-6xl mx-auto px-6 py-10">
       {/* Header row — title + subtitle + primary CTA. */}
       <header className="flex justify-between items-center mb-8">
@@ -143,6 +144,7 @@ export function LibraryShell({ published, ready, inProgress }: Props) {
           )}
         </>
       )}
+    </div>
     </div>
   )
 }
