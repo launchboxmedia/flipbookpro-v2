@@ -736,9 +736,10 @@ export function ChapterStage({
                     onClick={() => generateDraft(true)}
                     disabled={generating}
                     title="Generate this draft ignoring the research facts above"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-cream-3 dark:border-ink-3 text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 hover:border-gold/40 text-xs font-inter transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-xs rounded-md transition-colors disabled:opacity-50"
                   >
-                    without Research
+                    {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    {generating ? 'Generating…' : 'Skip Research'}
                   </button>
                 </div>
               )}
