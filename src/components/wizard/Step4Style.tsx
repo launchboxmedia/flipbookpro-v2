@@ -45,157 +45,98 @@ export const STYLES = [
 
 function WatercolorPreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <filter id="wc-blur"><feGaussianBlur stdDeviation="8"/></filter>
-        <filter id="wc-blur2"><feGaussianBlur stdDeviation="12"/></filter>
-      </defs>
-      <rect width="480" height="270" fill="#e8f4f0"/>
-      <ellipse cx="160" cy="100" rx="140" ry="100" fill="#a8d5c2" opacity="0.6" filter="url(#wc-blur)"/>
-      <ellipse cx="330" cy="160" rx="120" ry="90" fill="#f4b8a0" opacity="0.5" filter="url(#wc-blur)"/>
-      <ellipse cx="240" cy="180" rx="160" ry="70" fill="#b8d4f0" opacity="0.5" filter="url(#wc-blur2)"/>
-      <ellipse cx="100" cy="200" rx="80" ry="60" fill="#d4c8f0" opacity="0.4" filter="url(#wc-blur)"/>
-      <ellipse cx="400" cy="80" rx="90" ry="70" fill="#f0e0a8" opacity="0.5" filter="url(#wc-blur)"/>
-      <ellipse cx="240" cy="120" rx="100" ry="80" fill="#c8e8d8" opacity="0.4" filter="url(#wc-blur2)"/>
-    </svg>
+    <div
+      className="relative w-full h-full overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #e8f4f0 0%, #f0e8f4 50%, #f4f0e8 100%)' }}
+    >
+      <div className="absolute rounded-full" style={{ top: '6%', left: '8%', width: '48%', height: '62%', background: '#e8b8c8', opacity: 0.55, filter: 'blur(20px)' }} />
+      <div className="absolute rounded-full" style={{ top: '18%', left: '40%', width: '52%', height: '58%', background: '#c8bce8', opacity: 0.5, filter: 'blur(20px)' }} />
+      <div className="absolute rounded-full" style={{ top: '34%', left: '16%', width: '42%', height: '46%', background: '#bcd8c0', opacity: 0.45, filter: 'blur(20px)' }} />
+      <div className="absolute rounded-full" style={{ top: '4%', left: '62%', width: '34%', height: '40%', background: '#f0e0b8', opacity: 0.45, filter: 'blur(20px)' }} />
+      <div className="absolute inset-x-0 bottom-0 px-[10%] pb-[9%] space-y-1.5">
+        <div className="h-1 rounded-full" style={{ width: '86%', background: 'rgba(120,120,120,0.30)' }} />
+        <div className="h-1 rounded-full" style={{ width: '68%', background: 'rgba(120,120,120,0.30)' }} />
+        <div className="h-1 rounded-full" style={{ width: '78%', background: 'rgba(120,120,120,0.30)' }} />
+      </div>
+    </div>
   )
 }
 
 function PhotorealisticPreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id="ph-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#87CEEB"/>
-          <stop offset="60%" stopColor="#d4eaf7"/>
-          <stop offset="100%" stopColor="#8B7355"/>
-        </linearGradient>
-        <linearGradient id="ph-ground" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6B8E5A"/>
-          <stop offset="100%" stopColor="#4a6b3a"/>
-        </linearGradient>
-      </defs>
-      <rect width="480" height="270" fill="url(#ph-sky)"/>
-      <rect y="185" width="480" height="85" fill="url(#ph-ground)"/>
-      <circle cx="360" cy="55" r="38" fill="#FFF5C0" opacity="0.95"/>
-      <rect x="0" y="185" width="480" height="4" fill="#5a7a4a" opacity="0.6"/>
-      <rect x="80" y="100" width="60" height="85" fill="#c8a87a" opacity="0.9"/>
-      <rect x="75" y="90" width="70" height="14" fill="#8B6543"/>
-      <rect x="250" y="120" width="45" height="65" fill="#c8a87a" opacity="0.9"/>
-      <rect x="245" y="110" width="55" height="13" fill="#8B6543"/>
-      <rect x="150" y="150" width="80" height="35" fill="#7a9a6a" opacity="0.7"/>
-    </svg>
+    <div
+      className="relative w-full h-full overflow-hidden"
+      style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
+    >
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 42%, rgba(255,255,255,0.10) 0%, transparent 45%)' }} />
+      <div className="absolute" style={{ left: 0, right: 0, top: '66%', height: '1px', background: 'rgba(255,255,255,0.20)' }} />
+      <div className="absolute" style={{ left: 0, right: 0, top: '66%', bottom: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.10))' }} />
+    </div>
   )
 }
 
 function CinematicPreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id="cin-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#0a0a1a"/>
-          <stop offset="50%" stopColor="#1a1025"/>
-          <stop offset="100%" stopColor="#0d0810"/>
-        </linearGradient>
-        <linearGradient id="cin-light" x1="0.5" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#d4a840" stopOpacity="0.8"/>
-          <stop offset="100%" stopColor="#d4a840" stopOpacity="0"/>
-        </linearGradient>
-        <filter id="cin-glow"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-      <rect width="480" height="270" fill="url(#cin-bg)"/>
-      <rect width="480" height="30" fill="black" opacity="0.9"/>
-      <rect y="240" width="480" height="30" fill="black" opacity="0.9"/>
-      <ellipse cx="240" cy="80" rx="40" ry="60" fill="url(#cin-light)" opacity="0.6"/>
-      <rect x="120" y="120" width="4" height="100" fill="#c8962a" opacity="0.4"/>
-      <rect x="200" y="80" width="3" height="140" fill="#c8962a" opacity="0.3"/>
-      <rect x="280" y="90" width="3" height="130" fill="#d4a840" opacity="0.25"/>
-      <ellipse cx="180" cy="210" rx="60" ry="8" fill="#1a0f00" opacity="0.8"/>
-      <rect x="155" y="130" width="50" height="80" fill="#1a1010" opacity="0.9"/>
-      <rect x="162" y="138" width="36" height="50" fill="#2a1f0f" opacity="0.8"/>
-      <circle cx="182" cy="118" r="22" fill="#c8a880" opacity="0.7"/>
-    </svg>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0a0a0a' }}>
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a0a00 0%, #2d1600 100%)' }} />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 30% 60%, rgba(255,180,50,0.30) 0%, transparent 55%)' }} />
+      <div className="absolute inset-0" style={{ opacity: 0.06, backgroundImage: 'radial-gradient(rgba(255,255,255,0.85) 0.5px, transparent 0.5px)', backgroundSize: '4px 4px' }} />
+      <div className="absolute inset-x-0 top-0 h-6 bg-black" />
+      <div className="absolute inset-x-0 bottom-0 h-6 bg-black" />
+    </div>
   )
 }
 
 function IllustratedPreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <filter id="il-paper">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise"/>
-          <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
-          <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply" result="blended"/>
-        </filter>
-      </defs>
-      <rect width="480" height="270" fill="#f2e8d5"/>
-      <rect width="480" height="270" fill="#e8dcc8" opacity="0.3" filter="url(#il-paper)"/>
-      <path d="M80 200 Q120 140 160 160 Q200 180 240 120 Q280 60 320 100 Q360 140 400 80" fill="none" stroke="#2a1a0a" strokeWidth="2.5" opacity="0.8"/>
-      <circle cx="160" cy="160" r="6" fill="#2a1a0a" opacity="0.7"/>
-      <circle cx="240" cy="120" r="6" fill="#2a1a0a" opacity="0.7"/>
-      <circle cx="320" cy="100" r="6" fill="#2a1a0a" opacity="0.7"/>
-      <path d="M200 220 L200 160 M190 175 L200 160 L210 175" fill="none" stroke="#3a2a1a" strokeWidth="2" opacity="0.7"/>
-      <path d="M220 220 L220 155 M210 170 L220 155 L230 170" fill="none" stroke="#3a2a1a" strokeWidth="2" opacity="0.7"/>
-      <path d="M180 220 L180 165 M170 180 L180 165 L190 180" fill="none" stroke="#3a2a1a" strokeWidth="2" opacity="0.7"/>
-      <rect x="60" y="55" width="140" height="90" fill="none" stroke="#3a2a1a" strokeWidth="1.5" opacity="0.5"/>
-      <line x1="60" y1="70" x2="200" y2="70" stroke="#3a2a1a" strokeWidth="1" opacity="0.3"/>
-      <line x1="60" y1="85" x2="200" y2="85" stroke="#3a2a1a" strokeWidth="1" opacity="0.3"/>
-      <line x1="60" y1="100" x2="180" y2="100" stroke="#3a2a1a" strokeWidth="1" opacity="0.3"/>
-      <line x1="60" y1="115" x2="190" y2="115" stroke="#3a2a1a" strokeWidth="1" opacity="0.3"/>
-      <line x1="60" y1="130" x2="170" y2="130" stroke="#3a2a1a" strokeWidth="1" opacity="0.3"/>
-      <path d="M270 60 Q310 40 350 60 L360 180 Q310 200 270 180 Z" fill="#d4c8b0" stroke="#3a2a1a" strokeWidth="1.5" opacity="0.7"/>
-      <path d="M310 60 L310 180" fill="none" stroke="#3a2a1a" strokeWidth="1" opacity="0.4"/>
-    </svg>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#faf9f7' }}>
+      {/* bold headline block */}
+      <div className="absolute" style={{ top: '14%', left: '12%', width: '54%', height: '8%', background: '#0F1623' }} />
+      {/* circle — stroke only */}
+      <div className="absolute rounded-full" style={{ top: '34%', left: '14%', width: '38%', height: '54%', border: '3px solid rgba(15,22,35,0.8)' }} />
+      {/* overlapping rectangle */}
+      <div className="absolute" style={{ top: '46%', left: '40%', width: '34%', height: '34%', border: '2px solid rgba(15,22,35,0.7)' }} />
+      {/* solid gold geometric accent */}
+      <div className="absolute" style={{ top: '30%', right: '12%', width: '13%', height: '13%', background: '#C9A84C' }} />
+      {/* precise thin lines */}
+      <div className="absolute" style={{ bottom: '15%', left: '40%', width: '46%', height: '1px', background: 'rgba(15,22,35,0.5)' }} />
+      <div className="absolute" style={{ bottom: '9%', left: '40%', width: '34%', height: '1px', background: 'rgba(15,22,35,0.4)' }} />
+    </div>
   )
 }
 
 function MinimalistPreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <rect width="480" height="270" fill="#f8f8f6"/>
-      <rect x="0" y="0" width="4" height="270" fill="#1a1a1a"/>
-      <circle cx="240" cy="135" r="72" fill="none" stroke="#1a1a1a" strokeWidth="1.5"/>
-      <circle cx="240" cy="135" r="48" fill="#1a1a1a"/>
-      <circle cx="240" cy="135" r="24" fill="#f8f8f6"/>
-      <line x1="60" y1="50" x2="420" y2="50" stroke="#1a1a1a" strokeWidth="1"/>
-      <line x1="60" y1="220" x2="420" y2="220" stroke="#1a1a1a" strokeWidth="1"/>
-      <rect x="60" y="55" width="80" height="4" fill="#1a1a1a"/>
-      <rect x="60" y="63" width="50" height="4" fill="#cccccc"/>
-      <rect x="340" y="55" width="80" height="4" fill="#1a1a1a"/>
-      <rect x="355" y="63" width="50" height="4" fill="#cccccc"/>
-    </svg>
+    <div
+      className="relative w-full h-full overflow-hidden flex items-center justify-center"
+      style={{ background: '#ffffff' }}
+    >
+      <div className="absolute inset-x-0" style={{ top: '50%', height: '1px', background: '#333333' }} />
+      <div
+        className="relative rounded-full"
+        style={{ width: '40%', aspectRatio: '1 / 1', border: '1px solid #333333', background: '#ffffff' }}
+      />
+    </div>
   )
 }
 
 function VintagePreview() {
   return (
-    <svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <filter id="vt-grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch"/>
-          <feColorMatrix type="saturate" values="0"/>
-          <feBlend in="SourceGraphic" mode="multiply"/>
-        </filter>
-        <linearGradient id="vt-vignette" cx="50%" cy="50%" r="60%" fx="50%" fy="50%" gradientUnits="objectBoundingBox">
-          <stop offset="0%" stopColor="transparent"/>
-          <stop offset="100%" stopColor="#2a1800" stopOpacity="0.6"/>
-        </linearGradient>
-      </defs>
-      <rect width="480" height="270" fill="#c8a870"/>
-      <rect width="480" height="270" fill="#d4b880" opacity="0.5"/>
-      <rect x="30" y="20" width="420" height="230" fill="none" stroke="#6b4520" strokeWidth="3" opacity="0.6"/>
-      <rect x="38" y="28" width="404" height="214" fill="none" stroke="#6b4520" strokeWidth="1" opacity="0.4"/>
-      <ellipse cx="240" cy="135" rx="80" ry="100" fill="none" stroke="#4a2e10" strokeWidth="1.5" opacity="0.5"/>
-      <path d="M160 80 Q240 40 320 80 Q360 120 320 190 Q240 230 160 190 Q120 150 160 80 Z" fill="none" stroke="#4a2e10" strokeWidth="1" opacity="0.4"/>
-      <line x1="60" y1="90" x2="420" y2="90" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <line x1="60" y1="105" x2="420" y2="105" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <line x1="60" y1="120" x2="420" y2="120" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <line x1="60" y1="150" x2="420" y2="150" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <line x1="60" y1="165" x2="420" y2="165" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <line x1="60" y1="180" x2="420" y2="180" stroke="#4a2e10" strokeWidth="0.75" opacity="0.3"/>
-      <rect width="480" height="270" fill="url(#vt-vignette)"/>
-      <rect width="480" height="270" opacity="0.15" filter="url(#vt-grain)"/>
-    </svg>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#f5e6c8' }}>
+      <div
+        className="absolute inset-0"
+        style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(139,105,20,0.06) 0, rgba(139,105,20,0.06) 1px, transparent 1px, transparent 7px)' }}
+      />
+      <div className="absolute" style={{ inset: '8px', border: '2px solid rgba(139,105,20,0.6)' }} />
+      <div className="absolute" style={{ top: '4px', left: '4px', width: '6px', height: '6px', background: 'rgba(139,105,20,0.6)' }} />
+      <div className="absolute" style={{ top: '4px', right: '4px', width: '6px', height: '6px', background: 'rgba(139,105,20,0.6)' }} />
+      <div className="absolute" style={{ bottom: '4px', left: '4px', width: '6px', height: '6px', background: 'rgba(139,105,20,0.6)' }} />
+      <div className="absolute" style={{ bottom: '4px', right: '4px', width: '6px', height: '6px', background: 'rgba(139,105,20,0.6)' }} />
+      <div
+        className="absolute left-1/2 top-1/2"
+        style={{ width: '34%', height: '54%', transform: 'translate(-50%, -50%)', border: '1px solid rgba(74,46,16,0.55)', borderRadius: '50%' }}
+      />
+    </div>
   )
 }
 
