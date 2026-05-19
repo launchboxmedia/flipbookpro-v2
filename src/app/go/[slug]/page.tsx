@@ -2,7 +2,6 @@ import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import type { Book, BookPage, Profile, PublishedBook } from '@/types/database'
 import { HeroSection } from './components/HeroSection'
@@ -188,7 +187,6 @@ export default async function GoPage({ params }: Props) {
     authorName,
   } = data
 
-  const readHref = `/read/${params.slug}`
   const ctaCopy = ctaCopyFor(accessType, priceFormatted)
 
   // First letter for the avatar fallback. Defensive against names that
@@ -202,6 +200,7 @@ export default async function GoPage({ params }: Props) {
       {/* ── 1. HERO ─────────────────────────────────────────────────── */}
       <HeroSection
         slug={params.slug}
+        bookId={book.id}
         title={book.title}
         subtitle={book.subtitle}
         coverImageUrl={book.cover_image_url}
@@ -333,12 +332,12 @@ export default async function GoPage({ params }: Props) {
             Get instant access and start reading today.
           </p>
           <div className="max-w-sm mx-auto">
-            <Link
-              href={readHref}
+            <a
+              href="#get-access"
               className="block w-full py-4 px-8 rounded-xl bg-gold text-ink-1 font-semibold text-lg text-center transition-all duration-200 hover:bg-gold-soft hover:shadow-[0_0_30px_rgba(201,168,76,0.4)] active:scale-[0.98]"
             >
               {ctaCopy.text}
-            </Link>
+            </a>
             {ctaCopy.sub && (
               <p className="text-white/30 text-xs text-center mt-2">{ctaCopy.sub}</p>
             )}

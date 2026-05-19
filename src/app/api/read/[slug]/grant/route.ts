@@ -23,6 +23,17 @@ import {
  * Failure modes redirect back to /read/{slug} with an error code in the
  * query so the buy gate can surface a message.
  */
+// Domain only on the production apex so the cookie is shared across
+// bookbuilderpro.app and go.bookbuilderpro.app. Omitted on localhost /
+// *.vercel.app where a Domain attribute is rejected (cookie would drop →
+// /read↔/go redirect loop).
+function cookieDomain(req: NextRequest): string | undefined {
+  const host = req.nextUrl.hostname
+  return host === 'bookbuilderpro.app' || host.endsWith('.bookbuilderpro.app')
+    ? '.bookbuilderpro.app'
+    : undefined
+}
+
 export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
   const sessionId = req.nextUrl.searchParams.get('session_id')
   const back = (code?: string) => {
@@ -94,6 +105,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     sameSite: 'lax',
     maxAge:   ACCESS_COOKIE_TTL_SECONDS,
     path:     '/',
+    ...(cookieDomain(req) ? { domain: cookieDomain(req) } : {}),
   })
   return response
 }

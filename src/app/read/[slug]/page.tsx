@@ -4,8 +4,6 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { deriveTheme } from '@/lib/bookTheme'
 import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
-import { EmailGate } from '@/components/read/EmailGate'
-import { BuyGate } from '@/components/read/BuyGate'
 import { BookResourcesPanel } from '@/components/read/BookResourcesPanel'
 import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
 import type { Book, BookPage, BookResource, Profile } from '@/types/database'
@@ -19,7 +17,6 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { slug: string }
-  searchParams: { session_id?: string; error?: string }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -59,16 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ReadPage({ params, searchParams }: Props) {
-  // If Stripe just redirected here with a session_id, hop to the grant route
-  // which verifies the session, records the lead, and sets the access cookie
-  // before redirecting back to a clean /read/{slug}. Server components can't
-  // set cookies during render, so the route handler is the only place
-  // that can do all three.
-  if (searchParams.session_id) {
-    redirect(`/api/read/${params.slug}/grant?session_id=${encodeURIComponent(searchParams.session_id)}`)
-  }
-
+export default async function ReadPage({ params }: Props) {
   const supabase = await createClient()
 
   // Explicit column list for type safety —
@@ -88,6 +76,24 @@ export default async function ReadPage({ params, searchParams }: Props) {
     .single()
 
   if (!pub) notFound()
+
+  // Resolve the effective access type. New rows have access_type set
+  // explicitly; old rows fall back through gate_type.
+  const accessType = (pub.access_type as 'free' | 'email' | 'paid' | undefined)
+    ?? (pub.gate_type === 'none'    ? 'free' :
+        pub.gate_type === 'payment' ? 'paid' : 'email')
+
+  // /read is now a pure cookie check — all gating UI (email form, checkout)
+  // lives on /go/[slug], the single gate. Free books are open; email/paid
+  // require a valid signed access cookie (set by /api/read/[slug]/grant or
+  // grant-email). No valid cookie → bounce to the landing page.
+  if (accessType !== 'free') {
+    const cookieJar = await cookies()
+    const token = cookieJar.get(cookieNameForSlug(params.slug))?.value
+    if (!verifyAccessToken(token, params.slug)) {
+      redirect(`/go/${params.slug}`)
+    }
+  }
 
   const [{ data: book }, { data: allPages }, { data: authorProfile }, { data: resources }] = await Promise.all([
     supabase.from('books').select('*').eq('id', pub.book_id).single(),
@@ -123,104 +129,26 @@ export default async function ReadPage({ params, searchParams }: Props) {
     url,
     inLanguage: 'en',
   }
-  const structuredData = (
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line react/no-danger -- structured data must serialize as <script>
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger -- structured data must serialize as <script>
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <FlipbookViewer
+        book={book as Book}
+        chapters={chapters as BookPage[]}
+        backMatter={backMatter as BookPage[]}
+        theme={theme}
+        profile={(authorProfile as Profile) ?? null}
+        isPublicView
+      />
+      <BookResourcesPanel
+        slug={params.slug}
+        resources={bookResources}
+        chapterTitles={chapterTitles}
+      />
+    </>
   )
-
-  // Resolve the effective access type. New rows have access_type set
-  // explicitly; old rows fall back through gate_type.
-  const accessType = (pub.access_type as 'free' | 'email' | 'paid' | undefined)
-    ?? (pub.gate_type === 'none'    ? 'free' :
-        pub.gate_type === 'payment' ? 'paid' : 'email')
-
-  // Build the floating resources panel once. Renders nothing internally
-  // when the book has no resources, so it's safe to drop into every
-  // post-gate path unconditionally.
-  const resourcesPanel = (
-    <BookResourcesPanel
-      slug={params.slug}
-      resources={bookResources}
-      chapterTitles={chapterTitles}
-    />
-  )
-
-  // FlipbookViewer alone — the panel used to be folded into this fragment,
-  // but that nested it inside EmailGate's `children`, which only renders
-  // after the visitor submits an email AND only ever lives under EmailGate's
-  // render path. Lifting the panel out lets it render as a top-level
-  // sibling for both email-gated and free paths, so a returning visitor
-  // who lands back on the gate form still sees the resources affordance.
-  const viewer = (
-    <FlipbookViewer
-      book={book as Book}
-      chapters={chapters as BookPage[]}
-      backMatter={backMatter as BookPage[]}
-      theme={theme}
-      profile={(authorProfile as Profile) ?? null}
-      isPublicView
-    />
-  )
-
-  // Paid books: show the buy gate unless the visitor has a valid signed
-  // access cookie keyed to this slug. The panel is intentionally NOT
-  // rendered for the unpaid view — if the visitor hasn't bought, they
-  // shouldn't see the download links either.
-  if (accessType === 'paid') {
-    const cookieJar = await cookies()
-    const token = cookieJar.get(cookieNameForSlug(params.slug))?.value
-    const claims = verifyAccessToken(token, params.slug)
-    if (!claims) {
-      return (
-        <>
-          {structuredData}
-          <BuyGate
-            bookId={pub.book_id}
-            title={pub.title}
-            author={pub.author}
-            subtitle={pub.subtitle}
-            description={pub.description}
-            coverImageUrl={pub.cover_image_url}
-            priceCents={pub.price_cents ?? 0}
-            errorCode={searchParams.error ?? null}
-          />
-        </>
-      )
-    }
-    // Valid cookie → flipbook + resources panel.
-    return <>{structuredData}{viewer}{resourcesPanel}</>
-  }
-
-  // Email-gated: collect an email before reading. The panel sits OUTSIDE
-  // EmailGate so it stays mounted regardless of submit state — the
-  // resource download URLs are public anyway (anyone with slug + id can
-  // hit /read/[slug]/r/[id]), so there's no soft-gate purpose served by
-  // hiding the panel pre-submit.
-  if (accessType === 'email') {
-    return (
-      <>
-        {structuredData}
-        <EmailGate
-          publishedBookId={pub.id}
-          book={book as Book}
-          coverImageUrl={pub.cover_image_url}
-          title={pub.title}
-          author={pub.author}
-          description={pub.description}
-        >
-          {viewer}
-        </EmailGate>
-        {resourcesPanel}
-      </>
-    )
-  }
-
-  // Free — open access. Panel rendered as a top-level sibling of the
-  // viewer so its `position: fixed` lives at the page root with no
-  // wrapper that might trap stacking or be hidden by a parent
-  // condition.
-  return <>{structuredData}{viewer}{resourcesPanel}</>
 }

@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { PublishedBook } from '@/types/database'
 
 interface Props {
   slug: string
+  /** Needed for the paid checkout call (POST /api/books/[bookId]/checkout). */
+  bookId: string
   title: string
   subtitle: string | null
   coverImageUrl: string | null
@@ -213,6 +216,7 @@ const RIFFLE_DURATION_MS = 2100
  *  previous attempt was crippled by this). */
 export function HeroSection({
   slug,
+  bookId,
   title,
   subtitle,
   coverImageUrl,
@@ -224,7 +228,6 @@ export function HeroSection({
   accessType,
   priceFormatted,
 }: Props) {
-  const readHref = `/read/${slug}`
   const cta = ctaCopyFor(accessType, priceFormatted)
 
   // Parallax state.
@@ -609,25 +612,21 @@ export function HeroSection({
             )}
           </div>
 
-          {/* 8. CTA + 9. helper subtext */}
+          {/* 8. CTA + 9. helper subtext. id=get-access is the scroll
+              target for the page's secondary Final-CTA anchor — this is
+              the single gating surface. */}
           <div
-            className="animate-slide-up"
+            id="get-access"
+            className="animate-slide-up scroll-mt-24"
             style={{ animationDelay: '0.7s' }}
           >
-            <Link
-              href={readHref}
-              className="block w-full py-4 px-8 rounded-xl bg-gold text-ink-1 font-semibold text-lg text-center transition-all duration-200 hover:bg-gold-soft hover:shadow-[0_0_30px_rgba(201,168,76,0.4)] active:scale-[0.98]"
-            >
-              {cta.text}
-            </Link>
-            {cta.sub && (
-              <p
-                className="text-white/30 text-xs text-center mt-2 animate-slide-up"
-                style={{ animationDelay: '0.8s' }}
-              >
-                {cta.sub}
-              </p>
-            )}
+            <AccessCTA
+              accessType={accessType}
+              slug={slug}
+              bookId={bookId}
+              text={cta.text}
+              sub={cta.sub}
+            />
           </div>
         </div>
       </div>
@@ -672,4 +671,137 @@ function ctaCopyFor(
     text: 'Read Now — It’s Free →',
     sub:  null,
   }
+}
+
+const CTA_BTN =
+  'block w-full py-4 px-8 rounded-xl bg-gold text-ink-1 font-semibold text-lg text-center transition-all duration-200 hover:bg-gold-soft hover:shadow-[0_0_30px_rgba(201,168,76,0.4)] active:scale-[0.98] disabled:opacity-60'
+
+const CTA_SUB = 'text-white/30 text-xs text-center mt-2'
+
+/** The interactive gate. /go is now the only gating surface:
+ *  - free  → straight link to /read/[slug]
+ *  - paid  → POST /api/books/[bookId]/checkout, redirect to Stripe
+ *  - email → inline email form → POST /api/read/[slug]/grant-email
+ *            (sets the access cookie + fires the welcome sequence), then
+ *            navigate to /read/[slug]. */
+function AccessCTA({
+  accessType, slug, bookId, text, sub,
+}: {
+  accessType: PublishedBook['access_type']
+  slug: string
+  bookId: string
+  text: string
+  sub: string | null
+}) {
+  const router = useRouter()
+  const readHref = `/read/${slug}`
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('') // honeypot — must stay empty
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  if (accessType === 'free') {
+    return (
+      <>
+        <Link href={readHref} className={CTA_BTN}>{text}</Link>
+        {sub && <p className={CTA_SUB}>{sub}</p>}
+      </>
+    )
+  }
+
+  if (accessType === 'paid') {
+    const buy = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await fetch(`/api/books/${bookId}/checkout`, { method: 'POST' })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok || !json.url) throw new Error(json.error ?? 'Could not start checkout.')
+        window.location.href = json.url as string
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Checkout failed.')
+        setLoading(false)
+      }
+    }
+    return (
+      <>
+        <button type="button" onClick={buy} disabled={loading} className={CTA_BTN}>
+          {loading ? 'Starting checkout…' : text}
+        </button>
+        {error
+          ? <p className="text-red-400 text-xs text-center mt-2">{error}</p>
+          : sub && <p className={CTA_SUB}>{sub}</p>}
+      </>
+    )
+  }
+
+  // email
+  if (!open) {
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)} className={CTA_BTN}>
+          {text}
+        </button>
+        {sub && <p className={CTA_SUB}>{sub}</p>}
+      </>
+    )
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) { setError('Email is required.'); return }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/read/${slug}/grant-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), name: name.trim(), website }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? 'Something went wrong.')
+      router.push(readHref)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3 text-left">
+      {/* Honeypot — visually hidden from real users; auto-fill bots populate it. */}
+      <input
+        type="text"
+        name="website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-10000px', width: '1px', height: '1px', opacity: 0 }}
+      />
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Your name"
+        className="w-full px-4 py-3 rounded-lg bg-ink-2 border border-white/10 text-white placeholder:text-white/30 text-sm focus:outline-none focus:border-gold/50 transition-colors"
+      />
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        required
+        className="w-full px-4 py-3 rounded-lg bg-ink-2 border border-white/10 text-white placeholder:text-white/30 text-sm focus:outline-none focus:border-gold/50 transition-colors"
+      />
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+      <button type="submit" disabled={loading} className={CTA_BTN}>
+        {loading ? 'Unlocking…' : 'Get Free Access →'}
+      </button>
+      <p className={CTA_SUB}>No spam. Unsubscribe anytime.</p>
+    </form>
+  )
 }

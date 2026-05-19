@@ -59,8 +59,11 @@ export async function POST(_req: NextRequest, { params }: { params: { bookId: st
   const platformFeeCents = Math.round(pub.price_cents * 0.1)
   const useConnect = !!authorProfile?.stripe_connect_id
 
-  const successUrl = `${appUrl}/read/${pub.slug}?session_id={CHECKOUT_SESSION_ID}`
-  const cancelUrl  = `${appUrl}/read/${pub.slug}`
+  // Success goes straight to the grant route (verifies the session, sets
+  // the access cookie, then redirects to a clean /read/{slug}) — no bounce
+  // through /read, which is now cookie-only.
+  const successUrl = `${appUrl}/api/read/${pub.slug}/grant?session_id={CHECKOUT_SESSION_ID}`
+  const cancelUrl  = `${appUrl}/go/${pub.slug}`
 
   try {
     const session = await stripe.checkout.sessions.create({
