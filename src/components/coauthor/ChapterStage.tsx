@@ -570,7 +570,9 @@ export function ChapterStage({
                 className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
               >
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-                {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
+                {generating
+                  ? 'Generating…'
+                  : `${approved ? 'Regenerate' : 'Generate Draft'}${researchFacts.length > 0 ? ' with Research' : ''}`}
               </button>
               {researchFacts.length > 0 && (
                 <button
@@ -580,7 +582,7 @@ export function ChapterStage({
                   title="Generate this draft ignoring the saved research facts"
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-cream-3 dark:border-ink-3 text-ink-1/60 dark:text-white/50 hover:text-ink-1 dark:hover:text-white hover:border-gold/40 text-xs font-inter transition-colors disabled:opacity-50 press-scale"
                 >
-                  Skip research
+                  without Research
                 </button>
               )}
             </div>
