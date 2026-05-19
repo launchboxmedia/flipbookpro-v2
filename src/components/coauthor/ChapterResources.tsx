@@ -55,6 +55,19 @@ export function ChapterResources({
 }: Props) {
   const { markers } = useMemo(() => parseResourceMarkers(draft || ''), [draft])
 
+  // Resources saved for this chapter that have no matching [[RESOURCE]]
+  // marker in the draft — i.e. ones created via the "Request a custom
+  // resource" flow. Marker-name match is case-insensitive; a custom
+  // resource sharing a marker's name is treated as the marker one.
+  const customResources = useMemo(() => {
+    const markerNames = new Set(markers.map((m) => m.name.trim().toLowerCase()))
+    return existingResources.filter(
+      (r) =>
+        r.chapter_index === chapterIndex &&
+        !markerNames.has(r.resource_name.trim().toLowerCase()),
+    )
+  }, [existingResources, markers, chapterIndex])
+
   // Per-marker pending state, keyed by `${type}::${name.toLowerCase()}`.
   // Same key shape parseResourceMarkers uses internally for dedupe.
   const [pending, setPending] = useState<Record<string, PendingState>>({})
@@ -202,11 +215,16 @@ export function ChapterResources({
         <p className="text-xs font-source-serif text-ink-1/60 dark:text-cream-1/60 mb-4 leading-relaxed">
           {markers.length > 0
             ? 'These resources were referenced in this chapter. Generate them to make them available to your readers.'
-            : 'Create downloadable resources for this chapter. AI-referenced ones appear here automatically — or request a custom one below.'}
+            : customResources.length > 0
+              ? 'Downloadable resources for this chapter.'
+              : 'Create downloadable resources for this chapter. AI-referenced ones appear here automatically — or request a custom one below.'}
         </p>
 
         {markers.length > 0 && (
         <div className="space-y-2">
+          {customResources.length > 0 && (
+            <p className="text-xs text-ink-1/40 dark:text-white/30 uppercase tracking-wider mb-2">From your draft</p>
+          )}
           {markers.map((marker) => {
             const key = keyFor(marker)
             const state = pending[key] ?? { generating: false, error: null }
@@ -295,8 +313,67 @@ export function ChapterResources({
         </div>
         )}
 
+        {customResources.length > 0 && (
+          <div className="space-y-2 mt-2">
+            {markers.length > 0 && (
+              <p className="text-xs text-ink-1/40 dark:text-white/30 uppercase tracking-wider mb-2">Custom resources</p>
+            )}
+            {customResources.map((r) => {
+              const pkey = keyFor({ name: r.resource_name, type: r.resource_type })
+              const state = pending[pkey] ?? { generating: false, error: null }
+              return (
+                <div
+                  key={r.id}
+                  className="bg-cream-3 dark:bg-ink-3 border border-[#E8E0D0] dark:border-ink-4 rounded-lg p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="text-[10px] font-inter font-semibold uppercase tracking-[0.18em] text-gold">
+                          {TYPE_LABEL[r.resource_type] ?? r.resource_type}
+                        </span>
+                        <span className="text-[10px] font-inter text-emerald-400/80 lowercase">custom</span>
+                      </div>
+                      <p className="text-sm font-source-serif text-ink-1 dark:text-cream-1 leading-snug">
+                        {r.resource_name}
+                      </p>
+                      <p className="text-[11px] font-source-serif text-ink-1/55 dark:text-cream-1/55 mt-1 line-clamp-2">
+                        {r.content.replace(/^#\s*.*\n+/, '').slice(0, PREVIEW_CHAR_LIMIT)}
+                        {r.content.length > PREVIEW_CHAR_LIMIT ? '…' : ''}
+                      </p>
+                      {state.error && (
+                        <p className="text-[11px] font-inter text-rose-300 mt-1.5">{state.error}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setOpenResource(r)}
+                        className="flex items-center gap-1 text-[11px] font-inter text-gold hover:text-gold-soft transition-colors"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => generate({ name: r.resource_name, type: r.resource_type })}
+                        disabled={state.generating}
+                        className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
+                      >
+                        {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                        Regenerate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Request a custom resource — independent of AI-placed markers. */}
-        <div className={markers.length > 0 ? 'mt-3 pt-3 border-t border-cream-3 dark:border-ink-3' : ''}>
+        <div className={(markers.length > 0 || customResources.length > 0) ? 'mt-3 pt-3 border-t border-cream-3 dark:border-ink-3' : ''}>
           {!requestOpen ? (
             <button
               type="button"
