@@ -142,6 +142,7 @@ Required base fields on every flag:
 - "type": "OVERLAP" | "GAP" | "STRUCTURE"
 - "issue": one sentence describing the structural problem (max 500 chars)
 - "suggestion": one sentence on how to fix it (max 500 chars)
+- IMPORTANT: in the "issue" and "suggestion" TEXT, always refer to chapters by their 1-based number — "Chapter 1", "Chapter 2", etc. NEVER "Chapter 0". (This is what the reader sees. The JSON index fields below are separate and stay 0-based.)
 - "chapterIndex": the 0-based chapter_index this flag applies to, or null if it applies to overall structure
 - "action": one of "merge" | "insert" | "reorder" | "update_brief"
 
@@ -205,7 +206,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const chapterListing = chapters
     .map((p: { chapter_index: number; chapter_title: string; chapter_brief: string }) =>
-      `Chapter ${p.chapter_index}: ${p.chapter_title} — ${p.chapter_brief ?? ''}`.trim(),
+      `Chapter ${p.chapter_index + 1} (chapter_index ${p.chapter_index}): ${p.chapter_title} — ${p.chapter_brief ?? ''}`.trim(),
     )
     .join('\n')
 
@@ -214,7 +215,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     userPrompt: `Book title: ${book.title}
 Persona: ${book.persona}
 
-Chapters (chapter_index is 0-based):
+Chapters — write about them as "Chapter N" using the 1-based number shown; the chapter_index in parentheses is 0-based and is what you must put in every JSON index field:
 ${chapterListing}`,
     maxTokens: 2500,
     humanize: false,
