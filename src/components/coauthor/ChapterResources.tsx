@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Paperclip, Loader2, FileText, Check, RefreshCw, Eye, X, Copy, Printer } from 'lucide-react'
+import { Paperclip, Loader2, FileText, Check, RefreshCw, Eye, X, Copy, Printer, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
 import type { BookResource } from '@/types/database'
 import {
   parseResourceMarkers,
@@ -59,14 +60,24 @@ export function ChapterResources({
   const [pending, setPending] = useState<Record<string, PendingState>>({})
   const [openResource, setOpenResource] = useState<BookResource | null>(null)
 
+  // "Request a custom resource" panel — lets the author describe a resource
+  // the AI didn't auto-mark. Independent of the marker list.
+  const [requestOpen, setRequestOpen] = useState(false)
+  const [reqBrief, setReqBrief] = useState('')
+  const [reqName, setReqName] = useState('')
+  const [reqType, setReqType] = useState<ResourceMarker['type']>('checklist')
+  const [reqLoading, setReqLoading] = useState(false)
+
   // When the user moves to another chapter, drop in-flight indicators so a
   // late-arriving response can't toggle a different chapter's buttons.
   useEffect(() => {
     setPending({})
     setOpenResource(null)
+    setRequestOpen(false)
+    setReqBrief('')
+    setReqName('')
+    setReqType('checklist')
   }, [chapterIndex])
-
-  if (markers.length === 0) return null
 
   function keyFor(m: ResourceMarker): string {
     return `${m.type}::${m.name.toLowerCase()}`
@@ -123,6 +134,48 @@ export function ChapterResources({
     }
   }
 
+  async function submitRequest() {
+    const name = reqName.trim()
+    const brief = reqBrief.trim()
+    if (!name || !brief || reqLoading) return
+    setReqLoading(true)
+    try {
+      const res = await fetch(`/api/books/${bookId}/generate-resource`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chapterIndex,
+          resourceName: name,
+          resourceType: reqType,
+          chapterContent: draft,
+          userBrief: brief.slice(0, 500),
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Generation failed (${res.status})`)
+      const upserted: BookResource = {
+        id:            json.id,
+        book_id:       bookId,
+        chapter_index: typeof json.chapterIndex === 'number' ? json.chapterIndex : chapterIndex,
+        resource_name: json.resource_name,
+        resource_type: json.resource_type,
+        content:       json.content,
+        created_at:    new Date().toISOString(),
+        updated_at:    new Date().toISOString(),
+      }
+      onResourceUpserted(upserted)
+      setRequestOpen(false)
+      setReqBrief('')
+      setReqName('')
+      setReqType('checklist')
+      toast.success('Resource created')
+    } catch {
+      toast.error('Failed to generate resource')
+    } finally {
+      setReqLoading(false)
+    }
+  }
+
   return (
     <>
       <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-ink-1 dark:text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
@@ -133,9 +186,12 @@ export function ChapterResources({
           </p>
         </div>
         <p className="text-xs font-source-serif text-ink-1/60 dark:text-cream-1/60 mb-4 leading-relaxed">
-          These resources were referenced in this chapter. Generate them to make them available to your readers.
+          {markers.length > 0
+            ? 'These resources were referenced in this chapter. Generate them to make them available to your readers.'
+            : 'Create downloadable resources for this chapter. AI-referenced ones appear here automatically — or request a custom one below.'}
         </p>
 
+        {markers.length > 0 && (
         <div className="space-y-2">
           {markers.map((marker) => {
             const key = keyFor(marker)
@@ -222,6 +278,68 @@ export function ChapterResources({
               </div>
             )
           })}
+        </div>
+        )}
+
+        {/* Request a custom resource — independent of AI-placed markers. */}
+        <div className={markers.length > 0 ? 'mt-3 pt-3 border-t border-cream-3 dark:border-ink-3' : ''}>
+          {!requestOpen ? (
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-gold/60 hover:text-gold transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Request a custom resource
+            </button>
+          ) : (
+            <div className="bg-cream-2 dark:bg-ink-3 rounded-xl p-4 border border-gold/20 mt-1 animate-slide-up space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-ink-1/60 dark:text-white/40 text-xs">What resource do you need?</p>
+                <button
+                  type="button"
+                  onClick={() => setRequestOpen(false)}
+                  aria-label="Close"
+                  className="text-ink-1/40 dark:text-white/30 hover:text-ink-1 dark:hover:text-white transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <textarea
+                value={reqBrief}
+                onChange={(e) => setReqBrief(e.target.value.slice(0, 500))}
+                rows={2}
+                maxLength={500}
+                placeholder="e.g. A checklist for setting up a TikTok business account, or a script template for a discovery call..."
+                className="bg-cream-1 dark:bg-ink-2 border border-cream-3 dark:border-ink-4 rounded-lg p-3 w-full text-sm resize-none text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
+              />
+              <input
+                value={reqName}
+                onChange={(e) => setReqName(e.target.value.slice(0, 200))}
+                placeholder="Resource name (e.g. 'TikTok Setup Checklist')"
+                className="bg-cream-1 dark:bg-ink-2 border border-cream-3 dark:border-ink-4 rounded-lg px-3 py-2 w-full text-sm text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
+              />
+              <select
+                value={reqType}
+                onChange={(e) => setReqType(e.target.value as ResourceMarker['type'])}
+                className="bg-cream-1 dark:bg-ink-2 border border-cream-3 dark:border-ink-4 rounded-lg px-3 py-2 w-full text-sm text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
+              >
+                {(Object.keys(TYPE_LABEL) as ResourceMarker['type'][]).map((t) => (
+                  <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={submitRequest}
+                disabled={reqLoading || !reqName.trim() || !reqBrief.trim()}
+                className="inline-flex items-center gap-1.5 bg-gold text-ink-1 text-xs font-semibold px-4 py-2 rounded-lg mt-1 hover:bg-gold-soft active:scale-[0.98] transition-colors disabled:opacity-50"
+              >
+                {reqLoading
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                  : <><Sparkles className="w-3.5 h-3.5" /> Generate Resource</>}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -95,6 +95,11 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const chapterContent = typeof body.chapterContent === 'string' ? body.chapterContent : ''
 
+  // Optional author-written brief — present when the user requested a
+  // custom resource by describing it (vs. generating from an AI-placed
+  // marker). Clamped to 500 chars; absent for marker-driven generation.
+  const userBrief = typeof body.userBrief === 'string' ? body.userBrief.trim().slice(0, 500) : ''
+
   // Ownership check. RLS would also block writes to other users' books, but
   // having the explicit check here lets us return a clean 404 instead of a
   // policy-rejection surface.
@@ -113,7 +118,21 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   try {
     generated = await generateText({
       systemPrompt: SYSTEM_PROMPT,
-      userPrompt: `Create a ${type} resource named '${resourceName}' for this book chapter:
+      userPrompt: userBrief
+        ? `Create a ${type} resource named '${resourceName}' for this book chapter.
+
+The author specifically requested this resource. Their request — treat it as the primary spec:
+<author_request>
+${userBrief}
+</author_request>
+
+Chapter content for context:
+<chapter_content>
+${chapterContent.slice(0, 2000)}
+</chapter_content>
+
+Generate the complete, standalone ${type} the author asked for. Honour the request first; use the chapter only as supporting context. Make it specific and immediately usable.`
+        : `Create a ${type} resource named '${resourceName}' for this book chapter:
 
 Chapter content for context:
 <chapter_content>

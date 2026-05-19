@@ -152,7 +152,7 @@ export function ChapterStage({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function generateDraft() {
+  async function generateDraft(skipResearch = false) {
     if (generating) return
     // If the chapter is approved, unapprove first. Approval locks the
     // textarea and the server treats approved chapters as canonical, so
@@ -181,7 +181,7 @@ export function ChapterStage({
       const res = await fetch(`/api/books/${book.id}/generate-draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageId: page.id }),
+        body: JSON.stringify({ pageId: page.id, ...(skipResearch ? { skipResearch: true } : {}) }),
       })
       if (!res.ok || !res.body) throw new Error('Stream failed')
 
@@ -559,15 +559,28 @@ export function ChapterStage({
                   ? 'Re-research'
                   : 'Research Facts'}
             </button>
-            <button
-              onClick={generateDraft}
-              disabled={generating}
-              title={approved ? 'Unapproves and regenerates this chapter' : undefined}
-              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
-            >
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-              {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
-            </button>
+            <div className="flex flex-col">
+              <button
+                onClick={() => generateDraft()}
+                disabled={generating}
+                title={approved ? 'Unapproves and regenerates this chapter' : undefined}
+                className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
+                {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
+              </button>
+              {researchFacts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => generateDraft(true)}
+                  disabled={generating}
+                  title="Generate this draft ignoring the saved research facts"
+                  className="text-xs text-ink-1/30 dark:text-white/30 hover:text-ink-1/60 dark:hover:text-white/60 transition-colors cursor-pointer mt-1 block text-center disabled:opacity-50"
+                >
+                  Generate without research
+                </button>
+              )}
+            </div>
             <button
               onClick={runAnalysis}
               disabled={analyzing || !draft || draft.trim().length < 50}
@@ -723,7 +736,7 @@ export function ChapterStage({
               {researchFacts.length > 0 && (
                 <button
                   type="button"
-                  onClick={generateDraft}
+                  onClick={() => generateDraft()}
                   disabled={generating}
                   className="inline-flex items-center gap-2 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-xs rounded-md transition-colors disabled:opacity-50"
                 >

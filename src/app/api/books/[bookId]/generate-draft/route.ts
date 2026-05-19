@@ -147,7 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in an hour.' }), { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }
 
-  const { pageId } = await req.json()
+  const { pageId, skipResearch } = await req.json()
 
   const [{ data: book }, { data: profile }] = await Promise.all([
     supabase
@@ -242,7 +242,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   // facts + citations as background data so chapters land on real numbers
   // rather than model-internal generalities. Tag-wrapped so the values are
   // treated as data, not directives.
-  const researchBlock = page.research_facts
+  // skipResearch lets the client request a research-free draft even when
+  // research_facts is populated. Defaults to undefined/false so existing
+  // callers (and the with-research button) behave exactly as before.
+  const researchBlock = (!skipResearch && page.research_facts)
     ? `<verified_research>
 Use these verified facts and data points naturally in your writing. Cite sources when relevant.
 ${page.research_facts}
