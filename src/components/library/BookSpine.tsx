@@ -36,14 +36,13 @@ function widthClass(id: string): string {
 }
 
 /** Height in px — base from chapter count, plus a per-book offset so the
- *  top line of the shelf is organically uneven (never a flat row). Capped
- *  to stay inside the shelf's min-h-[200px] standing area. */
+ *  top line of the shelf is organically uneven (never a flat row). No cap:
+ *  the shelf has no fixed height, it hugs the tallest spine. */
 function spineHeight(book: BookWithMeta): number {
   const ch = book.chapterCount
-  const base = ch >= 9 ? 188 : ch >= 5 ? 156 : 128
+  const base = ch >= 9 ? 224 : ch >= 5 ? 192 : 160
   const idOffset = (book.id.charCodeAt(0) % 5) * 4 // 0,4,8,12,16
-  const chapterNudge = Math.min(ch, 6) * 3
-  return Math.min(base + idOffset + chapterNudge, 208)
+  return base + idOffset
 }
 
 type SpineLook = { gradient: string; muted: boolean }

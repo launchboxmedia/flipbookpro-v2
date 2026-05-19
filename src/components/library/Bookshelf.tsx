@@ -15,7 +15,7 @@ const GRAIN_BACKWALL =
 
 // Subtler than before — the shelf surface shouldn't dominate.
 const GRAIN_SHELF =
-  'repeating-linear-gradient(90deg, transparent, transparent 30px, rgba(0,0,0,0.10) 30px, rgba(0,0,0,0.10) 31px, transparent 31px, transparent 55px, rgba(255,255,255,0.03) 55px, rgba(255,255,255,0.03) 56px)'
+  'repeating-linear-gradient(90deg, transparent, transparent 30px, rgba(0,0,0,0.08) 30px, rgba(0,0,0,0.08) 31px, transparent 31px, transparent 55px, rgba(255,255,255,0.02) 55px, rgba(255,255,255,0.02) 56px)'
 
 const ROOM_LIGHT =
   'radial-gradient(ellipse 120% 60% at 50% 100%, rgba(201,168,76,0.05) 0%, transparent 70%)'
@@ -30,7 +30,7 @@ export function Bookshelf({ label, books }: Props) {
   if (books.length === 0) return null
 
   return (
-    <section className="mb-10" aria-label={`${label} shelf`}>
+    <section className="mb-8" aria-label={`${label} shelf`}>
       {/* Room lighting — a soft warm pool behind the case so it reads as
           furniture in a room, not a card on a canvas. */}
       <div className="relative" style={{ background: ROOM_LIGHT }}>
@@ -66,10 +66,10 @@ export function Bookshelf({ label, books }: Props) {
 
             {/* Books standing area — packed tightly, varying heights all
                 resting on the shelf baseline. */}
-            <div className="relative z-0 px-3 pt-3 pb-0 min-h-[160px] flex items-end gap-[2px] flex-wrap">
+            <div className="relative flex items-end gap-[2px] flex-wrap px-3 pt-6 pb-0">
               {/* Recessed-shelf inner shadow at the top */}
               <div
-                className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/30 to-transparent pointer-events-none"
+                className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-black/20 to-transparent pointer-events-none"
                 aria-hidden="true"
               />
               {/* Ambient warm glow rising from the shelf */}
@@ -84,7 +84,7 @@ export function Bookshelf({ label, books }: Props) {
             </div>
 
             {/* Shelf surface — the thick wood the books stand on */}
-            <div className="relative h-4 w-full bg-gradient-to-b from-[#A07030] via-[#8B5E1A] to-[#7A5015] dark:from-[#8B5E1A] dark:via-[#7A5015] dark:to-[#6B4410]">
+            <div className="relative h-4 w-full bg-gradient-to-b from-[#6B4A10] via-[#5C3D0C] to-[#4A2E08]">
               <div className="absolute inset-0" style={{ backgroundImage: GRAIN_SHELF }} aria-hidden="true" />
               {/* Front edge highlight */}
               <div className="absolute bottom-0 left-0 right-0 h-px bg-[#C9A84C]/20" aria-hidden="true" />
