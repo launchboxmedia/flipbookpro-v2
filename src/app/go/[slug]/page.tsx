@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Book, BookPage, Profile, PublishedBook } from '@/types/database'
 import { HeroSection } from './components/HeroSection'
 import { ChapterList } from './components/ChapterList'
+import { FinalCTA } from './components/FinalCTA'
 
 interface Props {
   params: { slug: string }
@@ -332,12 +333,12 @@ export default async function GoPage({ params }: Props) {
             Get instant access and start reading today.
           </p>
           <div className="max-w-sm mx-auto">
-            <a
-              href="#get-access"
-              className="block w-full py-4 px-8 rounded-xl bg-gold text-ink-1 font-semibold text-lg text-center transition-all duration-200 hover:bg-gold-soft hover:shadow-[0_0_30px_rgba(201,168,76,0.4)] active:scale-[0.98]"
-            >
-              {ctaCopy.text}
-            </a>
+            <FinalCTA
+              slug={params.slug}
+              bookId={book.id}
+              accessType={accessType}
+              priceFormatted={priceFormatted}
+            />
             {ctaCopy.sub && (
               <p className="text-white/30 text-xs text-center mt-2">{ctaCopy.sub}</p>
             )}
