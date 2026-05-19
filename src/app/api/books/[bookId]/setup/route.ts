@@ -177,7 +177,7 @@ export async function POST(
   // for unchanged indices, then batch-upsert in a single round-trip.
   const { data: existingPages, error: existingErr } = await supabase
     .from('book_pages')
-    .select('chapter_index, content, approved, image_url')
+    .select('chapter_index, chapter_title, content, approved, image_url, image_scene')
     .eq('book_id', params.bookId)
 
   if (existingErr) {
@@ -185,9 +185,28 @@ export async function POST(
     return NextResponse.json({ error: 'Save failed' }, { status: 500 })
   }
 
-  const existingByIndex: Record<number, { content?: string | null; approved?: boolean; image_url?: string | null }> = {}
+  type PrevPage = {
+    content?: string | null
+    approved?: boolean
+    image_url?: string | null
+    image_scene?: string | null
+  }
+  const norm = (t: string | null | undefined) => (t ?? '').trim().toLowerCase()
+  const existingByIndex: Record<number, PrevPage> = {}
+  const existingByTitle: Record<string, PrevPage> = {}
   for (const p of existingPages ?? []) {
-    existingByIndex[p.chapter_index] = { content: p.content, approved: p.approved, image_url: p.image_url }
+    const rec: PrevPage = {
+      content:     p.content,
+      approved:    p.approved,
+      image_url:   p.image_url,
+      image_scene: p.image_scene,
+    }
+    existingByIndex[p.chapter_index] = rec
+    // Title-keyed lookup so a chapter keeps its image / content / approval
+    // when the outline is reordered (its chapter_index shifts) but the
+    // title is stable. First occurrence wins on the rare duplicate title.
+    const key = norm(p.chapter_title)
+    if (key && !(key in existingByTitle)) existingByTitle[key] = rec
   }
 
   // Trim any chapters beyond the new count
@@ -204,7 +223,12 @@ export async function POST(
 
   // Single batched upsert — replaces the previous per-chapter loop (N+1).
   const rows = chapters.map((ch, i) => {
-    const prev = existingByIndex[i]
+    // Match by TITLE first so a chapter keeps its image / content /
+    // approval when the outline is reordered; fall back to the same-index
+    // row when the title was edited but the position is unchanged.
+    // (The brief said index-first, but index-first still re-loses images
+    // on reorder — title-first is what actually achieves the stated goal.)
+    const prev = existingByTitle[norm(ch.title)] ?? existingByIndex[i]
     return {
       book_id:        params.bookId,
       chapter_index:  i,
@@ -213,6 +237,7 @@ export async function POST(
       content:        prev?.content ?? null,
       approved:       prev?.approved ?? false,
       image_url:      prev?.image_url ?? null,
+      image_scene:    prev?.image_scene ?? null,
     }
   })
 
