@@ -113,6 +113,49 @@ export function Step2Meta({ data, bookId, onNext, onBack }: Props) {
     }
   }
 
+  // Subtitle-only regenerate. No dedicated endpoint exists, so this reuses
+  // the proven generate-titles route anchored on the CURRENT title and
+  // applies the first suggestion's subtitle — keeping the title the user
+  // already settled on.
+  const [regenSub, setRegenSub]       = useState(false)
+  const [regenSubErr, setRegenSubErr] = useState('')
+
+  async function regenerateSubtitle() {
+    if (regenSub || !title.trim()) return
+    setRegenSub(true)
+    setRegenSubErr('')
+    try {
+      const res = await fetch(`/api/books/${bookId}/generate-titles`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          chapters:       data.chapters,
+          persona:        data.persona,
+          targetAudience: data.targetAudience,
+          existingTitle:  title.trim(),
+          description:    data.ideaDescription,
+          radarContext: data.radarResults ? {
+            niche:         data.niche,
+            pickedTopic:   data.radarTopic,
+            topHotSignal:  data.radarResults.hot_signals?.[0]?.topic,
+            topEvergreen:  data.radarResults.evergreen_winners?.[0]?.topic,
+            topHiddenGold: data.radarResults.hidden_gold?.[0]?.niche,
+          } : undefined,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Failed (${res.status})`)
+      const arr = Array.isArray(json.suggestions) ? json.suggestions as TitleSuggestion[] : []
+      const next = arr.find((s) => s.subtitle?.trim())?.subtitle?.trim()
+      if (!next) throw new Error('No subtitle came back. Try again.')
+      setSubtitle(next)
+    } catch (e) {
+      setRegenSubErr(e instanceof Error ? e.message : 'Regenerate failed')
+    } finally {
+      setRegenSub(false)
+    }
+  }
+
   function pickSuggestion(s: TitleSuggestion, idx: number) {
     setTitle(s.title)
     setSubtitle(s.subtitle)
@@ -254,13 +297,27 @@ export function Step2Meta({ data, bookId, onNext, onBack }: Props) {
         )}
 
         <div className="space-y-1">
-          <label className="text-sm font-inter text-ink-1/80">Subtitle</label>
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm font-inter text-ink-1/80">Subtitle</label>
+            <button
+              type="button"
+              onClick={regenerateSubtitle}
+              disabled={!title.trim() || regenSub}
+              title={title.trim() ? 'Generate a fresh subtitle for this title' : 'Add a title first'}
+              className="flex items-center gap-1.5 text-xs text-gold/60 hover:text-gold cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {regenSub
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Regenerating…</>
+                : <><RefreshCw className="w-3.5 h-3.5" /> Regenerate</>}
+            </button>
+          </div>
           <input
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
             placeholder="A practical guide to decisions that matter"
             className="w-full px-3 py-2 rounded-md bg-white border border-cream-3 text-ink-1 placeholder:text-ink-1/30 font-source-serif text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
           />
+          {regenSubErr && <p className="text-red-500 text-xs font-inter">{regenSubErr}</p>}
         </div>
 
       </div>

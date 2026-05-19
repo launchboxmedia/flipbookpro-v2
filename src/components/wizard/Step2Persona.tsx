@@ -8,19 +8,22 @@ const PERSONAS = [
   {
     id: 'business',
     label: 'Business Owner',
-    description: 'Professional tone. No human figures in illustrations. Focused on authority and expertise.',
+    tagline: 'Attract clients & sell your offer',
+    description: 'For entrepreneurs, coaches, consultants, and service providers. Turn your expertise into a book that builds authority, nurtures leads, and converts readers into clients. Perfect for promoting courses, programs, services, and high-ticket offers.',
     icon: Briefcase,
   },
   {
     id: 'publisher',
     label: 'Publisher',
-    description: 'Editorial tone. No human figures. Clean, sophisticated visual language.',
+    tagline: 'Nonfiction for broad audiences',
+    description: 'For authors writing informational, educational, or thought leadership books meant for wide distribution. Clean editorial style, structured arguments, and a professional voice designed for nonfiction readers.',
     icon: BookMarked,
   },
   {
     id: 'storyteller',
     label: 'Storyteller',
-    description: 'Warm, narrative tone. Rich illustrations. Human connection at the center.',
+    tagline: 'Fiction & narrative nonfiction',
+    description: 'For fiction writers and narrative nonfiction authors. Character-driven, emotionally engaging stories with rich descriptive writing and a warm human connection at the center.',
     icon: Feather,
   },
 ] as const
@@ -109,7 +112,8 @@ export function Step2Persona({ data, onNext, onBack }: Props) {
                 </div>
                 <div>
                   <p className="font-inter font-medium text-ink-1 text-sm">{p.label}</p>
-                  <p className="text-ink-1/60 text-xs font-source-serif mt-0.5">{p.description}</p>
+                  <p className="font-inter font-medium text-gold-dim text-[11px] mt-0.5">{p.tagline}</p>
+                  <p className="text-ink-1/60 text-xs font-source-serif mt-1 leading-relaxed">{p.description}</p>
                 </div>
               </div>
             </button>

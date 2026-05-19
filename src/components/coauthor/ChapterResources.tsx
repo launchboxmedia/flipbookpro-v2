@@ -420,7 +420,7 @@ ${bodyHtml}
         </header>
 
         <div
-          className="flex-1 overflow-y-auto px-6 py-5 resource-body"
+          className="flex-1 overflow-y-auto px-6 py-5 resource-body text-ink-1"
           // eslint-disable-next-line react/no-danger -- output is the result of
           // an in-house renderer that escapes every user-supplied string.
           dangerouslySetInnerHTML={{ __html: html }}
