@@ -5,6 +5,9 @@ import { BookOpen, Loader2, X, Check, Wand2, ChevronRight, RefreshCw, AlertTrian
 import { toast } from 'sonner'
 import type { Book, BookPage } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 type FlagType = 'OVERLAP' | 'GAP' | 'STRUCTURE'
 
@@ -87,6 +90,270 @@ function ctaSeedFor(persona: string | null): { title: string; brief: string } {
   }
 }
 
+type ChapterDiffStatus = 'new' | 'updated' | 'moved'
+
+interface ChapterRowProps {
+  page: BookPage
+  index: number
+  isEditing: boolean
+  isAccepted: boolean
+  pendingMode: boolean
+  editTitle: string
+  editBrief: string
+  editSaving: boolean
+  isRefreshing: boolean
+  isRemoving: boolean
+  diffStatus: ChapterDiffStatus | null
+  onEditTitleChange: (v: string) => void
+  onEditBriefChange: (v: string) => void
+  onEditCancel: () => void
+  onEditSave: (page: BookPage) => void
+  onAccept: (id: string) => void
+  onRefresh: (page: BookPage) => void
+  onEditStart: (page: BookPage) => void
+  onRemove: (page: BookPage) => void
+  onNavigate: (index: number) => void
+  /** @dnd-kit drag-handle props (attributes + listeners). Spread onto the
+   *  grip so only the handle initiates a drag — clicking the card body
+   *  buttons never starts one. */
+  dragHandleProps?: Record<string, unknown>
+  isDragging?: boolean
+}
+
+/** Per-chapter change badge shown when a diff is active. Colours follow
+ *  the spec: New = emerald, Updated = amber, Moved = blue. Light + dark
+ *  pairs because the outline surface is white but the token system
+ *  supports dark mode. */
+function DiffBadge({ status }: { status: ChapterDiffStatus }) {
+  const map: Record<ChapterDiffStatus, { label: string; cls: string }> = {
+    new:     { label: 'New',     cls: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30' },
+    updated: { label: 'Updated', cls: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30' },
+    moved:   { label: 'Moved',   cls: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30' },
+  }
+  const m = map[status]
+  return (
+    <span className={`text-[10px] font-inter font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${m.cls}`}>
+      {m.label}
+    </span>
+  )
+}
+
+/** Ghost row for a chapter that the last AI suggestion removed. Rendered
+ *  below the live list (not draggable) so the user can see what went
+ *  away. Red strikethrough per the spec. */
+function RemovedChapterGhost({ page }: { page: BookPage }) {
+  return (
+    <div className="flex items-start gap-3 p-4 bg-rose-50/60 dark:bg-rose-500/10 border border-dashed border-rose-200 dark:border-rose-500/30 rounded-xl opacity-80">
+      <span className="w-7 h-7 rounded-md bg-rose-200/70 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-inter font-bold text-sm flex items-center justify-center shrink-0">
+        <Trash2 className="w-3.5 h-3.5" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="font-inter font-semibold text-rose-700 dark:text-rose-300 text-base leading-snug line-through">
+            {page.chapter_title}
+          </p>
+          <span className="text-[10px] font-inter font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30">
+            Removed
+          </span>
+        </div>
+        {page.chapter_brief && (
+          <p className="text-rose-700/70 dark:text-rose-300/70 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2 line-through">
+            {page.chapter_brief}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Presentational chapter card. Extracted from the old inline
+ *  regularPages.map body so it can be wrapped by SortableChapterRow for
+ *  drag-to-reorder. All state/handlers come in via props — the component
+ *  is pure. */
+function ChapterRow({
+  page, index, isEditing, isAccepted, pendingMode,
+  editTitle, editBrief, editSaving, isRefreshing, isRemoving, diffStatus,
+  onEditTitleChange, onEditBriefChange, onEditCancel, onEditSave,
+  onAccept, onRefresh, onEditStart, onRemove, onNavigate,
+  dragHandleProps, isDragging,
+}: ChapterRowProps) {
+  return (
+    <div
+      className={`flex items-start gap-3 p-4 bg-white border rounded-xl group transition-all cursor-default ${
+        isDragging ? 'opacity-50 ' : ''
+      }${
+        isAccepted
+          ? 'border-emerald-300/70 hover:border-emerald-400 hover:shadow-[0_4px_18px_-6px_rgba(16,185,129,0.22)]'
+          : 'border-cream-3 hover:border-gold/40 hover:shadow-[0_4px_18px_-6px_rgba(201,168,76,0.18)]'
+      }`}
+    >
+      {/* Drag handle — wired to @dnd-kit listeners. Visible on hover;
+          text-ink-1/30 keeps it quiet on the white surface. */}
+      <span
+        {...(dragHandleProps ?? {})}
+        aria-label="Drag to reorder chapter"
+        className="opacity-0 group-hover:opacity-100 text-ink-1/30 hover:text-ink-1/60 cursor-grab active:cursor-grabbing touch-none transition-opacity mt-1.5 shrink-0"
+      >
+        <GripVertical className="w-4 h-4" />
+      </span>
+
+      {/* Number badge — gold normally; emerald-tinted when locally
+          accepted as a visual confirmation that the user has signed
+          off on this card. */}
+      <span className={`w-7 h-7 rounded-md font-inter font-bold text-sm flex items-center justify-center shrink-0 ${
+        isAccepted ? 'bg-emerald-500 text-white' : 'bg-gold text-ink-1'
+      }`}>
+        {isAccepted ? <Check className="w-3.5 h-3.5" /> : index + 1}
+      </span>
+
+      {isEditing ? (
+        <div className="flex-1 min-w-0 space-y-2">
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => onEditTitleChange(e.target.value)}
+            placeholder="Chapter title"
+            disabled={editSaving}
+            className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-inter font-semibold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
+          />
+          <textarea
+            value={editBrief}
+            onChange={(e) => onEditBriefChange(e.target.value)}
+            placeholder="Chapter brief"
+            rows={3}
+            disabled={editSaving}
+            className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-source-serif focus:outline-none focus:ring-2 focus:ring-gold/40 resize-y disabled:opacity-50"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={onEditCancel}
+              disabled={editSaving}
+              className="px-3 py-1.5 text-ink-1/60 hover:text-ink-1 text-xs font-inter transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void onEditSave(page)}
+              disabled={editSaving || !editTitle.trim()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors disabled:opacity-50"
+            >
+              {editSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+              {editSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-inter font-semibold text-ink-1 text-base leading-snug">
+              {page.chapter_title}
+            </p>
+            {diffStatus && <DiffBadge status={diffStatus} />}
+          </div>
+          {page.chapter_brief && (
+            <p className="text-ink-1/85 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
+              {page.chapter_brief}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!isEditing && (
+        <div className="flex items-center gap-1 shrink-0">
+          {pendingMode ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onAccept(page.id)}
+                disabled={isAccepted}
+                title={isAccepted ? 'Confirmed' : 'Accept this chapter'}
+                aria-label={isAccepted ? 'Chapter accepted' : 'Accept this chapter'}
+                className={`p-1.5 rounded-md transition-colors ${
+                  isAccepted
+                    ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                    : 'text-ink-1/50 hover:text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void onRefresh(page)}
+                disabled={isRefreshing}
+                title="Suggest a different angle"
+                aria-label="Suggest a different angle"
+                className="p-1.5 rounded-md text-ink-1/50 hover:text-gold-dim hover:bg-gold/10 transition-colors disabled:opacity-50"
+              >
+                {isRefreshing
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <RefreshCw className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => onEditStart(page)}
+                title="Edit title and brief"
+                aria-label="Edit title and brief"
+                className="p-1.5 rounded-md text-ink-1/50 hover:text-ink-1 hover:bg-cream-2 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void onRemove(page)}
+                disabled={isRemoving}
+                title="Remove this chapter"
+                aria-label="Remove this chapter"
+                className="p-1.5 rounded-md text-ink-1/50 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
+              >
+                {isRemoving
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />}
+              </button>
+            </>
+          ) : (
+            <>
+              {page.approved && (
+                <span
+                  className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"
+                  title="Approved"
+                />
+              )}
+              <button
+                onClick={() => onNavigate(index)}
+                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1 rounded-md bg-cream-2 hover:bg-gold/15 text-xs font-inter font-medium text-ink-1 transition-all"
+              >
+                Write <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Sortable wrapper. Owns the @dnd-kit node ref + transform; passes the
+ *  drag-handle attributes/listeners down to ChapterRow's grip. */
+function SortableChapterRow(props: ChapterRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.page.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  return (
+    <div ref={setNodeRef} style={style}>
+      <ChapterRow
+        {...props}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
+
 export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: Props) {
   const [critiquing, setCritiquing] = useState(false)
   const [flags, setFlags] = useState<CritiqueFlag[]>([])
@@ -154,6 +421,74 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   // sits below in its own card.
   const regularPages = pages.filter((p) => p.chapter_index < 99)
   const ctaPage      = pages.find((p) => p.chapter_index === 99) ?? null
+
+  // ── Drag-to-reorder + diff view state ─────────────────────────────────
+  // previousPages: a snapshot of the regular chapters taken right before
+  // an AI critique action mutates the outline, so we can show per-chapter
+  // change badges. Cleared manually or after 30s. isSavingOrder gates the
+  // header "Saving order…" indicator during the reorder RPC round-trip.
+  const [previousPages, setPreviousPages] = useState<BookPage[] | null>(null)
+  const [showDiff, setShowDiff]           = useState(false)
+  const [isSavingOrder, setIsSavingOrder] = useState(false)
+
+  // Pointer drag only starts after 6px of movement so clicking the card's
+  // own buttons (Write / Edit / Accept) never accidentally begins a drag.
+  // Keyboard sensor gives accessible reordering from the focused handle.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function clearDiff() {
+    setShowDiff(false)
+    setPreviousPages(null)
+  }
+
+  // Auto-dismiss the diff overlay 30s after it's shown. Re-keys whenever a
+  // fresh snapshot is captured (previousPages identity changes), so each
+  // new AI action restarts the countdown.
+  useEffect(() => {
+    if (!showDiff || !previousPages) return
+    const t = window.setTimeout(() => {
+      setShowDiff(false)
+      setPreviousPages(null)
+    }, 30_000)
+    return () => window.clearTimeout(t)
+  }, [showDiff, previousPages])
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = regularPages.findIndex((p) => p.id === active.id)
+    const newIndex = regularPages.findIndex((p) => p.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+
+    // Optimistic: renumber the moved regular chapters 0-based and keep the
+    // CTA sentinel (chapter_index >= 99) untouched, mirroring the
+    // auto-generation [...newPages, ...existingCta] pattern. Snapshot the
+    // full prior array so a failed RPC can roll back exactly.
+    const prevFull = pages
+    const reorderedRegular = arrayMove(regularPages, oldIndex, newIndex)
+      .map((p, idx) => ({ ...p, chapter_index: idx }))
+    const preserved = pages.filter((p) => p.chapter_index >= 99)
+    onPagesChange([...reorderedRegular, ...preserved])
+
+    setIsSavingOrder(true)
+    const supabase = createClient()
+    try {
+      const { error: rpcErr } = await supabase.rpc('reorder_chapters', {
+        p_book_id: book.id,
+        p_ordered_page_ids: reorderedRegular.map((p) => p.id),
+      })
+      if (rpcErr) throw new Error(rpcErr.message)
+    } catch (e) {
+      onPagesChange(prevFull)
+      console.error('[outline] reorder failed:', e instanceof Error ? e.message : 'unknown')
+      toast.error('Failed to reorder chapters')
+    } finally {
+      setIsSavingOrder(false)
+    }
+  }
 
   // Radar-suggested-chapters review mode. Active when the user has
   // applied the radar (so chapters were auto-generated from radar
@@ -567,6 +902,15 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
     if (applyingFlagIndex !== null) return  // serialize Apply clicks
     setApplyingFlagIndex(flagIndex)
     setError('')
+
+    // Snapshot the current chapters before a structural mutation so the
+    // diff view can badge what changed. Only the four real actions mutate;
+    // an unknown/no-op action shouldn't trigger a (no-change) diff.
+    if (flag.action === 'merge' || flag.action === 'insert' || flag.action === 'reorder' || flag.action === 'update_brief') {
+      setPreviousPages(regularPages.map((p) => ({ ...p })))
+      setShowDiff(true)
+    }
+
     const supabase = createClient()
     try {
       const { data: { user }, error: authErr } = await supabase.auth.getUser()
@@ -691,6 +1035,27 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
 
   const visibleFlags = flags.filter((_, i) => !dismissedFlags.has(i))
 
+  // Diff computation. Compare the live regular chapters against the
+  // snapshot taken before the last AI action: by id → new/updated/moved;
+  // ids only in the snapshot → removed (rendered as ghost rows).
+  const diffByCurrentId = new Map<string, ChapterDiffStatus | null>()
+  let removedChapters: BookPage[] = []
+  if (showDiff && previousPages) {
+    const prevById      = new Map(previousPages.map((p) => [p.id, p] as const))
+    const prevIndexById = new Map(previousPages.map((p, idx) => [p.id, idx] as const))
+    const currIds       = new Set(regularPages.map((p) => p.id))
+    regularPages.forEach((p, idx) => {
+      const prev = prevById.get(p.id)
+      if (!prev) { diffByCurrentId.set(p.id, 'new'); return }
+      if (prev.chapter_title !== p.chapter_title || (prev.chapter_brief ?? '') !== (p.chapter_brief ?? '')) {
+        diffByCurrentId.set(p.id, 'updated'); return
+      }
+      if (prevIndexById.get(p.id) !== idx) { diffByCurrentId.set(p.id, 'moved'); return }
+      diffByCurrentId.set(p.id, null)
+    })
+    removedChapters = previousPages.filter((p) => !currIds.has(p.id))
+  }
+
   return (
     // Two-column 60/40 layout via grid-cols-5. Left chapter list (col-span-3
     // = 60%), right critique panel (col-span-2 = 40%). The critique panel
@@ -711,6 +1076,11 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
           <p className="text-ink-1/70 text-sm font-source-serif mt-1">
             Review your chapter structure before writing.
           </p>
+          {isSavingOrder && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-inter text-gold">
+              <Loader2 className="w-3 h-3 animate-spin" /> Saving order…
+            </p>
+          )}
         </div>
 
         {/* Target audience editor — deliberate user input, separate from
@@ -933,6 +1303,22 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
         )}
 
         <div className="flex flex-col">
+          {showDiff && previousPages && (
+            <div className="mb-3 flex items-center gap-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-2.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300 shrink-0" />
+              <p className="flex-1 min-w-0 font-inter text-xs font-medium text-amber-800 dark:text-amber-200">
+                Showing changes from last AI suggestion
+              </p>
+              <button
+                type="button"
+                onClick={clearDiff}
+                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-xs font-inter font-semibold transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Clear
+              </button>
+            </div>
+          )}
           {/* Insert slot above the first chapter — new chapter takes index 0 */}
           {regularPages.length > 0 && (
             <button
@@ -953,189 +1339,68 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
             </button>
           )}
 
-          {regularPages.map((page, i) => {
-            const isEditing = editingId === page.id
-            const isAccepted = acceptedIds.has(page.id)
-            return (
-            <Fragment key={page.id}>
-            <div
-              className={`flex items-start gap-3 p-4 bg-white border rounded-xl group transition-all cursor-default ${
-                isAccepted
-                  ? 'border-emerald-300/70 hover:border-emerald-400 hover:shadow-[0_4px_18px_-6px_rgba(16,185,129,0.22)]'
-                  : 'border-cream-3 hover:border-gold/40 hover:shadow-[0_4px_18px_-6px_rgba(201,168,76,0.18)]'
-              }`}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={regularPages.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
             >
-              {/* Reorder handle — visible on hover, non-functional placeholder
-                  for future drag/drop wiring. text-ink-1/30 keeps it visually
-                  quiet on the white surface. */}
-              <span
-                aria-hidden="true"
-                className="opacity-0 group-hover:opacity-100 text-ink-1/30 cursor-grab transition-opacity mt-1.5 shrink-0"
-              >
-                <GripVertical className="w-4 h-4" />
-              </span>
-
-              {/* Number badge — gold normally; emerald-tinted when locally
-                  accepted as a visual confirmation that the user has
-                  signed off on this card. */}
-              <span className={`w-7 h-7 rounded-md font-inter font-bold text-sm flex items-center justify-center shrink-0 ${
-                isAccepted ? 'bg-emerald-500 text-white' : 'bg-gold text-ink-1'
-              }`}>
-                {isAccepted ? <Check className="w-3.5 h-3.5" /> : i + 1}
-              </span>
-
-              {isEditing ? (
-                <div className="flex-1 min-w-0 space-y-2">
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Chapter title"
-                    disabled={editSaving}
-                    className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-inter font-semibold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50"
+              {regularPages.map((page, i) => (
+                <Fragment key={page.id}>
+                  <SortableChapterRow
+                    page={page}
+                    index={i}
+                    isEditing={editingId === page.id}
+                    isAccepted={acceptedIds.has(page.id)}
+                    pendingMode={pendingMode}
+                    editTitle={editTitle}
+                    editBrief={editBrief}
+                    editSaving={editSaving}
+                    isRefreshing={refreshingId === page.id}
+                    isRemoving={removingId === page.id}
+                    diffStatus={showDiff ? (diffByCurrentId.get(page.id) ?? null) : null}
+                    onEditTitleChange={setEditTitle}
+                    onEditBriefChange={setEditBrief}
+                    onEditCancel={handleEditCancel}
+                    onEditSave={handleEditSave}
+                    onAccept={handleAccept}
+                    onRefresh={handleRefreshChapter}
+                    onEditStart={handleEditStart}
+                    onRemove={handleRemoveChapter}
+                    onNavigate={onNavigateChapter}
                   />
-                  <textarea
-                    value={editBrief}
-                    onChange={(e) => setEditBrief(e.target.value)}
-                    placeholder="Chapter brief"
-                    rows={3}
-                    disabled={editSaving}
-                    className="w-full px-3 py-2 rounded-md bg-cream-1 border border-cream-3 text-ink-1 placeholder:text-ink-1/30 text-sm font-source-serif focus:outline-none focus:ring-2 focus:ring-gold/40 resize-y disabled:opacity-50"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      type="button"
-                      onClick={handleEditCancel}
-                      disabled={editSaving}
-                      className="px-3 py-1.5 text-ink-1/60 hover:text-ink-1 text-xs font-inter transition-colors disabled:opacity-50"
+                  {/* Insert slot after this chapter — new chapter takes index i+1 */}
+                  <button
+                    type="button"
+                    onClick={() => openInsertAt(i + 1)}
+                    aria-label={`Insert chapter at position ${i + 2}`}
+                    className="relative h-3 group/gap focus:outline-none"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 group-hover/gap:opacity-100 group-focus-visible/gap:opacity-100 transition-opacity"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleEditSave(page)}
-                      disabled={editSaving || !editTitle.trim()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 text-xs font-inter font-semibold rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {editSaving && <Loader2 className="w-3 h-3 animate-spin" />}
-                      {editSaving ? 'Saving…' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 min-w-0">
-                  <p className="font-inter font-semibold text-ink-1 text-base leading-snug">
-                    {page.chapter_title}
-                  </p>
-                  {page.chapter_brief && (
-                    // Bumped from /70 to /85 — at /70 on pure white the brief
-                    // read as too muted. /85 keeps the visual hierarchy below
-                    // the title while staying clearly legible.
-                    <p className="text-ink-1/85 text-sm font-source-serif mt-1.5 leading-relaxed line-clamp-2">
-                      {page.chapter_brief}
-                    </p>
-                  )}
-                </div>
-              )}
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E8E0D0] dark:bg-ink-4 text-gold text-[11px] font-inter font-medium shadow-sm">
+                        <Plus className="w-3 h-3" />
+                        Insert chapter here
+                      </span>
+                    </span>
+                  </button>
+                </Fragment>
+              ))}
+            </SortableContext>
+          </DndContext>
 
-              {!isEditing && (
-                <div className="flex items-center gap-1 shrink-0">
-                  {pendingMode ? (
-                    <>
-                      {/* Accept (✓) — local-only confirmation. Disabled once
-                          accepted; the user clears it implicitly by clicking
-                          Refresh, which drops the accepted flag. */}
-                      <button
-                        type="button"
-                        onClick={() => handleAccept(page.id)}
-                        disabled={isAccepted}
-                        title={isAccepted ? 'Confirmed' : 'Accept this chapter'}
-                        aria-label={isAccepted ? 'Chapter accepted' : 'Accept this chapter'}
-                        className={`p-1.5 rounded-md transition-colors ${
-                          isAccepted
-                            ? 'bg-emerald-50 text-emerald-600 cursor-default'
-                            : 'text-ink-1/50 hover:text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      {/* Refresh — calls /suggest-chapter to regenerate just
-                          this chapter's title+brief. */}
-                      <button
-                        type="button"
-                        onClick={() => void handleRefreshChapter(page)}
-                        disabled={refreshingId === page.id}
-                        title="Suggest a different angle"
-                        aria-label="Suggest a different angle"
-                        className="p-1.5 rounded-md text-ink-1/50 hover:text-gold-dim hover:bg-gold/10 transition-colors disabled:opacity-50"
-                      >
-                        {refreshingId === page.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <RefreshCw className="w-3.5 h-3.5" />}
-                      </button>
-                      {/* Edit — opens inline editor for title + brief. */}
-                      <button
-                        type="button"
-                        onClick={() => handleEditStart(page)}
-                        title="Edit title and brief"
-                        aria-label="Edit title and brief"
-                        className="p-1.5 rounded-md text-ink-1/50 hover:text-ink-1 hover:bg-cream-2 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {/* Remove — deletes the row. Optimistic local update. */}
-                      <button
-                        type="button"
-                        onClick={() => void handleRemoveChapter(page)}
-                        disabled={removingId === page.id}
-                        title="Remove this chapter"
-                        aria-label="Remove this chapter"
-                        className="p-1.5 rounded-md text-ink-1/50 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
-                      >
-                        {removingId === page.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Trash2 className="w-3.5 h-3.5" />}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {page.approved && (
-                        <span
-                          className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"
-                          title="Approved"
-                        />
-                      )}
-                      <button
-                        onClick={() => onNavigateChapter(i)}
-                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1 rounded-md bg-cream-2 hover:bg-gold/15 text-xs font-inter font-medium text-ink-1 transition-all"
-                      >
-                        Write <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+          {showDiff && previousPages && removedChapters.length > 0 && (
+            <div className="flex flex-col gap-2 mt-1">
+              {removedChapters.map((p) => (
+                <RemovedChapterGhost key={`removed-${p.id}`} page={p} />
+              ))}
             </div>
-            {/* Insert slot after this chapter — new chapter takes index i+1 */}
-            <button
-              type="button"
-              onClick={() => openInsertAt(i + 1)}
-              aria-label={`Insert chapter at position ${i + 2}`}
-              className="relative h-3 group/gap focus:outline-none"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 group-hover/gap:opacity-100 group-focus-visible/gap:opacity-100 transition-opacity"
-              >
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E8E0D0] dark:bg-ink-4 text-gold text-[11px] font-inter font-medium shadow-sm">
-                  <Plus className="w-3 h-3" />
-                  Insert chapter here
-                </span>
-              </span>
-            </button>
-            </Fragment>
-            )
-          })}
+          )}
 
           {/* CTA chapter card — sentinel chapter at index 99. Renders below
               the regular chapter list so authors can opt into a closing
