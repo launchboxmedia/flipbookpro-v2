@@ -559,33 +559,15 @@ export function ChapterStage({
                   ? 'Re-research'
                   : 'Research Facts'}
             </button>
-            {/* Generate Draft + its paired "Skip research" — grouped so the
-                skip option only ever appears directly beside Generate Draft,
-                never as a free-floating toolbar button. */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => generateDraft()}
-                disabled={generating}
-                title={approved ? 'Unapproves and regenerates this chapter' : undefined}
-                className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
-              >
-                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-                {generating
-                  ? 'Generating…'
-                  : `${approved ? 'Regenerate' : 'Generate Draft'}${researchFacts.length > 0 ? ' with Research' : ''}`}
-              </button>
-              {researchFacts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => generateDraft(true)}
-                  disabled={generating}
-                  title="Generate this draft ignoring the saved research facts"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-cream-3 dark:border-ink-3 text-ink-1/60 dark:text-white/50 hover:text-ink-1 dark:hover:text-white hover:border-gold/40 text-xs font-inter transition-colors disabled:opacity-50 press-scale"
-                >
-                  without Research
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => generateDraft()}
+              disabled={generating}
+              title={approved ? 'Unapproves and regenerates this chapter' : undefined}
+              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+            >
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
+              {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
+            </button>
             <button
               onClick={runAnalysis}
               disabled={analyzing || !draft || draft.trim().length < 50}
@@ -739,15 +721,26 @@ export function ChapterStage({
               )}
 
               {researchFacts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => generateDraft()}
-                  disabled={generating}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-xs rounded-md transition-colors disabled:opacity-50"
-                >
-                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                  {generating ? 'Generating…' : 'Generate Draft with Research'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => generateDraft()}
+                    disabled={generating}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-gold hover:bg-gold-soft text-ink-1 font-inter font-semibold text-xs rounded-md transition-colors disabled:opacity-50"
+                  >
+                    {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    {generating ? 'Generating…' : 'Generate Draft with Research'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => generateDraft(true)}
+                    disabled={generating}
+                    title="Generate this draft ignoring the research facts above"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-cream-3 dark:border-ink-3 text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 hover:border-gold/40 text-xs font-inter transition-colors disabled:opacity-50"
+                  >
+                    without Research
+                  </button>
+                </div>
               )}
             </div>
           )}
