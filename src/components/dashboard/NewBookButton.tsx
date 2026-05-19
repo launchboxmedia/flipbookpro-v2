@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, X, ArrowRight, Sparkles, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { createBook } from '@/app/dashboard/actions'
@@ -13,6 +14,10 @@ export function NewBookButton() {
   const [showChoice, setShowChoice] = useState(false)
   const [creating, setCreating] = useState<StartMode | null>(null)
   const [gateInfo, setGateInfo] = useState<{ plan: string; used: number; limit: number } | null>(null)
+  // Portal target only exists client-side; gate the createPortal calls on
+  // mount so SSR/first render stays a no-op (no hydration mismatch).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // Plan-limit check is the gate before the choice modal — a user at their
   // monthly book cap should see the upgrade prompt, not be invited to pick a
@@ -73,8 +78,11 @@ export function NewBookButton() {
         {loading ? 'Checking…' : 'New Book'}
       </button>
 
-      {/* Choice modal — two-card "how to start" */}
-      {showChoice && (
+      {/* Choice modal — portaled to <body> so the fixed overlay escapes
+          the sidebar's stacking/containing context. Rendered inline it was
+          trapped under the main content column when launched from the
+          sidebar nav. */}
+      {mounted && showChoice && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink-1/85 backdrop-blur-sm p-4"
           onClick={() => setShowChoice(false)}
@@ -156,11 +164,12 @@ export function NewBookButton() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Plan limit gate */}
-      {showGate && gateInfo && (
+      {/* Plan limit gate — also portaled for the same reason. */}
+      {mounted && showGate && gateInfo && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-8 max-w-sm w-full mx-4 relative">
             <button
@@ -196,7 +205,8 @@ export function NewBookButton() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
