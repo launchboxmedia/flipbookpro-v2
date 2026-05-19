@@ -559,28 +559,26 @@ export function ChapterStage({
                   ? 'Re-research'
                   : 'Research Facts'}
             </button>
-            <div className="flex flex-col">
+            <button
+              onClick={() => generateDraft()}
+              disabled={generating}
+              title={approved ? 'Unapproves and regenerates this chapter' : undefined}
+              className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+            >
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
+              {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
+            </button>
+            {researchFacts.length > 0 && (
               <button
-                onClick={() => generateDraft()}
+                type="button"
+                onClick={() => generateDraft(true)}
                 disabled={generating}
-                title={approved ? 'Unapproves and regenerates this chapter' : undefined}
-                className="flex items-center gap-2 px-4 py-2 bg-cream-1 dark:bg-ink-1 hover:bg-cream-2 dark:hover:bg-ink-2 text-ink-1 dark:text-cream text-sm font-inter rounded-md transition-colors disabled:opacity-50 shadow-sm press-scale"
+                title="Generate this draft ignoring the saved research facts"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-cream-3 dark:border-ink-3 text-ink-1/60 dark:text-white/50 hover:text-ink-1 dark:hover:text-white hover:border-gold/40 text-xs font-inter transition-colors disabled:opacity-50 press-scale"
               >
-                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-gold" />}
-                {generating ? 'Generating…' : approved ? 'Regenerate' : 'Generate Draft'}
+                Skip research
               </button>
-              {researchFacts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => generateDraft(true)}
-                  disabled={generating}
-                  title="Generate this draft ignoring the saved research facts"
-                  className="text-xs text-ink-1/30 dark:text-white/30 hover:text-ink-1/60 dark:hover:text-white/60 transition-colors cursor-pointer mt-1 block text-center disabled:opacity-50"
-                >
-                  Generate without research
-                </button>
-              )}
-            </div>
+            )}
             <button
               onClick={runAnalysis}
               disabled={analyzing || !draft || draft.trim().length < 50}

@@ -67,6 +67,7 @@ export function ChapterResources({
   const [reqName, setReqName] = useState('')
   const [reqType, setReqType] = useState<ResourceMarker['type']>('checklist')
   const [reqLoading, setReqLoading] = useState(false)
+  const [reqError, setReqError] = useState('')
 
   // When the user moves to another chapter, drop in-flight indicators so a
   // late-arriving response can't toggle a different chapter's buttons.
@@ -77,6 +78,7 @@ export function ChapterResources({
     setReqBrief('')
     setReqName('')
     setReqType('checklist')
+    setReqError('')
   }, [chapterIndex])
 
   function keyFor(m: ResourceMarker): string {
@@ -135,9 +137,20 @@ export function ChapterResources({
   }
 
   async function submitRequest() {
-    const name = reqName.trim()
+    if (reqLoading) return
     const brief = reqBrief.trim()
-    if (!name || !brief || reqLoading) return
+    if (!brief) {
+      setReqError('Describe the resource you need first.')
+      return
+    }
+    // Name is optional — if the author only described what they want,
+    // derive a sensible title from the brief so the request never
+    // dead-ends silently.
+    const name =
+      reqName.trim() ||
+      brief.split(/[.!?\n]/)[0]!.trim().slice(0, 60) ||
+      TYPE_LABEL[reqType]
+    setReqError('')
     setReqLoading(true)
     try {
       const res = await fetch(`/api/books/${bookId}/generate-resource`, {
@@ -170,6 +183,7 @@ export function ChapterResources({
       setReqType('checklist')
       toast.success('Resource created')
     } catch {
+      setReqError('Failed to generate resource — try again.')
       toast.error('Failed to generate resource')
     } finally {
       setReqLoading(false)
@@ -316,7 +330,7 @@ export function ChapterResources({
               <input
                 value={reqName}
                 onChange={(e) => setReqName(e.target.value.slice(0, 200))}
-                placeholder="Resource name (e.g. 'TikTok Setup Checklist')"
+                placeholder="Resource name (optional — we'll name it for you)"
                 className="bg-cream-1 dark:bg-ink-2 border border-cream-3 dark:border-ink-4 rounded-lg px-3 py-2 w-full text-sm text-ink-1 dark:text-white focus:border-gold/50 focus:outline-none transition-colors"
               />
               <select
@@ -328,10 +342,13 @@ export function ChapterResources({
                   <option key={t} value={t}>{TYPE_LABEL[t]}</option>
                 ))}
               </select>
+              {reqError && (
+                <p className="text-[11px] font-inter text-rose-500 dark:text-rose-300">{reqError}</p>
+              )}
               <button
                 type="button"
                 onClick={submitRequest}
-                disabled={reqLoading || !reqName.trim() || !reqBrief.trim()}
+                disabled={reqLoading}
                 className="inline-flex items-center gap-1.5 bg-gold text-ink-1 text-xs font-semibold px-4 py-2 rounded-lg mt-1 hover:bg-gold-soft active:scale-[0.98] transition-colors disabled:opacity-50"
               >
                 {reqLoading
