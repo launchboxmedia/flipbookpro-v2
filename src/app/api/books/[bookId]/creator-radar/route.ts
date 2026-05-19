@@ -90,9 +90,9 @@ function buildPerplexityQuery(persona: Persona, book: BookForRadar): string {
 }
 
 function personaWeighting(persona: Persona): string {
-  if (persona === 'business')    return 'Weight your analysis toward conversion and lead generation.'
-  if (persona === 'storyteller') return 'Weight your analysis toward reader satisfaction and series potential.'
-  return 'Weight your analysis toward market gaps and commercial viability.'
+  if (persona === 'business')    return 'Weight toward lead generation and client attraction. Every signal should connect to how it helps the author get consulting clients or sell their offer — not just book sales.'
+  if (persona === 'storyteller') return 'Weight toward reader satisfaction, series potential, and community building. Signals should indicate what readers in this genre are hungry for that existing books don\'t deliver.'
+  return 'Weight toward commercial viability and market gaps. Identify specific niches where reader demand exists but quality books don\'t.'
 }
 
 function buildSystemPrompt(persona: Persona): string {
@@ -133,7 +133,43 @@ Return ONLY valid JSON matching this exact shape — no markdown fences, no prea
   "sources": ["url1", "url2"]
 }
 
-Populate all fields. Be specific — no generic advice.
+Populate all fields.
+
+SPECIFICITY REQUIREMENTS — every field must pass this test before including it:
+
+BAD (reject these):
+- "Authors should leverage social media"
+- "There is growing interest in this topic"
+- "Readers want practical advice"
+- "Competition is moderate in this space"
+
+GOOD (this is the standard):
+- "TikTok creators with 10K-100K followers are searching for monetization strategies beyond brand deals — only 3 books address this directly, all published pre-2022"
+- "The 'funding broker on TikTok' angle has zero direct competitors but 847K monthly searches for adjacent terms"
+- "Readers in this space have tried Dave Ramsey's approach but find it doesn't address business credit specifically"
+
+MARKET SIGNALS must include:
+- Specific numbers where available (search volumes, community sizes, publication gaps)
+- A timeframe (emerging in last 6 months, growing since 2023, etc.)
+- Why NOW is the right time for this book
+
+CONTENT ANGLES must include:
+- A specific differentiator from existing books (name the gap, not just "unique")
+- The exact reader who would choose this angle over alternatives
+- A one-sentence book pitch for this angle
+
+AUDIENCE INSIGHTS must be:
+- Specific to THIS topic's readers, not general reader psychology
+- biggestPain: a specific situation, not a feeling ("Can't get approved for business loans despite 3 years in business" not "Frustrated with finances")
+- alreadyTried: real specific things (actual book titles, courses, methods)
+
+COMPETITOR LANDSCAPE must include:
+- Actual gap analysis (what exists vs what's missing)
+- Specific price points if known
+- Publication dates of main competitors
+
+Return insights that would make an author say "I didn't know that" — not things they could have guessed themselves.
+
 ${personaWeighting(persona)}`
 }
 

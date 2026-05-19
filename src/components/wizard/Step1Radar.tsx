@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Loader2, Search, RefreshCw, ArrowRight, Sparkles,
   TrendingUp, Star, Target, X, Pin, AlertTriangle,
+  ChevronUp, ChevronDown,
 } from 'lucide-react'
 import type { WizardData } from './WizardShell'
 import type { CreatorRadarResult } from '@/types/database'
@@ -29,6 +30,19 @@ const PLACEHOLDERS = [
 ] as const
 
 const PLACEHOLDER_INTERVAL_MS = 3000
+
+/** Pre-cached blue-ocean book topics surfaced above the niche input.
+ *  Read-only from the client; populated weekly by the protected
+ *  /api/admin/refresh-trending-topics endpoint. */
+interface TrendingTopic {
+  title:             string
+  description:       string
+  category:          string
+  opportunity_level: 'high' | 'medium'
+  why_now:           string
+}
+
+const TRENDING_COLLAPSE_KEY = 'wizard_trending_collapsed'
 
 /** Minimum chars in the niche field for the Continue button to enable
  *  (the auto-scan path also uses this threshold). Below this, the user
@@ -65,6 +79,52 @@ export function Step1Radar({ data, onNext }: Props) {
   const [toast, setToast] = useState<string | null>(null)
 
   const nicheRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── Trending topic discovery (additive — existing scan flow untouched) ──
+  // trending: null = loading, [] = unavailable/empty, [...] = ready.
+  const [trending, setTrending]                     = useState<TrendingTopic[] | null>(null)
+  const [trendingCollapsed, setTrendingCollapsed]   = useState(false)
+  const [selectedTrendingTitle, setSelectedTrendingTitle] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Default OPEN on first visit; restore the user's prior collapse choice.
+    try {
+      if (window.localStorage.getItem(TRENDING_COLLAPSE_KEY) === '1') {
+        setTrendingCollapsed(true)
+      }
+    } catch { /* storage unavailable — default open */ }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/trending-topics')
+        const json = await res.json().catch(() => ({}))
+        if (cancelled) return
+        setTrending(Array.isArray(json.topics) ? (json.topics as TrendingTopic[]) : [])
+      } catch {
+        if (!cancelled) setTrending([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  function toggleTrending() {
+    setTrendingCollapsed((c) => {
+      const next = !c
+      try { window.localStorage.setItem(TRENDING_COLLAPSE_KEY, next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  function handlePickTrending(topic: TrendingTopic) {
+    setSelectedTrendingTitle(topic.title)
+    setNiche(`${topic.title} — ${topic.description}`)
+    // Defer so the textarea has the new value before we scroll/focus.
+    setTimeout(() => {
+      nicheRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      nicheRef.current?.focus()
+    }, 50)
+  }
 
   // ── Rotating placeholder ────────────────────────────────────────────────
   // Simple cycle, no typewriter effect — swaps every PLACEHOLDER_INTERVAL_MS
@@ -246,6 +306,62 @@ export function Step1Radar({ data, onNext }: Props) {
         <h2 className="font-playfair text-2xl text-ink-1 mb-1">
           What&rsquo;s your book about?
         </h2>
+      </div>
+
+      {/* Trending topic discovery. Purely additive — clicking a card just
+          pre-fills the existing niche textarea; the scan/Continue flow
+          below is unchanged. */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-playfair text-sm font-semibold text-ink-1 dark:text-white">
+            🔥 Trending Book Opportunities
+          </h3>
+          <button
+            type="button"
+            onClick={toggleTrending}
+            className="flex items-center gap-1 text-xs text-ink-1/40 dark:text-white/30 hover:text-ink-1 dark:hover:text-white transition-colors"
+            aria-label={trendingCollapsed ? 'Expand trending topics' : 'Collapse trending topics'}
+          >
+            {trendingCollapsed
+              ? <ChevronDown className="w-3.5 h-3.5" />
+              : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {!trendingCollapsed && (
+          <>
+            {trending === null && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-cream-2 dark:bg-ink-3 rounded-xl h-20 animate-pulse" />
+                ))}
+              </div>
+            )}
+
+            {trending !== null && trending.length === 0 && (
+              <p className="text-xs text-ink-1/40 dark:text-white/30">
+                Trending topics are being prepared. Check back soon or enter your own topic below.
+              </p>
+            )}
+
+            {trending !== null && trending.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {trending.map((t, i) => (
+                  <TrendingCard
+                    key={i}
+                    topic={t}
+                    selected={selectedTrendingTitle === t.title}
+                    onClick={() => handlePickTrending(t)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        <p className="text-xs text-ink-1/30 dark:text-white/20 text-center my-4">
+          — or describe your own idea —
+        </p>
       </div>
 
       {/* Single niche input — auto-expanding textarea (1-3 rows) so the
@@ -499,6 +615,36 @@ export function Step1Radar({ data, onNext }: Props) {
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
+
+function TrendingCard({
+  topic, selected, onClick,
+}: {
+  topic:    TrendingTopic
+  selected: boolean
+  onClick:  () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-xl p-3 cursor-pointer transition-all duration-200 active:scale-[0.98] border ${
+        selected
+          ? 'border-gold bg-gold/5 dark:bg-gold/10'
+          : 'bg-white dark:bg-ink-2 border-cream-3 dark:border-ink-3 hover:border-gold/50 dark:hover:border-gold/50 hover:shadow-md'
+      }`}
+    >
+      <p className="text-[10px] uppercase tracking-wider text-gold/70 font-medium">
+        {topic.category}
+      </p>
+      <p className="font-playfair text-sm font-semibold text-ink-1 dark:text-white leading-snug mt-0.5">
+        {topic.title}
+      </p>
+      <p className="text-xs text-ink-1/50 dark:text-white/40 mt-1 line-clamp-2">
+        {topic.description}
+      </p>
+    </button>
+  )
+}
 
 function ScanStep({ done, active, label }: { done: boolean; active: boolean; label: string }) {
   return (
