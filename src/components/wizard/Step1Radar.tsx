@@ -38,7 +38,8 @@ interface TrendingTopic {
   title:             string
   description:       string
   category:          string
-  opportunity_level: 'high' | 'medium'
+  opportunity_score: number                    // 0-100
+  competition_level: 'low' | 'medium' | 'high'
 }
 
 const TRENDING_COLLAPSE_KEY = 'wizard_trending_collapsed'
@@ -81,9 +82,12 @@ export function Step1Radar({ data, onNext }: Props) {
 
   // ── Trending topic discovery (additive — existing scan flow untouched) ──
   // trending: null = loading, [] = unavailable/empty, [...] = ready.
+  // topicPage cycles between two slices of 9 (0..8 and 9..17) — paging is
+  // entirely client-side; no extra API call.
   const [trending, setTrending]                     = useState<TrendingTopic[] | null>(null)
   const [trendingCollapsed, setTrendingCollapsed]   = useState(false)
   const [selectedTrendingTitle, setSelectedTrendingTitle] = useState<string | null>(null)
+  const [topicPage, setTopicPage]                   = useState<0 | 1>(0)
 
   useEffect(() => {
     // Default OPEN on first visit; restore the user's prior collapse choice.
@@ -299,6 +303,15 @@ export function Step1Radar({ data, onNext }: Props) {
     pickedTopic.length > 0 ||
     niche.trim().length >= MIN_NICHE_LENGTH
 
+  // Trending — paging derivation. Fixed 3×3 grid (9 visible per page). If
+  // generation returned fewer than 18 (truncation repair fallback), the
+  // grid pads the missing slots with quiet skeleton tiles so the layout
+  // doesn't collapse to one short row.
+  const allTopics       = trending ?? []
+  const displayedTopics = allTopics.slice(topicPage * 9, topicPage * 9 + 9)
+  const padCount        = Math.max(0, 9 - displayedTopics.length)
+  const hasMultiplePages = allTopics.length > 9
+
   return (
     <div className="space-y-7">
       <div>
@@ -309,12 +322,20 @@ export function Step1Radar({ data, onNext }: Props) {
 
       {/* Trending topic discovery. Purely additive — clicking a card just
           pre-fills the existing niche textarea; the scan/Continue flow
-          below is unchanged. */}
+          below is unchanged. Fixed 3×3 grid; client-side paging cycles
+          the 18 cached topics between two pages of 9 (no API call). */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-playfair text-sm font-semibold text-ink-1 dark:text-white">
-            🔥 Trending Book Opportunities
-          </h3>
+          <div className="flex items-baseline gap-2">
+            <h3 className="font-playfair text-sm font-semibold text-ink-1 dark:text-white">
+              🔥 Trending Book Opportunities
+            </h3>
+            {allTopics.length > 0 && (
+              <span className="text-[10px] text-ink-1/30 dark:text-white/20">
+                {topicPage * 9 + 1}&ndash;{topicPage * 9 + displayedTopics.length} of {allTopics.length}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={toggleTrending}
@@ -330,8 +351,8 @@ export function Step1Radar({ data, onNext }: Props) {
         {!trendingCollapsed && (
           <>
             {trending === null && (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
+              <div className="grid grid-cols-3 gap-3">
+                {Array.from({ length: 9 }).map((_, i) => (
                   <div key={i} className="bg-cream-2 dark:bg-ink-3 rounded-xl h-20 animate-pulse" />
                 ))}
               </div>
@@ -344,22 +365,43 @@ export function Step1Radar({ data, onNext }: Props) {
             )}
 
             {trending !== null && trending.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {trending.map((t, i) => (
-                  <TrendingCard
-                    key={i}
-                    topic={t}
-                    selected={selectedTrendingTitle === t.title}
-                    onClick={() => handlePickTrending(t)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  {displayedTopics.map((t, i) => (
+                    <TrendingCard
+                      key={`${topicPage}-${i}`}
+                      topic={t}
+                      selected={selectedTrendingTitle === t.title}
+                      onClick={() => handlePickTrending(t)}
+                    />
+                  ))}
+                  {Array.from({ length: padCount }).map((_, i) => (
+                    <div
+                      key={`pad-${i}`}
+                      className="bg-cream-2 dark:bg-ink-3 rounded-xl h-20 animate-pulse opacity-40"
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+
+                {hasMultiplePages && (
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setTopicPage((p) => (p === 0 ? 1 : 0))}
+                      className="text-xs font-inter text-ink-1/60 hover:text-ink-1 dark:text-white/40 dark:hover:text-white transition-colors"
+                    >
+                      {topicPage === 0 ? 'Show 9 more →' : '← Show previous'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
 
         <p className="text-xs text-ink-1/30 dark:text-white/20 text-center my-4">
-          — or describe your own idea —
+          &mdash; or describe your own idea &mdash;
         </p>
       </div>
 
@@ -615,6 +657,20 @@ export function Step1Radar({ data, onNext }: Props) {
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
+function TrendingCompBadge({ level }: { level: 'low' | 'medium' | 'high' }) {
+  const styles: Record<'low' | 'medium' | 'high', { cls: string; label: string }> = {
+    low:    { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400', label: 'LOW COMP' },
+    medium: { cls: 'bg-amber-100   text-amber-700   dark:bg-amber-500/20   dark:text-amber-400',   label: 'MED COMP' },
+    high:   { cls: 'bg-red-100     text-red-700     dark:bg-red-500/20     dark:text-red-400',     label: 'HIGH COMP' },
+  }
+  const s = styles[level]
+  return (
+    <span className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full ${s.cls}`}>
+      {s.label}
+    </span>
+  )
+}
+
 function TrendingCard({
   topic, selected, onClick,
 }: {
@@ -626,7 +682,7 @@ function TrendingCard({
     <button
       type="button"
       onClick={onClick}
-      className={`text-left rounded-xl p-3 cursor-pointer transition-all duration-200 active:scale-[0.98] border ${
+      className={`flex flex-col text-left rounded-xl p-3 cursor-pointer transition-all duration-200 active:scale-[0.98] border ${
         selected
           ? 'border-gold bg-gold/5 dark:bg-gold/10'
           : 'bg-white dark:bg-ink-2 border-cream-3 dark:border-ink-3 hover:border-gold/50 dark:hover:border-gold/50 hover:shadow-md'
@@ -641,6 +697,21 @@ function TrendingCard({
       <p className="text-xs text-ink-1/50 dark:text-white/40 mt-1 line-clamp-2">
         {topic.description}
       </p>
+      {/* Score + competition row — pinned to the card bottom via mt-auto
+          so cards with shorter descriptions still align their score bars
+          across the grid row. */}
+      <div className="flex items-center gap-2 mt-auto pt-2">
+        <span className="text-[10px] font-medium text-gold/80 shrink-0">
+          {topic.opportunity_score}
+        </span>
+        <div className="flex-1 h-1 bg-cream-3 dark:bg-ink-4 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gold/70 rounded-full"
+            style={{ width: `${topic.opportunity_score}%` }}
+          />
+        </div>
+        <TrendingCompBadge level={topic.competition_level} />
+      </div>
     </button>
   )
 }

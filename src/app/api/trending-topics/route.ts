@@ -34,7 +34,7 @@ export async function GET() {
   const { data } = await supabase
     .from('intelligence_cache')
     .select('result, expires_at')
-    .eq('cache_key', 'trending_topics')
+    .eq('cache_key', 'trending_topics_v2')
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)

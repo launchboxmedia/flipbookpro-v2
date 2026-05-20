@@ -24,10 +24,11 @@ export interface TrendingTopic {
   title:             string
   description:       string
   category:          string
-  opportunity_level: 'high' | 'medium'
+  opportunity_score: number                    // 0-100
+  competition_level: 'low' | 'medium' | 'high'
 }
 
-const SYSTEM_PROMPT = `You are a book market analyst identifying nonfiction book opportunities. Find 8 specific blue ocean book topics — high reader demand, low competition, underserved by existing books.
+const SYSTEM_PROMPT = `You are a book market analyst identifying nonfiction book opportunities. Find 18 specific blue ocean book topics — high reader demand, low competition, underserved by existing books.
 
 Each topic must:
 - Solve a specific real problem a real person has RIGHT NOW in 2026
@@ -35,19 +36,30 @@ Each topic must:
 - Be genuinely underserved (few or no quality books on Amazon covering this exact angle)
 - Be broad enough that many different authors could write it from their own expertise
 
-Return ONLY valid JSON array. No preamble:
+Return ONLY valid JSON array of exactly 18 nonfiction book opportunities. No preamble.
+
+Each topic must include:
+- title: A specific book title
+- description: One sentence — who it's for and what problem it solves
+- category: One of Finance|Health|Business|Creator|Career|Relationships|Parenting|Technology|Marketing|Leadership
+- opportunity_score: 0-100 score based on: reader demand + publication gap + timeliness. 70+ = strong opportunity.
+- competition_level: 'low' (few quality books), 'medium' (some books but gaps exist), 'high' (crowded — avoid unless unique angle)
+
+Only include topics with opportunity_score >= 65 and competition_level of low or medium.
+Distribute across at least 6 different categories.
+
+Return shape:
 [
   {
     "title": "Specific Book Title",
     "description": "One sentence: who this is for and what problem it solves",
-    "category": "Finance|Health|Business|Creator|Career|Relationships|Parenting|Technology|Marketing|Leadership",
-    "opportunity_level": "high|medium"
+    "category": "Finance",
+    "opportunity_score": 78,
+    "competition_level": "low"
   }
-]
+]`
 
-Distribute across at least 5 different categories. Include topics that would appeal to: entrepreneurs, professionals, creators, parents, and people navigating major life transitions.`
-
-const USER_PROMPT = `Find 8 specific blue ocean nonfiction book opportunities for 2026. Focus on topics where reader demand clearly exists but quality books are scarce. Think about what people are searching for, struggling with, or asking about right now that doesn't have a great book answer yet.`
+const USER_PROMPT = `Find 18 specific blue ocean nonfiction book opportunities for 2026. Focus on topics where reader demand clearly exists but quality books are scarce. Think about what people are searching for, struggling with, or asking about right now that doesn't have a great book answer yet.`
 
 interface PerplexityChoice { message: { content: string } }
 interface PerplexityResponse { choices: PerplexityChoice[] }
@@ -97,12 +109,29 @@ function normaliseTopic(v: unknown): TrendingTopic | null {
   const title = asString(o.title)
   const description = asString(o.description)
   if (!title || !description) return null
-  const levelRaw = asString(o.opportunity_level).toLowerCase()
+
+  // Opportunity score: clamp to 0-100, default 70 if missing or non-numeric.
+  // Sonar sometimes emits strings like "82" — coerce via Number().
+  const scoreRaw = Number(o.opportunity_score)
+  const opportunityScore = Number.isFinite(scoreRaw)
+    ? Math.max(0, Math.min(100, Math.round(scoreRaw)))
+    : 70
+
+  // Competition level: default 'medium' if missing or unexpected. The
+  // prompt asks for low/medium only, but we accept 'high' defensively
+  // since clamping it to medium would silently mis-label crowded niches.
+  const compRaw = asString(o.competition_level).toLowerCase()
+  const competitionLevel: TrendingTopic['competition_level'] =
+    compRaw === 'low'  ? 'low'
+    : compRaw === 'high' ? 'high'
+    : 'medium'
+
   return {
     title:             title.slice(0, 160),
     description:       description.slice(0, 300),
     category:          asString(o.category).slice(0, 40) || 'Business',
-    opportunity_level: levelRaw === 'medium' ? 'medium' : 'high',
+    opportunity_score: opportunityScore,
+    competition_level: competitionLevel,
   }
 }
 
@@ -130,7 +159,11 @@ export async function generateAndCacheTrendingTopics(): Promise<TrendingTopic[]>
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user',   content: USER_PROMPT },
       ],
-      max_tokens:  2000,
+      // Bumped to 4000 for the 18-topic schema with scoring. 8 topics fit
+      // in 2000 comfortably; 18 with two extra fields per item averaged
+      // ~9k chars in testing, which crowds 2000 tokens. The repair
+      // fallback still catches truncation edge cases.
+      max_tokens:  4000,
       temperature: 0.4,
     }),
   })
@@ -157,7 +190,7 @@ export async function generateAndCacheTrendingTopics(): Promise<TrendingTopic[]>
     const t = normaliseTopic(item)
     if (t) {
       topics.push(t)
-      if (topics.length >= 8) break
+      if (topics.length >= 18) break
     }
   }
   if (topics.length === 0) {
@@ -169,7 +202,11 @@ export async function generateAndCacheTrendingTopics(): Promise<TrendingTopic[]>
     .from('intelligence_cache')
     .upsert(
       {
-        cache_key:  'trending_topics',
+        // v2: schema added opportunity_score + competition_level. Bumped
+        // so any pre-existing row with the old shape stays orphaned (and
+        // expires naturally) instead of being read as if it were v2 data
+        // — old rows would render zero-width score bars.
+        cache_key:  'trending_topics_v2',
         persona:    'global',
         result:     { topics },
         expires_at: expiresAt,
