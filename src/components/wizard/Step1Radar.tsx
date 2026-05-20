@@ -39,7 +39,6 @@ interface TrendingTopic {
   description:       string
   category:          string
   opportunity_level: 'high' | 'medium'
-  why_now:           string
 }
 
 const TRENDING_COLLAPSE_KEY = 'wizard_trending_collapsed'
