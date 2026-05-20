@@ -331,7 +331,7 @@ export function Step1Radar({ data, onNext }: Props) {
               🔥 Trending Book Opportunities
             </h3>
             {allTopics.length > 0 && (
-              <span className="text-[10px] text-ink-1/30 dark:text-white/20">
+              <span className="text-[10px] text-ink-1/50 dark:text-white/30">
                 {topicPage * 9 + 1}&ndash;{topicPage * 9 + displayedTopics.length} of {allTopics.length}
               </span>
             )}
@@ -359,7 +359,7 @@ export function Step1Radar({ data, onNext }: Props) {
             )}
 
             {trending !== null && trending.length === 0 && (
-              <p className="text-xs text-ink-1/40 dark:text-white/30">
+              <p className="text-xs text-ink-1/60 dark:text-white/40">
                 Trending topics are being prepared. Check back soon or enter your own topic below.
               </p>
             )}
@@ -400,7 +400,7 @@ export function Step1Radar({ data, onNext }: Props) {
           </>
         )}
 
-        <p className="text-xs text-ink-1/30 dark:text-white/20 text-center my-4">
+        <p className="text-xs text-ink-1/50 dark:text-white/30 text-center my-4">
           &mdash; or describe your own idea &mdash;
         </p>
       </div>
@@ -688,20 +688,22 @@ function TrendingCard({
           : 'bg-white dark:bg-ink-2 border-cream-3 dark:border-ink-3 hover:border-gold/50 dark:hover:border-gold/50 hover:shadow-md'
       }`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-gold/70 font-medium">
+      <p className="text-[10px] uppercase tracking-wider text-gold-dim dark:text-gold/70 font-semibold">
         {topic.category}
       </p>
       <p className="font-playfair text-sm font-semibold text-ink-1 dark:text-white leading-snug mt-0.5">
         {topic.title}
       </p>
-      <p className="text-xs text-ink-1/50 dark:text-white/40 mt-1 line-clamp-2">
+      <p className="text-xs text-ink-1/70 dark:text-white/40 mt-1 line-clamp-2">
         {topic.description}
       </p>
       {/* Score + competition row — pinned to the card bottom via mt-auto
           so cards with shorter descriptions still align their score bars
-          across the grid row. */}
+          across the grid row. text-gold-dim in light mode so the small
+          score number reads on the white card; gold-soft in dark mode
+          to match the surrounding cream/white text. */}
       <div className="flex items-center gap-2 mt-auto pt-2">
-        <span className="text-[10px] font-medium text-gold/80 shrink-0">
+        <span className="text-[10px] font-semibold text-gold-dim dark:text-gold-soft shrink-0">
           {topic.opportunity_score}
         </span>
         <div className="flex-1 h-1 bg-cream-3 dark:bg-ink-4 rounded-full overflow-hidden">
