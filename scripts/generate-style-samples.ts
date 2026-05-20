@@ -92,14 +92,49 @@ const COVER_DIRECTION_TO_ARCHETYPE: Record<string, 'studio_product' | 'editorial
   retro_illustrated:  'lifestyle',
 }
 
-function buildCoverPrompt(direction: string, scene: string): string {
+// Per-direction tones — differentiates directions that share an archetype.
+const COVER_DIRECTION_TONES: Record<string, string> = {
+  bold_operator:      'Bold, dominant, commanding authority — power through restraint',
+  clean_corporate:    'Precise, credible, institutional — trust through order',
+  editorial_modern:   'Sophisticated, editorial, typographic energy — clarity through contrast',
+  cinematic_abstract: 'Atmospheric, cinematic, dramatic depth — emotion through light',
+  retro_illustrated:  'Nostalgic, crafted, timeless character — heritage through detail',
+  studio_product:     'Premium, minimal, object-centric — value through restraint',
+}
+
+// Per-direction cover scenes — visually distinct subjects, not a shared generic.
+const COVER_DIRECTION_SCENES: Record<string, string> = {
+  bold_operator:      'a powerful chess queen piece casting a long shadow',
+  clean_corporate:    'a precise geometric network diagram with connected nodes',
+  editorial_modern:   'bold overlapping abstract typographic shapes',
+  cinematic_abstract: 'volumetric light rays piercing through atmospheric darkness',
+  retro_illustrated:  'a vintage compass rose with ornamental detailing',
+  studio_product:     'a single premium object — a watch or wireless earbuds — on a minimal surface',
+}
+
+// Per-direction palettes — each direction has its own dominant + accent pair.
+const COVER_DIRECTION_PALETTES: Record<string, { primaryName: string; secondaryName: string }> = {
+  bold_operator:      { primaryName: 'deep navy',     secondaryName: 'warm gold' },
+  clean_corporate:    { primaryName: 'dark slate',    secondaryName: 'warm copper' },
+  editorial_modern:   { primaryName: 'deep charcoal', secondaryName: 'dusty rose' },
+  cinematic_abstract: { primaryName: 'deep teal',     secondaryName: 'warm gold' },
+  retro_illustrated:  { primaryName: 'forest green',  secondaryName: 'amber' },
+  studio_product:     { primaryName: 'deep burgundy', secondaryName: 'warm sand' },
+}
+
+function buildCoverPrompt(
+  direction: string,
+  scene: string,
+  palette: { primaryName: string; secondaryName: string },
+  tone: string,
+): string {
   const archetype = COVER_DIRECTION_TO_ARCHETYPE[direction] ?? 'studio_product'
   const designStyle =
     archetype === 'studio_product'
-      ? `Dark ${PALETTE.primaryName} background. Gold or white bold title. One strong central object (phone, card, symbol) in the middle third. Clean border frame in gold. Author at bottom in gold or white.`
+      ? `Dark ${palette.primaryName} background. Gold or white bold title. One strong central object (phone, card, symbol) in the middle third. Clean border frame in gold. Author at bottom in gold or white.`
       : archetype === 'editorial'
         ? 'White or cream background. Dark bold title filling upper half. One minimal graphic element in center. Thin rule lines as dividers. Author at bottom in dark ink.'
-        : `Deep ${PALETTE.primaryName} background with subtle texture. ${PALETTE.secondaryName} accent title. Central graphic object. Author at bottom.`
+        : `Deep ${palette.primaryName} background with subtle texture. ${palette.secondaryName} accent title. Central graphic object. Author at bottom.`
 
   return [
     'Professional book cover design for a business nonfiction book. Typography-first layout.',
@@ -110,8 +145,9 @@ function buildCoverPrompt(direction: string, scene: string): string {
     '- AUTHOR: "Author Name" — bottom of cover, clean sans-serif',
     '',
     `DESIGN STYLE (${archetype}): ${designStyle}`,
+    `Tonal direction: ${tone}`,
     '',
-    `COLOR: ${PALETTE.primaryName} and ${PALETTE.secondaryName} from the palette. High contrast between background and title text is mandatory.`,
+    `COLOR: ${palette.primaryName} and ${palette.secondaryName} from the palette. High contrast between background and title text is mandatory.`,
     '',
     `CENTRAL GRAPHIC: ${scene}`,
     'The graphic is ONE object — not a scene. It sits in the center third of the cover, below the title, above the author name. It is secondary to the typography.',
@@ -171,8 +207,8 @@ async function generateOne(
 const STYLE_IDS = ['watercolor', 'photorealistic', 'cinematic', 'illustrated', 'minimalist', 'vintage'] as const
 const COVER_IDS = ['bold_operator', 'clean_corporate', 'editorial_modern', 'cinematic_abstract', 'retro_illustrated', 'studio_product'] as const
 
+// Shared scene for visual style samples (neutral subject to let style dominate).
 const STYLE_SCENE = 'a professional desk with a laptop, a coffee cup, and a notebook on a clean wooden surface'
-const COVER_SCENE = 'a minimalist abstract icon representing professional growth'
 
 async function main() {
   await loadEnvLocal()
@@ -184,30 +220,39 @@ async function main() {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 180_000, maxRetries: 1 })
 
   const startedAt = Date.now()
-  console.log('--- Visual style samples (16:9, high) ---')
-  for (const id of STYLE_IDS) {
-    const t0 = Date.now()
-    const result = await generateOne(
-      client,
-      buildStylePrompt(id, STYLE_SCENE),
-      '1536x1024',
-      path.join('public', 'style-samples', `${id}.png`),
-    )
-    const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
-    if (result.ok) {
-      console.log(`  ✓ ${id.padEnd(15)} ${result.bytes.toLocaleString()} bytes  (${elapsed}s)`)
-    } else {
-      console.log(`  ✗ ${id.padEnd(15)} ${result.error}  (${elapsed}s)`)
-    }
-  }
 
-  console.log('')
+  // Visual style samples — uncomment to regenerate (not needed this run).
+  // console.log('--- Visual style samples (16:9, high) ---')
+  // for (const id of STYLE_IDS) {
+  //   const t0 = Date.now()
+  //   const result = await generateOne(
+  //     client,
+  //     buildStylePrompt(id, STYLE_SCENE),
+  //     '1536x1024',
+  //     path.join('public', 'style-samples', `${id}.png`),
+  //   )
+  //   const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
+  //   if (result.ok) {
+  //     console.log(`  ✓ ${id.padEnd(15)} ${result.bytes.toLocaleString()} bytes  (${elapsed}s)`)
+  //   } else {
+  //     console.log(`  ✗ ${id.padEnd(15)} ${result.error}  (${elapsed}s)`)
+  //   }
+  // }
+
+  // Suppress unused-variable warning while style loop is commented out.
+  void STYLE_IDS
+  void STYLE_SCENE
+  void buildStylePrompt
+
   console.log('--- Cover direction samples (2:3, high) ---')
   for (const id of COVER_IDS) {
+    const scene   = COVER_DIRECTION_SCENES[id]   ?? 'a minimalist abstract icon'
+    const palette = COVER_DIRECTION_PALETTES[id] ?? PALETTE
+    const tone    = COVER_DIRECTION_TONES[id]    ?? ''
     const t0 = Date.now()
     const result = await generateOne(
       client,
-      buildCoverPrompt(id, COVER_SCENE),
+      buildCoverPrompt(id, scene, palette, tone),
       '1024x1536',
       path.join('public', 'cover-samples', `${id}.png`),
     )
