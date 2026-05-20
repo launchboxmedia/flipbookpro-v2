@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { generateAndCacheTrendingTopics } from '@/lib/generateTrendingTopics'
 
-// ── Trending topics (read) ──────────────────────────────────────────────────
-// Serves the weekly pre-cached blue-ocean topic list to wizard Step 1.
-// Pure DB read of the `trending_topics` row written by
-// /api/admin/refresh-trending-topics — no AI call, so the rate limit is
-// generous. Empty array when the cache is unpopulated or expired; the
-// client renders a graceful "being prepared" state.
+// ── Trending topics (read, with auto-generate on cache miss) ────────────────
+// Reads the `trending_topics` row out of intelligence_cache. On miss /
+// expired, generates inline via the shared module — users never need a
+// manual cron / curl trigger. Cache hits return instantly; misses take
+// ~3-5s for the Perplexity call (the wizard's loading skeleton covers it).
+
+// Cache miss may run a Perplexity call; bump maxDuration past the default
+// 10s so a slow upstream doesn't cause a hard timeout mid-generation.
+export const maxDuration = 60
 
 interface CachedTrending { topics?: unknown }
 
@@ -26,6 +30,7 @@ export async function GET() {
     )
   }
 
+  // Cache hit — return immediately.
   const { data } = await supabase
     .from('intelligence_cache')
     .select('result, expires_at')
@@ -35,6 +40,20 @@ export async function GET() {
     .limit(1)
     .maybeSingle<{ result: CachedTrending; expires_at: string }>()
 
-  const topics = Array.isArray(data?.result?.topics) ? data.result.topics : []
-  return NextResponse.json({ topics })
+  const cachedTopics = Array.isArray(data?.result?.topics) ? data.result.topics : null
+  if (cachedTopics && cachedTopics.length > 0) {
+    return NextResponse.json({ topics: cachedTopics })
+  }
+
+  // Cache miss or expired — generate inline. The generator handles its
+  // own write back to intelligence_cache (via the service-role client),
+  // so the next caller hits the cache. On generation failure we return
+  // an empty array — the client's empty state is the right UX.
+  try {
+    const topics = await generateAndCacheTrendingTopics()
+    return NextResponse.json({ topics })
+  } catch (e) {
+    console.error('[trending-topics] inline generation failed:', e instanceof Error ? e.message : 'unknown')
+    return NextResponse.json({ topics: [] })
+  }
 }
