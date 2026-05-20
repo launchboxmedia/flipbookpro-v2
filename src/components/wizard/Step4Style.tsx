@@ -1,45 +1,74 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import Image from 'next/image'
 import type { WizardData } from './WizardShell'
 import { PALETTES, type PaletteId } from '@/lib/palettes'
+
+/** Renders an AI-generated sample image from /public; falls back to the
+ *  CSS preview if the file is missing or fails to load. `unoptimized`
+ *  skips the Next.js Image Optimization pipeline (no sharp dep needed)
+ *  since these are already-sized static assets. */
+function SamplePreview({
+  src, alt, fallback,
+}: {
+  src:      string
+  alt:      string
+  fallback: ReactNode
+}) {
+  const [errored, setErrored] = useState(false)
+  if (errored) return <>{fallback}</>
+  return (
+    <div className="relative w-full h-full">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 50vw, 350px"
+        className="object-cover"
+        onError={() => setErrored(true)}
+        unoptimized
+      />
+    </div>
+  )
+}
 
 export const STYLES = [
   {
     id: 'watercolor',
     label: 'Watercolor',
     description: 'Soft washes, organic edges, painterly warmth.',
-    preview: <WatercolorPreview />,
+    preview: <SamplePreview src="/style-samples/watercolor.jpg" alt="Watercolor style example" fallback={<WatercolorPreview />} />,
   },
   {
     id: 'photorealistic',
     label: 'Photorealistic',
     description: 'High-detail photography-style, crisp and lifelike.',
-    preview: <PhotorealisticPreview />,
+    preview: <SamplePreview src="/style-samples/photorealistic.jpg" alt="Photorealistic style example" fallback={<PhotorealisticPreview />} />,
   },
   {
     id: 'cinematic',
     label: 'Cinematic',
     description: 'Dramatic lighting, film grain, wide-format mood.',
-    preview: <CinematicPreview />,
+    preview: <SamplePreview src="/style-samples/cinematic.jpg" alt="Cinematic style example" fallback={<CinematicPreview />} />,
   },
   {
     id: 'illustrated',
     label: 'Editorial Illustrated',
     description: 'Ink and wash, textured paper, professional book art.',
-    preview: <IllustratedPreview />,
+    preview: <SamplePreview src="/style-samples/illustrated.jpg" alt="Editorial Illustrated style example" fallback={<IllustratedPreview />} />,
   },
   {
     id: 'minimalist',
     label: 'Minimalist',
     description: 'Clean lines, limited palette, geometric and bold.',
-    preview: <MinimalistPreview />,
+    preview: <SamplePreview src="/style-samples/minimalist.jpg" alt="Minimalist style example" fallback={<MinimalistPreview />} />,
   },
   {
     id: 'vintage',
     label: 'Vintage',
     description: 'Aged paper, engraving style, sepia-toned classics.',
-    preview: <VintagePreview />,
+    preview: <SamplePreview src="/style-samples/vintage.jpg" alt="Vintage style example" fallback={<VintagePreview />} />,
   },
 ]
 

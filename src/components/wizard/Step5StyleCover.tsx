@@ -194,7 +194,7 @@ export function Step5StyleCover({ data, onNext, onBack }: Props) {
                 className={`w-full rounded-lg mb-3 overflow-hidden ring-2 transition-all ${
                   coverDirection === c.id ? 'ring-gold' : 'ring-transparent'
                 }`}
-                style={{ aspectRatio: '3/4' }}
+                style={{ aspectRatio: '2/3' }}
               >
                 {c.preview}
               </div>

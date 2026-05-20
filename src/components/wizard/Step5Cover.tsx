@@ -1,7 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import Image from 'next/image'
 import type { WizardData } from './WizardShell'
+
+/** Renders an AI-generated cover-sample image from /public; falls back
+ *  to the SVG mock if the file is missing or fails to load. */
+function SampleCoverPreview({
+  src, alt, fallback,
+}: {
+  src:      string
+  alt:      string
+  fallback: ReactNode
+}) {
+  const [errored, setErrored] = useState(false)
+  if (errored) return <>{fallback}</>
+  return (
+    <div className="relative w-full h-full">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 50vw, 350px"
+        className="object-cover"
+        onError={() => setErrored(true)}
+        unoptimized
+      />
+    </div>
+  )
+}
 
 // ── Mini cover previews using exact theme colors from bookTheme.ts ────────────
 
@@ -201,37 +228,37 @@ export const COVER_DIRECTIONS = [
     id: 'bold_operator',
     label: 'Bold Operator',
     description: 'High contrast, strong typography, commands attention.',
-    preview: <BoldOperatorCover />,
+    preview: <SampleCoverPreview src="/cover-samples/bold_operator.jpg" alt="Bold Operator cover example" fallback={<BoldOperatorCover />} />,
   },
   {
     id: 'clean_corporate',
     label: 'Clean Corporate',
     description: 'Minimal, trusted, professional.',
-    preview: <CleanCorporateCover />,
+    preview: <SampleCoverPreview src="/cover-samples/clean_corporate.jpg" alt="Clean Corporate cover example" fallback={<CleanCorporateCover />} />,
   },
   {
     id: 'editorial_modern',
     label: 'Editorial Modern',
     description: 'Magazine-quality layout, refined spacing.',
-    preview: <EditorialModernCover />,
+    preview: <SampleCoverPreview src="/cover-samples/editorial_modern.jpg" alt="Editorial Modern cover example" fallback={<EditorialModernCover />} />,
   },
   {
     id: 'cinematic_abstract',
     label: 'Cinematic Abstract',
     description: 'Moody, atmospheric, striking.',
-    preview: <CinematicAbstractCover />,
+    preview: <SampleCoverPreview src="/cover-samples/cinematic_abstract.jpg" alt="Cinematic Abstract cover example" fallback={<CinematicAbstractCover />} />,
   },
   {
     id: 'retro_illustrated',
     label: 'Retro Illustrated',
     description: 'Vintage character, hand-crafted warmth.',
-    preview: <RetroIllustratedCover />,
+    preview: <SampleCoverPreview src="/cover-samples/retro_illustrated.jpg" alt="Retro Illustrated cover example" fallback={<RetroIllustratedCover />} />,
   },
   {
     id: 'studio_product',
     label: 'Studio Product',
     description: 'Clean studio aesthetic, premium feel.',
-    preview: <StudioProductCover />,
+    preview: <SampleCoverPreview src="/cover-samples/studio_product.jpg" alt="Studio Product cover example" fallback={<StudioProductCover />} />,
   },
 ]
 
