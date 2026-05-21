@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Paperclip, Loader2, FileText, Check, RefreshCw, Eye, X, Copy, Printer, Sparkles } from 'lucide-react'
+import { Paperclip, Loader2, FileText, Check, RefreshCw, Eye, X, Copy, Printer, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BookResource } from '@/types/database'
 import {
@@ -22,6 +22,8 @@ interface Props {
   /** Bubble new / regenerated resources back up so the parent can keep its
    *  state in sync without a refetch. */
   onResourceUpserted: (resource: BookResource) => void
+  /** Bubble deletions up so the parent can remove from state. */
+  onResourceDeleted: (resourceId: string) => void
 }
 
 interface PendingState {
@@ -51,7 +53,7 @@ function esc(s: string): string {
 }
 
 export function ChapterResources({
-  bookId, chapterIndex, draft, existingResources, onResourceUpserted,
+  bookId, chapterIndex, draft, existingResources, onResourceUpserted, onResourceDeleted,
 }: Props) {
   const { markers } = useMemo(() => parseResourceMarkers(draft || ''), [draft])
 
@@ -72,6 +74,8 @@ export function ChapterResources({
   // Same key shape parseResourceMarkers uses internally for dedupe.
   const [pending, setPending] = useState<Record<string, PendingState>>({})
   const [openResource, setOpenResource] = useState<BookResource | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // "Request a custom resource" panel — lets the author describe a resource
   // the AI didn't auto-mark. Independent of the marker list.
@@ -92,6 +96,8 @@ export function ChapterResources({
     setReqName('')
     setReqType('checklist')
     setReqError('')
+    setDeletingId(null)
+    setConfirmDeleteId(null)
   }, [chapterIndex])
 
   function keyFor(m: ResourceMarker): string {
@@ -203,6 +209,29 @@ export function ChapterResources({
     }
   }
 
+  async function deleteResource(resourceId: string) {
+    if (deletingId) return
+    setDeletingId(resourceId)
+    try {
+      const res = await fetch(`/api/books/${bookId}/delete-resource`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resourceId }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error ?? 'Delete failed')
+      }
+      onResourceDeleted(resourceId)
+      setConfirmDeleteId(null)
+      toast.success('Resource deleted')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete resource')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <>
       <div className="mb-6 bg-cream-2 dark:bg-ink-2 border border-cream-3 dark:border-ink-3 rounded-xl p-4 text-ink-1 dark:text-cream-1 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)]">
@@ -264,26 +293,58 @@ export function ChapterResources({
                       <p className="text-[11px] font-inter text-rose-300 mt-1.5">{state.error}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col items-end gap-1 shrink-0">
                     {existing ? (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => setOpenResource(existing)}
-                          className="flex items-center gap-1 text-[11px] font-inter text-gold hover:text-gold-soft transition-colors"
-                        >
-                          <Eye className="w-3 h-3" />
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => generate(marker)}
-                          disabled={state.generating}
-                          className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
-                        >
-                          {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                          Regenerate
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setOpenResource(existing)}
+                            className="flex items-center gap-1 text-[11px] font-inter text-gold hover:text-gold-soft transition-colors"
+                          >
+                            <Eye className="w-3 h-3" />
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => generate(marker)}
+                            disabled={state.generating}
+                            className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
+                          >
+                            {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            Regenerate
+                          </button>
+                        </div>
+                        {confirmDeleteId === existing.id ? (
+                          <div className="flex items-center gap-2 bg-cream-1 dark:bg-ink-2 px-2 py-1 rounded-md border border-red-400/30">
+                            <span className="text-[10px] font-inter text-ink-1/70 dark:text-cream/70">Delete?</span>
+                            <button
+                              type="button"
+                              onClick={() => deleteResource(existing.id)}
+                              disabled={deletingId === existing.id}
+                              className="text-[10px] font-inter font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                            >
+                              {deletingId === existing.id ? 'Deleting…' : 'Yes'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-[10px] font-inter text-ink-1/60 dark:text-cream/60 hover:text-ink-1 dark:hover:text-cream transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(existing.id)}
+                            disabled={deletingId === existing.id}
+                            className="text-ink-1/20 dark:text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Delete resource"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </>
                     ) : (
                       <button
@@ -346,24 +407,56 @@ export function ChapterResources({
                         <p className="text-[11px] font-inter text-rose-300 mt-1.5">{state.error}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setOpenResource(r)}
-                        className="flex items-center gap-1 text-[11px] font-inter text-gold hover:text-gold-soft transition-colors"
-                      >
-                        <Eye className="w-3 h-3" />
-                        View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => generate({ name: r.resource_name, type: r.resource_type })}
-                        disabled={state.generating}
-                        className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
-                      >
-                        {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                        Regenerate
-                      </button>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOpenResource(r)}
+                          className="flex items-center gap-1 text-[11px] font-inter text-gold hover:text-gold-soft transition-colors"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => generate({ name: r.resource_name, type: r.resource_type })}
+                          disabled={state.generating}
+                          className="flex items-center gap-1 text-[11px] font-inter text-ink-1/60 dark:text-cream-1/60 hover:text-ink-1 dark:hover:text-cream-1 transition-colors disabled:opacity-50"
+                        >
+                          {state.generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                          Regenerate
+                        </button>
+                      </div>
+                      {confirmDeleteId === r.id ? (
+                        <div className="flex items-center gap-2 bg-cream-1 dark:bg-ink-2 px-2 py-1 rounded-md border border-red-400/30">
+                          <span className="text-[10px] font-inter text-ink-1/70 dark:text-cream/70">Delete?</span>
+                          <button
+                            type="button"
+                            onClick={() => deleteResource(r.id)}
+                            disabled={deletingId === r.id}
+                            className="text-[10px] font-inter font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === r.id ? 'Deleting…' : 'Yes'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-[10px] font-inter text-ink-1/60 dark:text-cream/60 hover:text-ink-1 dark:hover:text-cream transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(r.id)}
+                          disabled={deletingId === r.id}
+                          className="text-ink-1/20 dark:text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                          title="Delete resource"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

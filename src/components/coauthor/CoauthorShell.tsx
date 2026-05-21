@@ -133,6 +133,10 @@ export function CoauthorShell({
     })
   }
 
+  function deleteResource(resourceId: string) {
+    setResources((prev) => prev.filter((r) => r.id !== resourceId))
+  }
+
   function navigateChapter(index: number) {
     setActiveChapterIndex(index)
     setStage('chapter')
@@ -399,6 +403,7 @@ export function CoauthorShell({
                 onUploadImage={(file) => uploadChapterImage(currentPage.id, file)}
                 resources={resources}
                 onResourceUpserted={upsertResource}
+                onResourceDeleted={deleteResource}
                 onNext={() => {
                   if (activeChapterIndex < chapterPages.length - 1) {
                     navigateChapter(activeChapterIndex + 1)

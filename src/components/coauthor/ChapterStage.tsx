@@ -75,6 +75,8 @@ interface Props {
   /** Upsert a generated/regenerated resource back into the parent's state
    *  so the marker card flips from "Generate" to "View" without a refetch. */
   onResourceUpserted: (resource: BookResource) => void
+  /** Remove deleted resource from parent state. */
+  onResourceDeleted: (resourceId: string) => void
   onNext: () => void
   onPrev: () => void
 }
@@ -85,7 +87,7 @@ export function ChapterStage({
   imageStatus, imageError, visualStyle, onChangeStyle,
   palette, onChangePalette,
   onPageUpdate, onGenerateImage, onUploadImage,
-  resources, onResourceUpserted,
+  resources, onResourceUpserted, onResourceDeleted,
   onNext, onPrev,
 }: Props) {
   const [draft, setDraft] = useState(page?.content ?? '')
@@ -839,6 +841,7 @@ export function ChapterStage({
             draft={draft}
             existingResources={resources.filter((r) => r.chapter_index === page.chapter_index)}
             onResourceUpserted={onResourceUpserted}
+            onResourceDeleted={onResourceDeleted}
           />
         </div>
 

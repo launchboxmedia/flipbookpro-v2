@@ -279,6 +279,9 @@ export function BookDesignStage({
   const [savedText,   setSavedText]   = useState(false)
   const [textError,   setTextError]   = useState('')
 
+  const [generatingCopy, setGeneratingCopy] = useState(false)
+  const [generateError, setGenerateError] = useState('')
+
   // ── Closing pitch ─────────────────────────────────────────────────────
   // Final-CTA headline for the public landing page. Saves on blur via the
   // client supabase (RLS protects us), only when changed — same pattern as
@@ -310,6 +313,32 @@ export function BookDesignStage({
       }
     } finally {
       setClosingPitchSaving(false)
+    }
+  }
+
+  // ── AI back-cover copy generation ──────────────────────────────────────
+  async function generateCopy() {
+    const hasExistingCopy = tagline.trim() || description.trim() || closingPitch.trim() || ctaText.trim()
+    if (hasExistingCopy) {
+      const confirmed = window.confirm('This will replace all existing back cover copy. Continue?')
+      if (!confirmed) return
+    }
+
+    setGeneratingCopy(true)
+    setGenerateError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/generate-back-cover-copy`, { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error ?? `Generation failed (${res.status})`)
+
+      setTagline(json.tagline ?? '')
+      setDescription(json.description ?? '')
+      setClosingPitch(json.closing_pitch ?? '')
+      setCtaText(json.cta_text ?? '')
+    } catch (e) {
+      setGenerateError(e instanceof Error ? e.message : 'Generation failed')
+    } finally {
+      setGeneratingCopy(false)
     }
   }
 
@@ -952,6 +981,38 @@ export function BookDesignStage({
             })}
           </div>
         )}
+
+        {/* ── AI back-cover copy generation ────────────────────────────── */}
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={generateCopy}
+            disabled={generatingCopy}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gold hover:bg-gold-soft disabled:opacity-50 text-ink-1 font-inter font-medium text-sm rounded-md transition-colors"
+          >
+            {generatingCopy ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating Copy…
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                ✨ Generate Copy
+              </>
+            )}
+          </button>
+          <p className="text-[10px] font-inter text-ink-1/50 dark:text-white/50 leading-relaxed mt-2">
+            {book.creator_radar_data
+              ? 'Pulls from Creator Radar insights (audience pain, positioning, market signals) to write compelling back cover copy.'
+              : 'Generates copy based on your book title and chapters. For best results, run Creator Radar first.'}
+          </p>
+          {generateError && (
+            <div className="mt-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-inter">
+              {generateError}
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4">
           <div className="space-y-1">
