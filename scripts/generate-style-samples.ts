@@ -168,8 +168,32 @@ function buildCoverPrompt(
     palette.secondaryName,
   )
 
+  // Direction-specific openers that match the design style
+  const openers: Record<string, string> = {
+    bold_operator: 'Bold typographic book cover. The title text IS the design.',
+    clean_corporate: 'Clean professional book cover. Object-led composition.',
+    editorial_modern: 'Editorial magazine-style book cover. Color blocking layout.',
+    cinematic_abstract: 'Cinematic atmospheric book cover. Full bleed scene.',
+    retro_illustrated: 'Vintage illustrated book cover. Classic paperback style.',
+    studio_product: 'Premium minimal book cover. Luxury product aesthetic.',
+  }
+  const opener = openers[direction] ?? 'Professional book cover design.'
+
+  // Directions that use a central object vs those that don't
+  const usesObject = ['clean_corporate', 'retro_illustrated', 'studio_product'].includes(direction)
+
+  const sceneSection = usesObject
+    ? [
+        `CENTRAL GRAPHIC: ${scene}`,
+        'The graphic is ONE object — not a scene. Sits below the title, above the author name. Secondary to the typography.',
+      ]
+    : [
+        `ATMOSPHERE: ${scene}`,
+        'This is mood/atmosphere only — NOT a central object. Let the design style instruction above determine the layout. Do not place an object in the center.',
+      ]
+
   return [
-    'Professional book cover design for a business nonfiction book. Typography-first layout.',
+    opener,
     '',
     'REQUIRED TEXT TO RENDER (must appear legibly):',
     '- TITLE: "Sample Title" — large bold display font, upper portion of cover, high contrast',
@@ -181,8 +205,7 @@ function buildCoverPrompt(
     '',
     `COLOR: ${palette.primaryName} and ${palette.secondaryName} from the palette. High contrast between background and title text is mandatory.`,
     '',
-    `CENTRAL GRAPHIC: ${scene}`,
-    'The graphic is ONE object — not a scene. It sits in the center third of the cover, below the title, above the author name. It is secondary to the typography.',
+    ...sceneSection,
     '',
     'QUALITY REQUIREMENTS:',
     '- All text must be crisp and fully legible',
