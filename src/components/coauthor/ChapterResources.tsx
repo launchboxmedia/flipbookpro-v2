@@ -339,7 +339,7 @@ export function ChapterResources({
                             type="button"
                             onClick={() => setConfirmDeleteId(existing.id)}
                             disabled={deletingId === existing.id}
-                            className="text-ink-1/20 dark:text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                            className="text-ink-1/40 dark:text-white/40 hover:text-red-400 transition-colors disabled:opacity-50"
                             title="Delete resource"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -451,7 +451,7 @@ export function ChapterResources({
                           type="button"
                           onClick={() => setConfirmDeleteId(r.id)}
                           disabled={deletingId === r.id}
-                          className="text-ink-1/20 dark:text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                          className="text-ink-1/40 dark:text-white/40 hover:text-red-400 transition-colors disabled:opacity-50"
                           title="Delete resource"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
