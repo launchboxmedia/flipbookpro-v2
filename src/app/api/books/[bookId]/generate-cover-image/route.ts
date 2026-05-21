@@ -155,10 +155,18 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
 
     const oldPath = storagePathFromPublicUrl(book.cover_image_url, 'book-images')
-    await supabase.from('books')
+    const { error: updateError } = await supabase.from('books')
       .update({ cover_image_url: publicUrl })
       .eq('id', params.bookId)
       .eq('user_id', user.id)
+
+    if (updateError) {
+      console.error('[generate-cover-image] DB update failed', updateError.message)
+      throw new Error(`Failed to update cover URL: ${updateError.message}`)
+    }
+
+    // Best-effort cleanup of the previous image. Only delete after DB
+    // update succeeds — prevents broken images if DB write fails.
     if (oldPath && oldPath !== filename) {
       void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
         if (error) console.error('[generate-cover-image] cleanup failed', error.message)

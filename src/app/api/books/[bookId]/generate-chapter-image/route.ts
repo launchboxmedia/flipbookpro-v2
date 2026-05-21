@@ -104,12 +104,19 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     // generateImage(). Custom-prompt regenerations leave image_scene
     // untouched (scene is null in that branch), so a future auto-regen
     // can still surface the last auto-scene as a starting point.
-    await supabase
+    const { error: updateError } = await supabase
       .from('book_pages')
       .update({ image_url: publicUrl })
       .eq('id', pageId)
       .eq('user_id', user.id)
-    // Best-effort cleanup of the previous image. Don't block on errors.
+
+    if (updateError) {
+      console.error('[generate-chapter-image] DB update failed', updateError.message)
+      throw new Error(`Failed to update image URL: ${updateError.message}`)
+    }
+
+    // Best-effort cleanup of the previous image. Only delete after DB
+    // update succeeds — prevents broken images if DB write fails.
     if (oldPath && oldPath !== filename) {
       void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
         if (error) console.error('[generate-chapter-image] cleanup failed', error.message)
