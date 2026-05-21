@@ -142,37 +142,28 @@ export function buildChapterPrompt(
 // Front covers don't go through assemble(). They use a typography-first
 // layout where the title + subtitle + author are RENDERED into the image
 // and a single central object sits below — the opposite of the "no text,
-// no labels" rule that governs chapter illustrations. The design
-// archetypes map the project's six cover_direction values down to three
-// visual archetypes that match the kinds of covers FlipBookPro books
-// look most like (Atomic Habits, Psychology of Money, I Will Teach You
-// To Be Rich, etc.).
+// no labels" rule that governs chapter illustrations. Each of the six
+// cover_direction values maps to a distinct layout with genuinely
+// different composition, text placement, and visual hierarchy.
 
-type CoverDesignArchetype = 'studio_product' | 'editorial' | 'lifestyle'
+const COVER_DESIGN_STYLES: Record<string, (primary: string, secondary: string) => string> = {
+  bold_operator: (p) =>
+    `Full bleed dark ${p} background. OVERSIZED title text fills the entire upper two-thirds — the typography IS the design element. No central object needed. Author name small at very bottom in gold or white. The boldness comes purely from the scale and weight of the title words.`,
 
-const COVER_DIRECTION_TO_ARCHETYPE: Record<string, CoverDesignArchetype> = {
-  studio_product:     'studio_product',
-  bold_operator:      'studio_product',
-  cinematic_abstract: 'studio_product',
-  clean_corporate:    'editorial',
-  editorial_modern:   'editorial',
-  retro_illustrated:  'lifestyle',
-}
+  clean_corporate: (_, s) =>
+    `White or light cream background. Single strong central object in upper half — clean, precise, professional (a graph, compass, or geometric symbol). Title below the object in dark refined sans-serif typography. Thin horizontal rule separating title from author. Maximum white space. Object-led composition. ${s} accent elements.`,
 
-function coverArchetypeFor(book: Pick<Book, 'cover_direction'>): CoverDesignArchetype {
-  return COVER_DIRECTION_TO_ARCHETYPE[book.cover_direction ?? ''] ?? 'studio_product'
-}
+  editorial_modern: (p) =>
+    `Bold color blocking — upper half ${p} solid color, lower half white or cream. Large confident title sits at the color boundary spanning both halves. Author name small at bottom. No illustration needed — the geometric color split IS the design. Magazine-editorial aesthetic.`,
 
-const COVER_DESIGN_STYLES: Record<
-  CoverDesignArchetype,
-  (primary: string, secondary: string) => string
-> = {
+  cinematic_abstract: (p) =>
+    `Full bleed atmospheric scene fills the entire cover — deep space, dramatic sky, or abstract environmental mood in ${p} tones. Title floats in the middle third with subtle dark gradient behind text for legibility. Author name very small at bottom edge. Immersive, cinematic, no hard borders.`,
+
+  retro_illustrated: (_, s) =>
+    `Warm ${s} background with ornate decorative border frame. Central hand-illustrated scene inside the frame — a character, landscape, or symbolic object. Title in vintage lettering at top inside the border. Author name at bottom in smaller vintage type. Classic paperback aesthetic.`,
+
   studio_product: (p) =>
-    `Dark ${p} background. Gold or white bold title. One strong central object (phone, card, symbol) in the middle third. Clean border frame in gold. Author at bottom in gold or white.`,
-  editorial: () =>
-    `White or cream background. Dark bold title filling upper half. One minimal graphic element in center. Thin rule lines as dividers. Author at bottom in dark ink.`,
-  lifestyle: (p, s) =>
-    `Deep ${p} background with subtle texture. ${s} accent title. Central graphic object. Author at bottom.`,
+    `Pure white background. Single premium object floating in center with perfect studio lighting and subtle drop shadow — feels like luxury product photography. Title below center in minimal refined ${p} typography. Maximum negative space. Premium, restrained, Apple-aesthetic.`,
 }
 
 export function buildCoverPrompt(
@@ -180,8 +171,11 @@ export function buildCoverPrompt(
   book: Pick<Book, 'visual_style' | 'persona' | 'cover_direction' | 'title' | 'subtitle' | 'author_name'>,
   paletteColors: ResolvedPaletteColors,
 ): string {
-  const archetype = coverArchetypeFor(book)
-  const designStyle = COVER_DESIGN_STYLES[archetype](paletteColors.primaryName, paletteColors.secondaryName)
+  const direction = book.cover_direction ?? 'studio_product'
+  const designStyle = (COVER_DESIGN_STYLES[direction] ?? COVER_DESIGN_STYLES['studio_product'])(
+    paletteColors.primaryName,
+    paletteColors.secondaryName,
+  )
 
   const title    = book.title?.trim()       || 'Untitled'
   const subtitle = book.subtitle?.trim()    || ''
@@ -199,7 +193,7 @@ export function buildCoverPrompt(
     subtitle ? `- SUBTITLE: "${subtitle}" — smaller, below title or below central graphic` : '',
     `- AUTHOR: "${author}" — bottom of cover, clean sans-serif`,
     '',
-    `DESIGN STYLE (${archetype}): ${designStyle}`,
+    `DESIGN STYLE (${direction}): ${designStyle}`,
     '',
     `COLOR: ${paletteColors.primaryName} and ${paletteColors.secondaryName} from the palette. High contrast between background and title text is mandatory.`,
     '',

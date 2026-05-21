@@ -51,18 +51,41 @@ const STYLE_LABELS: Record<string, string> = {
   vintage:        'Vintage print',
 }
 
-const PALETTE = {
-  primaryName:   'deep teal',
-  secondaryName: 'warm gold',
-} as const
+// Per-style scenes and palettes — different subjects to showcase style differences.
+const VISUAL_STYLE_SAMPLES: Record<string, { scene: string; palette: { primaryName: string; secondaryName: string } }> = {
+  watercolor: {
+    scene: 'a woman reading in a cozy armchair by a rainy window with bookshelves behind her',
+    palette: { primaryName: 'deep charcoal', secondaryName: 'dusty rose' },
+  },
+  photorealistic: {
+    scene: 'a modern city skyline at golden hour with dramatic clouds and sharp glass buildings',
+    palette: { primaryName: 'deep navy', secondaryName: 'warm gold' },
+  },
+  cinematic: {
+    scene: 'a lone figure walking down a rain-slicked city street at night with neon light reflections',
+    palette: { primaryName: 'deep teal', secondaryName: 'warm gold' },
+  },
+  illustrated: {
+    scene: 'an entrepreneur climbing a geometric staircase made of stacked books rising toward a bright goal',
+    palette: { primaryName: 'forest green', secondaryName: 'amber' },
+  },
+  minimalist: {
+    scene: 'a single small plant on a vast empty white surface with one thin shadow',
+    palette: { primaryName: 'dark slate', secondaryName: 'warm copper' },
+  },
+  vintage: {
+    scene: 'a grand old library with floor-to-ceiling bookshelves, a rolling ladder, and warm lamplight casting long shadows',
+    palette: { primaryName: 'deep burgundy', secondaryName: 'warm sand' },
+  },
+}
 
 function part1Style(visualStyle: string): string {
   const label = STYLE_LABELS[visualStyle] ?? 'Editorial illustration'
   return `${label} style. Clean minimal professional illustration, simple and trustworthy. Mood: clean, professional, aspirational, trustworthy.`
 }
 
-function part2Palette(): string {
-  return `Color palette: ${PALETTE.primaryName} as the dominant accent color, ${PALETTE.secondaryName} as the supporting tone, white background, plenty of breathing room.`
+function part2Palette(palette: { primaryName: string; secondaryName: string }): string {
+  return `Color palette: ${palette.primaryName} as the dominant accent color, ${palette.secondaryName} as the supporting tone, white background, plenty of breathing room.`
 }
 
 const PART3_COMPOSITION =
@@ -71,28 +94,40 @@ const PART3_COMPOSITION =
 const PART4_EXCLUSIONS =
   'Do not include: dark moody scenes, complex busy compositions, fantasy elements, stock photo clichés, any text, any letters, any numbers, any labels, any captions, any typography of any kind, any written elements whatsoever, watermarks, logos, signatures. No human figures, no faces, no hands, no body parts of any kind.'
 
-function buildStylePrompt(visualStyle: string, scene: string): string {
+function buildStylePrompt(visualStyle: string, scene: string, palette: { primaryName: string; secondaryName: string }): string {
   const label = (STYLE_LABELS[visualStyle] ?? 'Editorial illustration').toLowerCase()
   return [
     part1Style(visualStyle),
-    part2Palette(),
+    part2Palette(palette),
     PART3_COMPOSITION,
     PART4_EXCLUSIONS,
     `Create a minimal ${label} illustration of this concept: ${scene}`,
   ].join(' ')
 }
 
-// Cover direction → archetype, mirrors imageGeneration.ts.
-const COVER_DIRECTION_TO_ARCHETYPE: Record<string, 'studio_product' | 'editorial' | 'lifestyle'> = {
-  studio_product:     'studio_product',
-  bold_operator:      'studio_product',
-  cinematic_abstract: 'studio_product',
-  clean_corporate:    'editorial',
-  editorial_modern:   'editorial',
-  retro_illustrated:  'lifestyle',
+// Cover direction → design style. Each direction now has its own unique
+// layout, matching the expanded COVER_DESIGN_STYLES in imageGeneration.ts.
+const COVER_DESIGN_STYLES: Record<string, (primary: string, secondary: string) => string> = {
+  bold_operator: (p) =>
+    `Full bleed dark ${p} background. OVERSIZED title text fills the entire upper two-thirds — the typography IS the design element. No central object needed. Author name small at very bottom in gold or white. The boldness comes purely from the scale and weight of the title words.`,
+
+  clean_corporate: (_, s) =>
+    `White or light cream background. Single strong central object in upper half — clean, precise, professional (a graph, compass, or geometric symbol). Title below the object in dark refined sans-serif typography. Thin horizontal rule separating title from author. Maximum white space. Object-led composition. ${s} accent elements.`,
+
+  editorial_modern: (p) =>
+    `Bold color blocking — upper half ${p} solid color, lower half white or cream. Large confident title sits at the color boundary spanning both halves. Author name small at bottom. No illustration needed — the geometric color split IS the design. Magazine-editorial aesthetic.`,
+
+  cinematic_abstract: (p) =>
+    `Full bleed atmospheric scene fills the entire cover — deep space, dramatic sky, or abstract environmental mood in ${p} tones. Title floats in the middle third with subtle dark gradient behind text for legibility. Author name very small at bottom edge. Immersive, cinematic, no hard borders.`,
+
+  retro_illustrated: (_, s) =>
+    `Warm ${s} background with ornate decorative border frame. Central hand-illustrated scene inside the frame — a character, landscape, or symbolic object. Title in vintage lettering at top inside the border. Author name at bottom in smaller vintage type. Classic paperback aesthetic.`,
+
+  studio_product: (p) =>
+    `Pure white background. Single premium object floating in center with perfect studio lighting and subtle drop shadow — feels like luxury product photography. Title below center in minimal refined ${p} typography. Maximum negative space. Premium, restrained, Apple-aesthetic.`,
 }
 
-// Per-direction tones — differentiates directions that share an archetype.
+// Per-direction tones — aesthetic description for context.
 const COVER_DIRECTION_TONES: Record<string, string> = {
   bold_operator:      'Bold, dominant, commanding authority — power through restraint',
   clean_corporate:    'Precise, credible, institutional — trust through order',
@@ -128,13 +163,10 @@ function buildCoverPrompt(
   palette: { primaryName: string; secondaryName: string },
   tone: string,
 ): string {
-  const archetype = COVER_DIRECTION_TO_ARCHETYPE[direction] ?? 'studio_product'
-  const designStyle =
-    archetype === 'studio_product'
-      ? `Dark ${palette.primaryName} background. Gold or white bold title. One strong central object (phone, card, symbol) in the middle third. Clean border frame in gold. Author at bottom in gold or white.`
-      : archetype === 'editorial'
-        ? 'White or cream background. Dark bold title filling upper half. One minimal graphic element in center. Thin rule lines as dividers. Author at bottom in dark ink.'
-        : `Deep ${palette.primaryName} background with subtle texture. ${palette.secondaryName} accent title. Central graphic object. Author at bottom.`
+  const designStyle = (COVER_DESIGN_STYLES[direction] ?? COVER_DESIGN_STYLES['studio_product'])(
+    palette.primaryName,
+    palette.secondaryName,
+  )
 
   return [
     'Professional book cover design for a business nonfiction book. Typography-first layout.',
@@ -144,7 +176,7 @@ function buildCoverPrompt(
     '- SUBTITLE: "A Subtitle Goes Here" — smaller, below title or below central graphic',
     '- AUTHOR: "Author Name" — bottom of cover, clean sans-serif',
     '',
-    `DESIGN STYLE (${archetype}): ${designStyle}`,
+    `DESIGN STYLE (${direction}): ${designStyle}`,
     `Tonal direction: ${tone}`,
     '',
     `COLOR: ${palette.primaryName} and ${palette.secondaryName} from the palette. High contrast between background and title text is mandatory.`,
@@ -221,28 +253,27 @@ async function main() {
 
   const startedAt = Date.now()
 
-  // Visual style samples — uncomment to regenerate (not needed this run).
-  // console.log('--- Visual style samples (16:9, high) ---')
-  // for (const id of STYLE_IDS) {
-  //   const t0 = Date.now()
-  //   const result = await generateOne(
-  //     client,
-  //     buildStylePrompt(id, STYLE_SCENE),
-  //     '1536x1024',
-  //     path.join('public', 'style-samples', `${id}.png`),
-  //   )
-  //   const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
-  //   if (result.ok) {
-  //     console.log(`  ✓ ${id.padEnd(15)} ${result.bytes.toLocaleString()} bytes  (${elapsed}s)`)
-  //   } else {
-  //     console.log(`  ✗ ${id.padEnd(15)} ${result.error}  (${elapsed}s)`)
-  //   }
-  // }
-
-  // Suppress unused-variable warning while style loop is commented out.
-  void STYLE_IDS
-  void STYLE_SCENE
-  void buildStylePrompt
+  console.log('--- Visual style samples (16:9, high) ---')
+  for (const id of STYLE_IDS) {
+    const sample = VISUAL_STYLE_SAMPLES[id]
+    if (!sample) {
+      console.log(`  ✗ ${id.padEnd(15)} no sample data defined`)
+      continue
+    }
+    const t0 = Date.now()
+    const result = await generateOne(
+      client,
+      buildStylePrompt(id, sample.scene, sample.palette),
+      '1536x1024',
+      path.join('public', 'style-samples', `${id}.jpg`),
+    )
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
+    if (result.ok) {
+      console.log(`  ✓ ${id.padEnd(15)} ${result.bytes.toLocaleString()} bytes  (${elapsed}s)`)
+    } else {
+      console.log(`  ✗ ${id.padEnd(15)} ${result.error}  (${elapsed}s)`)
+    }
+  }
 
   console.log('--- Cover direction samples (2:3, high) ---')
   for (const id of COVER_IDS) {
@@ -254,7 +285,7 @@ async function main() {
       client,
       buildCoverPrompt(id, scene, palette, tone),
       '1024x1536',
-      path.join('public', 'cover-samples', `${id}.png`),
+      path.join('public', 'cover-samples', `${id}.jpg`),
     )
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
     if (result.ok) {
