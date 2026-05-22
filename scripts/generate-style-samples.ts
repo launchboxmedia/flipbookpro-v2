@@ -301,7 +301,7 @@ async function main() {
   console.log('--- Cover direction samples (2:3, high) ---')
   for (const id of COVER_IDS) {
     const scene   = COVER_DIRECTION_SCENES[id]   ?? 'a minimalist abstract icon'
-    const palette = COVER_DIRECTION_PALETTES[id] ?? PALETTE
+    const palette = COVER_DIRECTION_PALETTES[id] ?? { primaryName: 'deep navy', secondaryName: 'warm gold' }
     const tone    = COVER_DIRECTION_TONES[id]    ?? ''
     const t0 = Date.now()
     const result = await generateOne(
