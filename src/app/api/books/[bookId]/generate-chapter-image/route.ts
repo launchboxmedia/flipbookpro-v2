@@ -68,7 +68,6 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
         .from('book_pages')
         .update({ image_scene: scene })
         .eq('id', pageId)
-        .eq('user_id', user.id)
     }
 
     if (process.env.DEBUG_PROMPTS === '1') {
@@ -108,7 +107,6 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       .from('book_pages')
       .update({ image_url: publicUrl })
       .eq('id', pageId)
-      .eq('user_id', user.id)
 
     if (updateError) {
       console.error('[generate-chapter-image] DB update failed', updateError.message)
