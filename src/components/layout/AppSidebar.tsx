@@ -55,7 +55,13 @@ const STAGE_GROUPS: Array<{
   group: string
   steps: Array<{ label: string; stage: CoauthorStage; icon: React.ReactNode }>
 }> = [
-  { group: 'Research', steps: [{ label: 'Creator Radar',     stage: 'radar',       icon: <Radar       className="w-4 h-4" /> }] },
+  {
+    group: 'Research',
+    steps: [
+      { label: 'Book Details',   stage: 'book-details', icon: <BookOpen    className="w-4 h-4" /> },
+      { label: 'Creator Radar',  stage: 'radar',        icon: <Radar       className="w-4 h-4" /> },
+    ],
+  },
   { group: 'Outline',  steps: [{ label: 'Outline',           stage: 'outline',     icon: <FileText    className="w-4 h-4" /> }] },
   { group: 'Write',    steps: [{ label: 'Chapters',          stage: 'chapter',     icon: <PenLine     className="w-4 h-4" /> }] },
   { group: 'Design',   steps: [{ label: 'Book Design',       stage: 'book-design', icon: <Palette     className="w-4 h-4" /> }] },

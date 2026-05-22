@@ -9,6 +9,7 @@ import { BookDesignStage } from './BookDesignStage'
 import { PrePublishStage } from './PrePublishStage'
 import { PublishStage } from './PublishStage'
 import { CreatorRadarStage } from './CreatorRadarStage'
+import { BookDetailsStage } from './BookDetailsStage'
 import type { Book, BookPage, BookResource, PublishedBook, EmailSequence } from '@/types/database'
 
 /** The slice of a book's welcome sequence the PublishStage needs to render
@@ -18,6 +19,7 @@ export type PublishEmailSequence = Pick<EmailSequence, 'status' | 'emails' | 'ac
 export type CoauthorStage =
   | 'outline'
   | 'radar'
+  | 'book-details'
   | 'chapter'
   | 'book-design'
   | 'pre-publish'
@@ -430,6 +432,9 @@ export function CoauthorShell({
                 plan={radarPlan}
                 onStageChange={setStage}
               />
+            )}
+            {stage === 'book-details' && (
+              <BookDetailsStage book={book} />
             )}
             {stage === 'book-design' && (
               <BookDesignStage
