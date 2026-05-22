@@ -408,7 +408,7 @@ function CoverPage({ book }: { book: Book; profile: Profile | null }) {
         <img
           src={book.cover_image_url}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
         />
       </div>
     )

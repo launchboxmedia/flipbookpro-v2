@@ -489,14 +489,16 @@ export function HeroSection({
               }}
             >
               {coverImageUrl ? (
-                <Image
-                  src={coverImageUrl}
-                  alt={`${title} cover`}
-                  fill
-                  className="object-cover"
-                  sizes="(min-width: 1024px) 300px, 80vw"
-                  priority
-                />
+                <div className="absolute inset-0 bg-ink-3">
+                  <Image
+                    src={coverImageUrl}
+                    alt={`${title} cover`}
+                    fill
+                    className="object-contain"
+                    sizes="(min-width: 1024px) 300px, 80vw"
+                    priority
+                  />
+                </div>
               ) : (
                 <div className="absolute inset-0 bg-ink-3 flex items-center justify-center">
                   <span className="font-playfair text-white/30 text-center px-6 leading-tight">
