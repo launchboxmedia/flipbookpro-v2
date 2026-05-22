@@ -290,12 +290,82 @@ function stripFences(s: string): string {
   return t.trim()
 }
 
+/** Attempt to repair common JSON errors like unterminated strings,
+ *  unclosed braces/brackets, and trailing commas. Returns repaired
+ *  string or null if unrepairable. */
+function repairJson(s: string): string | null {
+  try {
+    // First, try to close unterminated strings by finding the last quote
+    // and checking if it's properly closed
+    let repaired = s
+
+    // Fix unterminated strings: if we find an odd number of unescaped quotes,
+    // add a closing quote before the next structural character
+    const lines = repaired.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      // Count unescaped quotes
+      let quoteCount = 0
+      let escaped = false
+      for (let j = 0; j < line.length; j++) {
+        if (escaped) {
+          escaped = false
+          continue
+        }
+        if (line[j] === '\\') {
+          escaped = true
+          continue
+        }
+        if (line[j] === '"') {
+          quoteCount++
+        }
+      }
+      // If odd number of quotes, we have an unterminated string
+      if (quoteCount % 2 === 1) {
+        // Find the last quote and add a closing quote after it
+        const lastQuotePos = line.lastIndexOf('"')
+        if (lastQuotePos !== -1) {
+          lines[i] = line.substring(0, lastQuotePos + 1) + '"' + line.substring(lastQuotePos + 1)
+        }
+      }
+    }
+    repaired = lines.join('\n')
+
+    // Try to close unclosed braces and brackets
+    const openBraces = (repaired.match(/\{/g) || []).length
+    const closeBraces = (repaired.match(/\}/g) || []).length
+    const openBrackets = (repaired.match(/\[/g) || []).length
+    const closeBrackets = (repaired.match(/\]/g) || []).length
+
+    if (openBraces > closeBraces) {
+      repaired += '}'.repeat(openBraces - closeBraces)
+    }
+    if (openBrackets > closeBrackets) {
+      repaired += ']'.repeat(openBrackets - closeBrackets)
+    }
+
+    // Remove trailing commas before closing braces/brackets
+    repaired = repaired.replace(/,(\s*[}\]])/g, '$1')
+
+    return repaired
+  } catch {
+    return null
+  }
+}
+
 /** Find the first JSON value (object or array) embedded in a possibly-prose
  *  Sonnet response. Tolerant of leading commentary like "Here's the JSON:" — a
  *  recurring failure mode for non-streaming structured-output prompts. */
 function extractJson(s: string): unknown {
   const cleaned = stripFences(s)
   try { return JSON.parse(cleaned) } catch { /* fall through */ }
+
+  // Try to repair and parse
+  const repaired = repairJson(cleaned)
+  if (repaired) {
+    try { return JSON.parse(repaired) } catch { /* fall through */ }
+  }
+
   const objMatch = cleaned.match(/\{[\s\S]*\}/)
   const arrMatch = cleaned.match(/\[[\s\S]*\]/)
   // Prefer whichever appears first.
@@ -303,7 +373,16 @@ function extractJson(s: string): unknown {
     : !arrMatch ? objMatch?.[0]
     : (cleaned.indexOf(objMatch[0]) <= cleaned.indexOf(arrMatch[0]) ? objMatch[0] : arrMatch[0])
   if (!candidate) return null
-  try { return JSON.parse(candidate) } catch { return null }
+
+  try { return JSON.parse(candidate) } catch { /* fall through */ }
+
+  // Try repairing the extracted candidate
+  const repairedCandidate = repairJson(candidate)
+  if (repairedCandidate) {
+    try { return JSON.parse(repairedCandidate) } catch { return null }
+  }
+
+  return null
 }
 
 function asString(v: unknown): string {
@@ -835,6 +914,12 @@ Citations available: ${citations.join(', ')}`
         let parsed: RadarResult
         const extracted = extractJson(jsonBuffer)
         if (!extracted || typeof extracted !== 'object' || Array.isArray(extracted)) {
+          // Log the malformed JSON server-side for debugging
+          // eslint-disable-next-line no-console
+          console.error('[creator-radar] JSON parse failed. Buffer length:', jsonBuffer.length)
+          // eslint-disable-next-line no-console
+          console.error('[creator-radar] Last 500 chars of buffer:', jsonBuffer.slice(-500))
+
           const errorMsg = !extracted
             ? 'Synthesis returned no valid JSON'
             : 'Synthesis returned invalid JSON structure (expected object, got ' + (Array.isArray(extracted) ? 'array' : typeof extracted) + ')'
