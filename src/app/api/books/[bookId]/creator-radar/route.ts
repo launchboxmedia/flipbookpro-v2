@@ -829,16 +829,20 @@ Citations available: ${citations.join(', ')}`
           },
         )
 
-        // Parse the assembled JSON. If it fails, we surface a structured
-        // error rather than silently dropping the result.
+        // Parse the assembled JSON. Use extractJson for tolerance against
+        // leading prose or malformed fences. If it still fails, we surface
+        // a structured error rather than silently dropping the result.
         let parsed: RadarResult
-        try {
-          parsed = JSON.parse(stripFences(jsonBuffer)) as RadarResult
-        } catch (e) {
-          send(controller, { type: 'error', message: `Synthesis returned invalid JSON: ${(e as Error).message.slice(0, 120)}` })
+        const extracted = extractJson(jsonBuffer)
+        if (!extracted || typeof extracted !== 'object' || Array.isArray(extracted)) {
+          const errorMsg = !extracted
+            ? 'Synthesis returned no valid JSON'
+            : 'Synthesis returned invalid JSON structure (expected object, got ' + (Array.isArray(extracted) ? 'array' : typeof extracted) + ')'
+          send(controller, { type: 'error', message: errorMsg })
           controller.close()
           return
         }
+        parsed = extracted as RadarResult
 
         // Default-fill required fields so the UI never crashes on a
         // half-populated response (rare, but Sonnet has dropped fields
