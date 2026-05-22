@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024 // 5 MB
+const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 const MIME_TO_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     return NextResponse.json({ error: 'Cover must be PNG, JPEG, or WebP.' }, { status: 415 })
   }
   if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: 'Cover must be 5 MB or smaller.' }, { status: 413 })
+    return NextResponse.json({ error: 'Cover must be 10 MB or smaller.' }, { status: 413 })
   }
 
   const ext = MIME_TO_EXT[file.type] ?? 'jpg'

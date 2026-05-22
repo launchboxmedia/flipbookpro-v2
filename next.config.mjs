@@ -15,6 +15,11 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
 }
 
 // org/project come from env (SENTRY_ORG / SENTRY_PROJECT) so no
