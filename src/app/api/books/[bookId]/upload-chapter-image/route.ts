@@ -3,15 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { storagePathFromPublicUrl } from '@/lib/imageGeneration'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
-const MIME_TO_EXT: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-}
+export const maxDuration = 10
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -26,17 +18,20 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .single()
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const formData = await req.formData()
-  const file   = formData.get('file') as File | null
-  const pageId = formData.get('pageId')
-  if (!file) return NextResponse.json({ error: 'file required' }, { status: 400 })
-  if (typeof pageId !== 'string') return NextResponse.json({ error: 'pageId required' }, { status: 400 })
+  // Client uploaded directly to Supabase Storage; we just receive the URL
+  const body = await req.json().catch(() => ({}))
+  const { pageId, imageUrl } = body
 
-  if (!ALLOWED_MIME.has(file.type)) {
-    return NextResponse.json({ error: 'Image must be PNG, JPEG, or WebP.' }, { status: 415 })
+  if (typeof pageId !== 'string') {
+    return NextResponse.json({ error: 'pageId required' }, { status: 400 })
   }
-  if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: 'Image must be 10 MB or smaller.' }, { status: 413 })
+  if (typeof imageUrl !== 'string' || !imageUrl.startsWith('https://')) {
+    return NextResponse.json({ error: 'Valid imageUrl required' }, { status: 400 })
+  }
+
+  // Security: verify URL is from our Supabase storage
+  if (!imageUrl.includes('supabase')) {
+    return NextResponse.json({ error: 'Invalid storage URL' }, { status: 400 })
   }
 
   // Verify the page belongs to this book (and therefore this user, since
@@ -50,23 +45,10 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .single()
   if (!page) return NextResponse.json({ error: 'Page not found' }, { status: 404 })
 
-  const ext = MIME_TO_EXT[file.type] ?? 'jpg'
-  const filename = `chapters/${params.bookId}/upload-${page.id}-${Date.now()}.${ext}`
-  const buffer = Buffer.from(await file.arrayBuffer())
-
-  const { error: uploadError } = await supabase.storage
-    .from('book-images')
-    .upload(filename, buffer, { contentType: file.type, upsert: true })
-  if (uploadError) {
-    console.error('[upload-chapter-image]', uploadError.message)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
-  }
-
-  const { data: { publicUrl } } = supabase.storage.from('book-images').getPublicUrl(filename)
-
+  // Update DB with new image URL
   const { error: updateError } = await supabase
     .from('book_pages')
-    .update({ image_url: publicUrl, updated_at: new Date().toISOString() })
+    .update({ image_url: imageUrl, updated_at: new Date().toISOString() })
     .eq('id', page.id)
     .eq('book_id', params.bookId)
   if (updateError) {
@@ -76,11 +58,11 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   // Best-effort cleanup of the previous file
   const oldPath = storagePathFromPublicUrl(page.image_url, 'book-images')
-  if (oldPath && oldPath !== filename) {
+  if (oldPath && page.image_url !== imageUrl) {
     void supabase.storage.from('book-images').remove([oldPath]).then(({ error }) => {
       if (error) console.error('[upload-chapter-image] cleanup failed', error.message)
     })
   }
 
-  return NextResponse.json({ imageUrl: publicUrl })
+  return NextResponse.json({ ok: true, url: imageUrl })
 }

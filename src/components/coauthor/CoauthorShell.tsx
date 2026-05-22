@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createClient } from '@/lib/supabase/client'
 import { AppShell } from '@/components/layout/AppShell'
 import { OutlineStage } from './OutlineStage'
 import { ChapterStage } from './ChapterStage'
@@ -253,20 +254,57 @@ export function CoauthorShell({
   }, [book.id])
 
   const uploadChapterImage = useCallback(async (pageId: string, file: File) => {
+    // Client-side validation
+    const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+    if (file.size > MAX_SIZE) {
+      setImageStatuses((prev) => ({ ...prev, [pageId]: 'error' }))
+      setImageErrors((prev) => ({ ...prev, [pageId]: 'Image must be under 10MB' }))
+      return
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setImageStatuses((prev) => ({ ...prev, [pageId]: 'error' }))
+      setImageErrors((prev) => ({ ...prev, [pageId]: 'Only JPG, PNG, or WebP allowed' }))
+      return
+    }
+
     inflightControllers.current.get(pageId)?.abort()
     setImageStatuses((prev) => ({ ...prev, [pageId]: 'generating' }))
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('pageId', pageId)
+      const supabase = createClient()
+
+      // Generate safe filename
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const filename = `chapters/${book.id}/${pageId}-${crypto.randomUUID()}-${Date.now()}.${ext}`
+
+      // Upload directly to Supabase Storage (bypasses Next.js server)
+      const { error: uploadError } = await supabase.storage
+        .from('book-images')
+        .upload(filename, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-images')
+        .getPublicUrl(filename)
+
+      // Update DB via lightweight API call (just the URL, no file)
       const res = await fetch(`/api/books/${book.id}/upload-chapter-image`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageId, imageUrl: publicUrl }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Upload failed (${res.status})`)
+
       setPages((prev) =>
-        prev.map((p) => (p.id === pageId ? { ...p, image_url: json.imageUrl } : p)),
+        prev.map((p) => (p.id === pageId ? { ...p, image_url: publicUrl } : p)),
       )
       setImageStatuses((prev) => ({ ...prev, [pageId]: 'done' }))
       setImageErrors((prev) => { const n = { ...prev }; delete n[pageId]; return n })
@@ -278,18 +316,56 @@ export function CoauthorShell({
   }, [book.id])
 
   const handleCoverUpload = useCallback(async (file: File) => {
+    // Client-side validation
+    const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+    if (file.size > MAX_SIZE) {
+      setCoverImageError('Image must be under 10MB')
+      setCoverImageStatus('error')
+      return
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setCoverImageError('Only JPG, PNG, or WebP allowed')
+      setCoverImageStatus('error')
+      return
+    }
+
     setCoverImageStatus('generating')
     setCoverImageError(null)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const supabase = createClient()
+
+      // Generate safe filename
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const filename = `covers/${book.id}/${crypto.randomUUID()}-${Date.now()}.${ext}`
+
+      // Upload directly to Supabase Storage (bypasses Next.js server)
+      const { error: uploadError } = await supabase.storage
+        .from('book-images')
+        .upload(filename, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-images')
+        .getPublicUrl(filename)
+
+      // Update DB via lightweight API call (just the URL, no file)
       const res = await fetch(`/api/books/${book.id}/upload-cover`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverUrl: publicUrl }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Failed (${res.status})`)
-      setCoverImageUrl(json.imageUrl)
+
+      setCoverImageUrl(publicUrl)
       setCoverImageStatus('done')
     } catch (e) {
       setCoverImageStatus('error')

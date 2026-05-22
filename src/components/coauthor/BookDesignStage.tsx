@@ -196,18 +196,55 @@ export function BookDesignStage({
 
   async function uploadBackImage(file: File) {
     if (backGenerating || backUploading) return
+
+    // Client-side validation
+    const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+    if (file.size > MAX_SIZE) {
+      setBackImageError('Image must be under 10MB')
+      return
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setBackImageError('Only JPG, PNG, or WebP allowed')
+      return
+    }
+
     setBackUploading(true)
     setBackImageError('')
     try {
-      const fd = new FormData()
-      fd.append('file', file)
+      const supabase = createClient()
+
+      // Generate safe filename
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const filename = `back-covers/${book.id}/${crypto.randomUUID()}-${Date.now()}.${ext}`
+
+      // Upload directly to Supabase Storage (bypasses Next.js server)
+      const { error: uploadError } = await supabase.storage
+        .from('book-images')
+        .upload(filename, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-images')
+        .getPublicUrl(filename)
+
+      // Update DB via lightweight API call (just the URL, no file)
       const res = await fetch(`/api/books/${book.id}/upload-back-cover`, {
         method: 'POST',
-        body: fd,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backCoverUrl: publicUrl }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Upload failed (${res.status})`)
-      if (typeof json.imageUrl === 'string') setBackImageUrl(json.imageUrl)
+
+      setBackImageUrl(publicUrl)
     } catch (e) {
       setBackImageError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
