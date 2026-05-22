@@ -51,6 +51,7 @@ interface BookForRadar {
    *  different topics don't collide on the cached radar. */
   niche: string | null
   // Business-persona-only context (NULL for publisher/storyteller).
+  offer_description: string | null
   offer_type: string | null
   cta_intent: string | null
   testimonials: string | null
@@ -63,7 +64,12 @@ function buildPerplexityQuery(persona: Persona, book: BookForRadar): string {
   // about what the book is about. Title and genre are often empty on
   // new books; niche is the field the user explicitly entered to
   // describe the book. Anchor every query on it.
-  const topic    = book.niche ?? book.title ?? 'business'
+  const topicParts = [
+    book.niche,
+    book.subtitle && book.subtitle !== book.title ? book.subtitle : null,
+    book.title,
+  ].filter(Boolean)
+  const topic = topicParts.length > 0 ? topicParts.join(' — ') : 'business'
   const audience = book.target_audience ?? (persona === 'business' ? 'business owners' : 'a general adult audience')
   if (persona === 'business') {
     return `Market research for a book about: ${topic}\n` +
@@ -564,7 +570,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   const [{ data: book }, planInfo] = await Promise.all([
     supabase
       .from('books')
-      .select('id, user_id, persona, title, subtitle, target_audience, website_url, genre, niche, offer_type, cta_intent, testimonials, creator_radar_data, creator_radar_ran_at')
+      .select('id, user_id, persona, title, subtitle, target_audience, website_url, genre, niche, offer_description, offer_type, cta_intent, testimonials, creator_radar_data, creator_radar_ran_at')
       .eq('id', params.bookId)
       .eq('user_id', user.id)
       .single<BookForRadar>(),
@@ -792,10 +798,16 @@ Use this real reader language in contentAngles and audienceInsights. These are t
         // Topic-driven synthesis. The user prompt deliberately leads with
         // the niche so the model anchors there; title/audience are
         // secondary. No author business context, no website extraction.
-        const topic = book.niche ?? book.title ?? 'this topic'
+        const topicParts = [
+          book.niche,
+          book.subtitle && book.subtitle !== book.title ? book.subtitle : null,
+          book.title,
+        ].filter(Boolean)
+        const topic = topicParts.length > 0 ? topicParts.join(' — ') : 'this topic'
         const phase1UserPrompt = `Topic: ${topic}
 Title: ${book.title || '(not set)'}${book.subtitle ? ` — ${book.subtitle}` : ''}
 Target audience: ${book.target_audience ?? 'not specified'}
+${book.offer_description ? `Offer/product: ${book.offer_description}` : ''}
 Persona: ${persona}
 ${phase1EnrichmentBlock}
 Market research findings:
