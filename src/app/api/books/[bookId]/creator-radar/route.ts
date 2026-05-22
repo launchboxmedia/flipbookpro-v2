@@ -295,51 +295,81 @@ function stripFences(s: string): string {
  *  string or null if unrepairable. */
 function repairJson(s: string): string | null {
   try {
-    // First, try to close unterminated strings by finding the last quote
-    // and checking if it's properly closed
     let repaired = s
 
-    // Fix unterminated strings: if we find an odd number of unescaped quotes,
-    // add a closing quote before the next structural character
-    const lines = repaired.split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      // Count unescaped quotes
-      let quoteCount = 0
-      let escaped = false
-      for (let j = 0; j < line.length; j++) {
-        if (escaped) {
-          escaped = false
-          continue
-        }
-        if (line[j] === '\\') {
-          escaped = true
-          continue
-        }
-        if (line[j] === '"') {
-          quoteCount++
-        }
+    // Strategy 1: Find the last complete opening brace and truncate to there
+    // This handles the case where streaming was cut off mid-structure
+    const lastOpenBrace = repaired.lastIndexOf('{')
+    const lastCloseBrace = repaired.lastIndexOf('}')
+
+    // If we have more opening than closing braces, try to close them
+    let openCount = 0
+    let closeCount = 0
+    let inString = false
+    let escaped = false
+
+    for (let i = 0; i < repaired.length; i++) {
+      const char = repaired[i]
+
+      if (escaped) {
+        escaped = false
+        continue
       }
-      // If odd number of quotes, we have an unterminated string
-      if (quoteCount % 2 === 1) {
-        // Find the last quote and add a closing quote after it
-        const lastQuotePos = line.lastIndexOf('"')
-        if (lastQuotePos !== -1) {
-          lines[i] = line.substring(0, lastQuotePos + 1) + '"' + line.substring(lastQuotePos + 1)
-        }
+
+      if (char === '\\') {
+        escaped = true
+        continue
+      }
+
+      if (char === '"') {
+        inString = !inString
+      }
+
+      if (!inString) {
+        if (char === '{') openCount++
+        if (char === '}') closeCount++
       }
     }
-    repaired = lines.join('\n')
 
-    // Try to close unclosed braces and brackets
-    const openBraces = (repaired.match(/\{/g) || []).length
-    const closeBraces = (repaired.match(/\}/g) || []).length
-    const openBrackets = (repaired.match(/\[/g) || []).length
-    const closeBrackets = (repaired.match(/\]/g) || []).length
-
-    if (openBraces > closeBraces) {
-      repaired += '}'.repeat(openBraces - closeBraces)
+    // If string is still open at the end, close it
+    if (inString) {
+      repaired += '"'
     }
+
+    // Close any unclosed braces
+    if (openCount > closeCount) {
+      repaired += '}'.repeat(openCount - closeCount)
+    }
+
+    // Handle arrays similarly
+    let openBrackets = 0
+    let closeBrackets = 0
+    inString = false
+    escaped = false
+
+    for (let i = 0; i < repaired.length; i++) {
+      const char = repaired[i]
+
+      if (escaped) {
+        escaped = false
+        continue
+      }
+
+      if (char === '\\') {
+        escaped = true
+        continue
+      }
+
+      if (char === '"') {
+        inString = !inString
+      }
+
+      if (!inString) {
+        if (char === '[') openBrackets++
+        if (char === ']') closeBrackets++
+      }
+    }
+
     if (openBrackets > closeBrackets) {
       repaired += ']'.repeat(openBrackets - closeBrackets)
     }
@@ -899,7 +929,7 @@ Citations available: ${citations.join(', ')}`
           {
             systemPrompt: buildSystemPrompt(persona),
             userPrompt: phase1UserPrompt,
-            maxTokens: 3000,
+            maxTokens: 2000, // Reduced from 3000 to prevent cutoff
             humanize: false, // structured JSON, not prose
           },
           (chunk) => {
