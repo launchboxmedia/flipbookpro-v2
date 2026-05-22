@@ -47,13 +47,14 @@ export function BookListItem({ book }: Props) {
     >
       {/* Thumbnail */}
       {book.cover_image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={book.cover_image_url}
-          alt=""
-          aria-hidden="true"
-          className="w-10 h-14 rounded object-cover shrink-0"
-        />
+        <div className="relative w-10 aspect-[2/3] bg-ink-3 dark:bg-ink-2 rounded overflow-hidden shrink-0" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={book.cover_image_url}
+            alt=""
+            className="w-full h-full object-contain"
+          />
+        </div>
       ) : (
         <div className="w-10 h-14 rounded bg-cream-3 dark:bg-ink-3 flex items-center justify-center shrink-0" aria-hidden="true">
           <BookOpen className="w-4 h-4 text-gold" />

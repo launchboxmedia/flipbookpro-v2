@@ -75,8 +75,12 @@ function timeAgo(iso: string): string {
 
 function CoverThumb({ url, title }: { url: string | null; title: string }) {
   if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt={`${title} cover`} className="w-10 h-14 rounded object-cover shrink-0" />
+    return (
+      <div className="relative w-10 aspect-[2/3] bg-ink-3 dark:bg-ink-2 rounded overflow-hidden shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={`${title} cover`} className="w-full h-full object-contain" />
+      </div>
+    )
   }
   return (
     <div className="w-10 h-14 rounded bg-cream-3 dark:bg-ink-3 flex items-center justify-center text-gold shrink-0" aria-hidden="true">

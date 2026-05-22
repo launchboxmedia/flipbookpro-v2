@@ -640,13 +640,14 @@ export function BookDesignStage({
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <div className="w-32 sm:w-40 shrink-0">
               <ImageLightbox src={coverImageUrl} alt={`${book.title} cover`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={coverImageUrl}
-                  alt=""
-                  className="w-full object-cover rounded-lg shadow-md border border-[#333]"
-                  style={{ aspectRatio: '3/4' }}
-                />
+                <div className="relative w-full aspect-[2/3] bg-ink-3 dark:bg-ink-2 rounded-lg overflow-hidden shadow-md border border-[#333]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={coverImageUrl}
+                    alt=""
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               </ImageLightbox>
             </div>
             <div className="flex-1 min-w-0 space-y-2.5">
@@ -861,12 +862,14 @@ export function BookDesignStage({
           ) : backImageUrl ? (
             <div className="relative">
               <ImageLightbox src={backImageUrl} alt="Back cover">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={backImageUrl}
-                  alt="Back cover"
-                  className="w-24 h-32 object-cover rounded-md border border-[#333]"
-                />
+                <div className="relative w-24 aspect-[2/3] bg-ink-3 dark:bg-ink-2 rounded-md overflow-hidden border border-[#333]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={backImageUrl}
+                    alt="Back cover"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               </ImageLightbox>
               <button
                 onClick={removeBackImage}
