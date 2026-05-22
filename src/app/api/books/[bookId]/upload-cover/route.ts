@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 const MIME_TO_EXT: Record<string, string> = {
