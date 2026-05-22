@@ -104,6 +104,8 @@ function personaWeighting(persona: Persona): string {
 function buildSystemPrompt(persona: Persona): string {
   return `You are a book market intelligence analyst. Analyze the research provided and synthesize it into a structured market intelligence report.
 
+CRITICAL: Be extremely concise. Every field has a strict word limit. Exceeding limits causes parsing failures. Brevity is required.
+
 Focus ONLY on the book topic and market opportunity.
 Do NOT reference any specific company, brand, product name, program name, or author's business.
 Write as if advising any author entering this market.
@@ -111,32 +113,42 @@ Write as if advising any author entering this market.
 Return ONLY valid JSON matching this exact shape — no markdown fences, no preamble:
 
 {
-  "summary": "2-3 sentence executive brief on market opportunity",
+  "summary": "max 40 words",
   "marketSignals": [
-    { "signal": "specific trend or signal", "why_it_matters": "why this affects the book's success", "urgency": "high|medium|low" }
+    {
+      "signal": "max 15 words",
+      "why_it_matters": "max 20 words",
+      "urgency": "high|medium|low"
+    }
+    // maximum 4 signals
   ],
   "contentAngles": [
-    { "angle": "specific book angle or positioning", "differentiator": "what makes this angle unique", "audience_fit": "which reader segment this serves best" }
+    {
+      "angle": "max 12 words",
+      "differentiator": "max 15 words",
+      "audience_fit": "max 12 words"
+    }
+    // maximum 4 angles
   ],
   "audienceInsights": {
-    "biggestPain": "the single most acute problem they have",
-    "alreadyTried": ["thing they tried", "thing they tried"],
-    "willingToPay": "what they'll pay and why",
-    "where_they_gather": ["community/platform", "community/platform"]
+    "biggestPain": "max 20 words",
+    "alreadyTried": ["max 8 words each", "max 3 items"],
+    "willingToPay": "max 15 words",
+    "where_they_gather": ["max 5 words each", "max 3 items"]
   },
   "competitorLandscape": {
-    "crowded_areas": ["overcrowded angle", "overcrowded angle"],
-    "gaps": ["underserved gap", "underserved gap"],
-    "price_range": "typical price range in this space"
+    "crowded_areas": ["max 8 words each", "max 3 items"],
+    "gaps": ["max 10 words each", "max 3 items"],
+    "price_range": "max 10 words"
   },
   "bookRecommendations": {
-    "positioning": "how to position this specific book",
-    "suggested_hook": "a specific opening hook for the book",
-    "ideal_length": "recommended chapter count and why",
+    "positioning": "max 20 words",
+    "suggested_hook": "max 20 words",
+    "ideal_length": "max 15 words",
     "monetization": "free|paid|lead_magnet",
-    "monetization_reason": "why this monetization model fits"
+    "monetization_reason": "max 15 words"
   },
-  "sources": ["url1", "url2"]
+  "sources": ["max 5 URLs"]
 }
 
 Populate all fields.
@@ -297,12 +309,7 @@ function repairJson(s: string): string | null {
   try {
     let repaired = s
 
-    // Strategy 1: Find the last complete opening brace and truncate to there
-    // This handles the case where streaming was cut off mid-structure
-    const lastOpenBrace = repaired.lastIndexOf('{')
-    const lastCloseBrace = repaired.lastIndexOf('}')
-
-    // If we have more opening than closing braces, try to close them
+    // Track whether we're inside a string and count structural characters
     let openCount = 0
     let closeCount = 0
     let inString = false
@@ -929,7 +936,7 @@ Citations available: ${citations.join(', ')}`
           {
             systemPrompt: buildSystemPrompt(persona),
             userPrompt: phase1UserPrompt,
-            maxTokens: 2000, // Reduced from 3000 to prevent cutoff
+            maxTokens: 3000, // Enough for complete response; word limits keep it short
             humanize: false, // structured JSON, not prose
           },
           (chunk) => {
@@ -941,7 +948,6 @@ Citations available: ${citations.join(', ')}`
         // Parse the assembled JSON. Use extractJson for tolerance against
         // leading prose or malformed fences. If it still fails, we surface
         // a structured error rather than silently dropping the result.
-        let parsed: RadarResult
         const extracted = extractJson(jsonBuffer)
         if (!extracted || typeof extracted !== 'object' || Array.isArray(extracted)) {
           // Log the malformed JSON server-side for debugging
@@ -957,7 +963,7 @@ Citations available: ${citations.join(', ')}`
           controller.close()
           return
         }
-        parsed = extracted as RadarResult
+        const parsed = extracted as RadarResult
 
         // Default-fill required fields so the UI never crashes on a
         // half-populated response (rare, but Sonnet has dropped fields
