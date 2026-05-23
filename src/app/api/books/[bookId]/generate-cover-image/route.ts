@@ -13,6 +13,8 @@ import {
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export const maxDuration = 120
 
@@ -44,11 +46,20 @@ function extFromContentType(ct: string): string {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
 
-  const rl = await consumeRateLimit(supabase, { key: `gen-cover-img:${user.id}`, max: 20, windowSeconds: 3600 })
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
+
+  const rl = await consumeRateLimit(supabase, { key: `gen-cover-img:${userId}`, max: 20, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }
@@ -59,9 +70,9 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   const mode: CoverMode = rawMode === 'mascot' || rawMode === 'photo' ? rawMode : 'ai'
 
   const [{ data: book }, { data: pages }, { data: profile }] = await Promise.all([
-    supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
+    supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', userId).single(),
     supabase.from('book_pages').select('chapter_brief').eq('book_id', params.bookId).gte('chapter_index', 0).order('chapter_index'),
-    supabase.from('profiles').select('brand_color, accent_color, avatar_url, mascot_url').eq('id', user.id).single<ProfileForCover>(),
+    supabase.from('profiles').select('brand_color, accent_color, avatar_url, mascot_url').eq('id', userId).single<ProfileForCover>(),
   ])
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -158,7 +169,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     const { error: updateError } = await supabase.from('books')
       .update({ cover_image_url: publicUrl })
       .eq('id', params.bookId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (updateError) {
       console.error('[generate-cover-image] DB update failed', updateError.message)

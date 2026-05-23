@@ -10,15 +10,26 @@ import {
 } from '@/lib/imageGeneration'
 import { resolvePaletteColors } from '@/lib/palettes'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export const maxDuration = 120
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
 
-  const rl = await consumeRateLimit(supabase, { key: `gen-chapter-img:${user.id}`, max: 30, windowSeconds: 3600 })
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
+
+  const rl = await consumeRateLimit(supabase, { key: `gen-chapter-img:${userId}`, max: 30, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }
@@ -27,9 +38,9 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   if (!pageId) return NextResponse.json({ error: 'pageId required' }, { status: 400 })
 
   const [{ data: book }, { data: page }, { data: profile }] = await Promise.all([
-    supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', user.id).single(),
+    supabase.from('books').select('*').eq('id', params.bookId).eq('user_id', userId).single(),
     supabase.from('book_pages').select('id, chapter_title, chapter_brief, content, image_url, image_scene').eq('id', pageId).eq('book_id', params.bookId).single(),
-    supabase.from('profiles').select('brand_color, accent_color').eq('id', user.id).single(),
+    supabase.from('profiles').select('brand_color, accent_color').eq('id', userId).single(),
   ])
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })

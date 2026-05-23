@@ -22,35 +22,32 @@ export function ApiKeysPanel({ existingKeys }: Props) {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [generating, setGenerating] = useState(false)
-
-  function generateApiKey(): string {
-    // Generate a key with a recognizable prefix
-    const uuid1 = crypto.randomUUID().replace(/-/g, '')
-    const uuid2 = crypto.randomUUID().replace(/-/g, '')
-    return `fbp_${uuid1}${uuid2.slice(0, 16)}`
-  }
+  const [error, setError] = useState('')
 
   async function handleGenerate() {
-    if (!newKeyName.trim()) return
+    if (!newKeyName.trim() || generating) return
     setGenerating(true)
+    setError('')
 
-    const key = generateApiKey()
-    const prefix = key.slice(0, 11) + '...'
-
-    // In production, this would hash the key and store it via an API route.
-    // For now, show the key and add to local state.
-    const newEntry: ExistingKey = {
-      id: crypto.randomUUID(),
-      name: newKeyName.trim(),
-      key_prefix: prefix,
-      created_at: new Date().toISOString(),
-      last_used_at: null,
+    try {
+      const res = await fetch('/api/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? 'Failed to create key.')
+        return
+      }
+      setKeys((prev) => [json.meta, ...prev])
+      setGeneratedKey(json.key)
+      setNewKeyName('')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setGenerating(false)
     }
-
-    setKeys(prev => [newEntry, ...prev])
-    setGeneratedKey(key)
-    setNewKeyName('')
-    setGenerating(false)
   }
 
   async function handleCopy() {
@@ -60,9 +57,14 @@ export function ApiKeysPanel({ existingKeys }: Props) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function handleDelete(id: string) {
-    // In production, this would call a DELETE API route
-    setKeys(prev => prev.filter(k => k.id !== id))
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' })
+      if (!res.ok) return
+      setKeys((prev) => prev.filter((k) => k.id !== id))
+    } catch {
+      // silent — key still shows; user can retry
+    }
   }
 
   function dismissGeneratedKey() {
@@ -97,9 +99,12 @@ export function ApiKeysPanel({ existingKeys }: Props) {
             className="flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold/90 disabled:opacity-40 disabled:cursor-not-allowed text-ink-1 dark:text-white text-sm font-inter font-medium rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Generate
+            {generating ? 'Generating…' : 'Generate'}
           </button>
         </div>
+        {error && (
+          <p className="mt-2 text-xs font-inter text-red-400">{error}</p>
+        )}
       </div>
 
       {/* Newly generated key (show once) */}
@@ -179,11 +184,6 @@ export function ApiKeysPanel({ existingKeys }: Props) {
           </table>
         </div>
       )}
-
-      {/* Migration note */}
-      <p className="mt-6 text-xs font-inter text-[#444] text-center">
-        API key storage requires the api_keys table migration. Keys shown above are local to this session until the migration is applied.
-      </p>
     </div>
   )
 }

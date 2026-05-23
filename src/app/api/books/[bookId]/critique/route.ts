@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText } from '@/lib/textGeneration'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 // Sonnet at maxTokens 2500 with structured action payloads can run
 // 15-25s. Match the route's safety ceiling to the typical run.
@@ -171,11 +173,20 @@ Use "reorder" when a chapter is in the wrong position. Use "update_brief" when a
 Return only the JSON array, no markdown fences, no preamble.`
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
 
-  const rl = await consumeRateLimit(supabase, { key: `critique:${user.id}`, max: 20, windowSeconds: 3600 })
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
+
+  const rl = await consumeRateLimit(supabase, { key: `critique:${userId}`, max: 20, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again in an hour.' },
@@ -187,7 +198,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .from('books')
     .select('id, title, persona, book_pages(chapter_index, chapter_title, chapter_brief)')
     .eq('id', params.bookId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })

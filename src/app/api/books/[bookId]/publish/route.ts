@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { createClient } from '@/lib/supabase/server'
 import { generateEmailSequence } from '@/lib/generateEmailSequence'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 function slugify(text: string): string {
   return text
@@ -14,9 +16,18 @@ function slugify(text: string): string {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
+
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
 
   const body = await req.json().catch(() => ({}))
 
@@ -59,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .from('books')
     .select('*')
     .eq('id', params.bookId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -105,7 +116,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     .from('published_books')
     .upsert({
       book_id: params.bookId,
-      user_id: user.id,
+      user_id: userId,
       slug,
       title: book.title,
       author: book.author_name,
@@ -137,7 +148,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
   // author so the email_sequences write satisfies RLS. Pro-gated +
   // idempotent inside generateEmailSequence; never blocks the response.
   waitUntil(
-    generateEmailSequence({ bookId: params.bookId, userId: user.id, supabase })
+    generateEmailSequence({ bookId: params.bookId, userId: userId, supabase })
       .then((r) => {
         if (!r.success) {
           console.error('[publish] email sequence generation failed:', r.error)

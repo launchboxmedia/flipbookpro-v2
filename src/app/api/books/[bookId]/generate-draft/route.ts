@@ -4,6 +4,8 @@ import { generateTextStream } from '@/lib/textGeneration'
 import { consumeRateLimit } from '@/lib/rateLimit'
 import { WRITING_STANDARDS, HUMANIZATION_PROMPT } from '@/lib/writing-standards'
 import type { FrameworkData } from '@/types/database'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 // Tells the writer model to spot content that should live as a standalone
 // downloadable artifact (checklists, templates, scripts, matrices,
@@ -138,11 +140,20 @@ ${sharedAntiHallucinationRules}3. You may reference any step by its full label (
 }
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+  let supabase = await createClient()
+  let userId: string
 
-  const rl = await consumeRateLimit(supabase, { key: `generate-draft:${user.id}`, max: 60, windowSeconds: 3600 })
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
+
+  const rl = await consumeRateLimit(supabase, { key: `generate-draft:${userId}`, max: 60, windowSeconds: 3600 })
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in an hour.' }), { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }
@@ -154,12 +165,12 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       .from('books')
       .select('*')
       .eq('id', params.bookId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single(),
     supabase
       .from('profiles')
       .select('brand_voice_tone, brand_voice_style, brand_voice_avoid, brand_voice_example')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle(),
   ])
 

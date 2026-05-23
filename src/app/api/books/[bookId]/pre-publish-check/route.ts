@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText } from '@/lib/textGeneration'
 import { consumeRateLimit } from '@/lib/rateLimit'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 type Severity = 'error' | 'warning' | 'hint'
 
@@ -15,11 +17,20 @@ interface CheckFlag {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
 
-  const rl = await consumeRateLimit(supabase, { key: `pre-publish:${user.id}`, max: 15, windowSeconds: 3600 })
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
+
+  const rl = await consumeRateLimit(supabase, { key: `pre-publish:${userId}`, max: 15, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }
@@ -29,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       .from('books')
       .select('id, title, subtitle, author_name, persona, visual_style, palette, cover_image_url, back_cover_tagline, back_cover_description, back_cover_cta_text, back_cover_cta_url')
       .eq('id', params.bookId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single(),
     supabase
       .from('book_pages')

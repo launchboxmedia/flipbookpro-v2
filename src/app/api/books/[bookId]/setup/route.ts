@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isValidVisualStyle } from '@/lib/imageGeneration'
 import { isValidPaletteId } from '@/lib/palettes'
+import { validateApiKey } from '@/lib/apiKeys'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const MAX_TITLE = 200
 const MAX_SUBTITLE = 300
@@ -58,9 +60,18 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { bookId: string } },
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let supabase = await createClient()
+  let userId: string
+
+  const authResult = await supabase.auth.getUser()
+  if (authResult.data.user) {
+    userId = authResult.data.user.id
+  } else {
+    const apiAuth = await validateApiKey(req)
+    if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    userId = apiAuth.userId
+    supabase = supabaseAdmin
+  }
 
   const body = await req.json().catch(() => ({}))
 
@@ -114,7 +125,7 @@ export async function POST(
     const { data: profile } = await supabase
       .from('profiles')
       .select('display_name, full_name')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle()
     authorName =
       clampString(profile?.display_name, MAX_AUTHOR) ??
@@ -154,7 +165,7 @@ export async function POST(
       updated_at:      new Date().toISOString(),
     })
     .eq('id', params.bookId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (bookError) {
     console.error('[setup] book update failed', bookError.message)
@@ -163,7 +174,7 @@ export async function POST(
 
   // Increment monthly book counter — non-fatal if it errors, but log so
   // counter drift can be diagnosed.
-  const { error: incError } = await supabase.rpc('increment_books_created', { user_id_input: user.id })
+  const { error: incError } = await supabase.rpc('increment_books_created', { user_id_input: userId })
   if (incError) console.error('[setup] increment_books_created failed', incError.message)
 
   // Chapters block — runs only when the caller sent a chapters array.
