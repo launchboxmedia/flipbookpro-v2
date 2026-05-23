@@ -321,8 +321,22 @@ export interface BookPage {
    *  the auto-extracted scene misses the mark). NULL on legacy rows
    *  generated before this column existed. */
   image_scene?: string | null
+  /** Last critique flags returned by the AI, stored for persistence across
+   *  sessions. Each flag has a stable ID for dismiss tracking. */
+  critique_flags?: CritiqueFlag[] | null
+  /** Array of flag IDs that the author has explicitly dismissed. These flags
+   *  won't be re-surfaced on re-analysis. */
+  dismissed_flag_ids?: string[] | null
   created_at: string
   updated_at: string
+}
+
+export interface CritiqueFlag {
+  id: string
+  type: 'OPENING' | 'CLARITY' | 'VOICE' | 'FLOW' | 'EXAMPLE' | 'CLOSING' | 'BRIEF_DRIFT'
+  issue: string
+  suggestion: string
+  severity: 'low' | 'medium' | 'high'
 }
 
 export interface Profile {

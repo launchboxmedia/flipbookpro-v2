@@ -9,6 +9,7 @@ import { PALETTES } from '@/lib/palettes'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { ChapterResources } from './ChapterResources'
 import { hasInlineResourceSignals, parseResourceMarkers } from '@/lib/resources'
+import { createClient } from '@/lib/supabase/client'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -18,6 +19,7 @@ interface ChatMessage {
 type ChapterFlagType = 'OPENING' | 'CLARITY' | 'VOICE' | 'FLOW' | 'EXAMPLE' | 'CLOSING' | 'BRIEF_DRIFT'
 
 interface ChapterFlag {
+  id: string
   type: ChapterFlagType
   issue: string
   suggestion: string
@@ -99,11 +101,13 @@ export function ChapterStage({
   const [approved, setApproved] = useState(page?.approved ?? false)
   const [imagePrompt, setImagePrompt] = useState('')
   const imageFileInputRef = useRef<HTMLInputElement>(null)
-  const [flags, setFlags] = useState<ChapterFlag[]>([])
-  const [dismissedFlags, setDismissedFlags] = useState<Set<number>>(new Set())
+  const [flags, setFlags] = useState<ChapterFlag[]>(page?.critique_flags ?? [])
+  const [dismissedFlagIds, setDismissedFlagIds] = useState<Set<string>>(
+    new Set(page?.dismissed_flag_ids ?? [])
+  )
   const [analyzing, setAnalyzing] = useState(false)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
-  const [applyingFlag, setApplyingFlag] = useState<number | null>(null)
+  const [applyingFlag, setApplyingFlag] = useState<string | null>(null)
   const [analyzeError, setAnalyzeError] = useState('')
   // Research panel state. Hydrated from page.research_facts on mount so a
   // chapter that's already been researched re-shows the panel collapsed
@@ -134,9 +138,9 @@ export function ChapterStage({
     setApproved(page?.approved ?? false)
     setMessages([])
     setImagePrompt('')
-    setFlags([])
-    setDismissedFlags(new Set())
-    setHasAnalyzed(false)
+    setFlags(page?.critique_flags ?? [])
+    setDismissedFlagIds(new Set(page?.dismissed_flag_ids ?? []))
+    setHasAnalyzed((page?.critique_flags?.length ?? 0) > 0)
     setAnalyzeError('')
     // Re-hydrate research from the new page; reset open + error state so
     // moving between chapters doesn't carry over a previous chapter's panel.
@@ -377,12 +381,16 @@ export function ChapterStage({
     setAnalyzing(true)
     setAnalyzeError('')
     setFlags([])
-    setDismissedFlags(new Set())
+    setDismissedFlagIds(new Set())
     try {
       const res = await fetch(`/api/books/${book.id}/critique-chapter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageId: page.id }),
+        body: JSON.stringify({
+          pageId: page.id,
+          isReanalysis: flags.length > 0,
+          dismissedFlagIds: Array.from(dismissedFlagIds),
+        }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? `Analysis failed (${res.status})`)
@@ -398,7 +406,7 @@ export function ChapterStage({
   async function applyFlag(flagIndex: number) {
     const flag = flags[flagIndex]
     if (!flag || approved || applyingFlag !== null) return
-    setApplyingFlag(flagIndex)
+    setApplyingFlag(flag.id)
     setChatLoading(true)
     // Append a synthetic chat exchange so the user sees what was applied
     const feedback = `${flag.issue} — ${flag.suggestion}`
@@ -421,7 +429,7 @@ export function ChapterStage({
       setDraft(json.reply)
       onPageUpdate({ id: page.id, content: json.reply })
       setMessages((prev) => [...prev, { role: 'assistant', content: '✓ Draft updated.' }])
-      dismissFlag(flagIndex)
+      dismissFlag(flag.id)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Apply failed'
       setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: `⚠ ${msg}` }])
@@ -431,15 +439,27 @@ export function ChapterStage({
     }
   }
 
-  function dismissFlag(i: number) {
-    setDismissedFlags((prev) => {
+  async function dismissFlag(flagId: string) {
+    setDismissedFlagIds((prev) => {
       const next = new Set(prev)
-      next.add(i)
+      next.add(flagId)
       return next
     })
+    // Persist to DB
+    const newDismissedArray = [...Array.from(dismissedFlagIds), flagId]
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('book_pages')
+        .update({ dismissed_flag_ids: newDismissedArray })
+        .eq('id', page.id)
+        .eq('book_id', book.id)
+    } catch (e) {
+      console.error('Failed to persist dismissed flag:', e)
+    }
   }
 
-  const visibleFlags = flags.filter((_, i) => !dismissedFlags.has(i))
+  const visibleFlags = flags.filter((f) => !dismissedFlagIds.has(f.id))
 
   if (!page) return null
 
@@ -762,7 +782,7 @@ export function ChapterStage({
                   AI Analysis · {visibleFlags.length} flag{visibleFlags.length !== 1 ? 's' : ''}
                 </p>
                 <button
-                  onClick={() => setDismissedFlags(new Set(flags.map((_, i) => i)))}
+                  onClick={() => setDismissedFlagIds(new Set(flags.map((f) => f.id)))}
                   className="text-[11px] font-inter text-ink-1/50 hover:text-ink-1 transition-colors"
                 >
                   Dismiss all
@@ -771,10 +791,10 @@ export function ChapterStage({
               {visibleFlags.map((flag) => {
                 const originalIndex = flags.indexOf(flag)
                 const meta = FLAG_META[flag.type]
-                const isApplying = applyingFlag === originalIndex
+                const isApplying = applyingFlag === flag.id
                 return (
                   <div
-                    key={originalIndex}
+                    key={flag.id}
                     className="bg-white border border-cream-3 rounded-xl p-4 shadow-sm"
                   >
                     <div className="flex items-center gap-2 mb-2">
@@ -807,7 +827,7 @@ export function ChapterStage({
                         {isApplying ? 'Applying…' : 'Apply'}
                       </button>
                       <button
-                        onClick={() => dismissFlag(originalIndex)}
+                        onClick={() => dismissFlag(flag.id)}
                         disabled={isApplying}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-cream-3 hover:bg-cream-3/70 text-ink-1/70 text-[11px] font-inter rounded-md transition-colors disabled:opacity-40 press-scale"
                       >
