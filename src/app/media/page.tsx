@@ -1,72 +1,119 @@
 import { createClient } from '@/lib/supabase/server'
-import { ImageIcon } from 'lucide-react'
+import { redirect } from 'next/navigation'
+import { AppShell } from '@/components/layout/AppShell'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getEffectivePlan } from '@/lib/auth'
+import { MediaShell } from '@/components/media/MediaShell'
+import type { MediaImage, BookStub, ChapterStub } from '@/components/media/MediaShell'
 
 export const metadata = { title: 'Media — FlipBookPro' }
+
+type PathType = 'covers' | 'chapters' | 'back-covers'
+const PATH_TYPES: PathType[] = ['covers', 'chapters', 'back-covers']
 
 export default async function MediaPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  // Pull all chapter and cover images across user's books
-  const { data: books } = await supabase
-    .from('books')
-    .select('id, title, cover_image_url')
-    .eq('user_id', user!.id)
-    .not('cover_image_url', 'is', null)
-    .order('updated_at', { ascending: false })
+  const [{ data: rawBooks }, planInfo] = await Promise.all([
+    supabase
+      .from('books')
+      .select('id, title, cover_image_url, back_cover_image_url')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false }),
+    getEffectivePlan(supabase, user.id),
+  ])
 
-  const { data: pages } = await supabase
-    .from('book_pages')
-    .select('id, chapter_title, image_url, book_id')
-    .in('book_id', (books ?? []).map((b) => b.id).concat(['_']))
-    .not('image_url', 'is', null)
+  const books = rawBooks ?? []
+  const bookIds = books.map((b) => b.id)
 
-  const covers = (books ?? []).map((b) => ({
-    type: 'cover' as const,
-    url: b.cover_image_url!,
-    label: b.title,
-    bookId: b.id,
-  }))
+  const [{ data: rawPages }] = await Promise.all([
+    supabase
+      .from('book_pages')
+      .select('book_id, chapter_index, chapter_title, image_url')
+      .in('book_id', bookIds.length > 0 ? bookIds : ['_'])
+      .gte('chapter_index', 0),
+  ])
 
-  const chapters = (pages ?? []).map((p) => ({
-    type: 'chapter' as const,
-    url: p.image_url!,
-    label: p.chapter_title ?? 'Chapter',
-    bookId: p.book_id,
-  }))
+  const pages = rawPages ?? []
 
-  const all = [...covers, ...chapters]
+  // Build set of in-use URLs for quick lookup
+  const inUseUrls = new Set<string>()
+  for (const b of books) {
+    if (b.cover_image_url) inUseUrls.add(b.cover_image_url)
+    if (b.back_cover_image_url) inUseUrls.add(b.back_cover_image_url)
+  }
+  for (const p of pages) {
+    if (p.image_url) inUseUrls.add(p.image_url)
+  }
+
+  // List storage objects for each book × path type in parallel
+  const listings = await Promise.all(
+    books.flatMap((book) =>
+      PATH_TYPES.map(async (pathType) => {
+        const prefix = `${pathType}/${book.id}`
+        const { data: objects } = await supabaseAdmin
+          .storage
+          .from('book-images')
+          .list(prefix, { limit: 200 })
+
+        return (objects ?? [])
+          .filter((obj) => obj.name && obj.name !== '.emptyFolderPlaceholder')
+          .map((obj): MediaImage => {
+            const storageKey = `${prefix}/${obj.name}`
+            const publicUrl = supabaseAdmin.storage
+              .from('book-images')
+              .getPublicUrl(storageKey).data.publicUrl
+            return {
+              storageKey,
+              publicUrl,
+              bookId: book.id,
+              bookTitle: book.title,
+              type:
+                pathType === 'covers'
+                  ? 'cover'
+                  : pathType === 'back-covers'
+                    ? 'back-cover'
+                    : 'chapter',
+              inUse: inUseUrls.has(publicUrl),
+              createdAt: obj.created_at ?? '',
+              sizeBytes: (obj.metadata as { size?: number } | null)?.size ?? 0,
+            }
+          })
+      }),
+    ),
+  )
+
+  const images = listings
+    .flat()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  const bookStubs: BookStub[] = books.map((b) => ({ id: b.id, title: b.title }))
+
+  const chaptersByBook: Record<string, ChapterStub[]> = {}
+  for (const p of pages) {
+    if (!chaptersByBook[p.book_id]) chaptersByBook[p.book_id] = []
+    chaptersByBook[p.book_id].push({
+      chapter_index: p.chapter_index,
+      chapter_title: p.chapter_title ?? `Chapter ${p.chapter_index + 1}`,
+    })
+  }
+  for (const arr of Object.values(chaptersByBook)) {
+    arr.sort((a, b) => a.chapter_index - b.chapter_index)
+  }
 
   return (
-    <div className="px-8 py-10 max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h2 className="font-playfair text-3xl text-cream">Media</h2>
-        <p className="text-muted-foreground text-sm font-source-serif mt-1">
-          All generated and uploaded images across your books.
-        </p>
-      </div>
-
-      {all.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-40 text-center">
-          <ImageIcon className="w-12 h-12 text-[#333] mb-4" />
-          <h3 className="font-playfair text-xl text-cream/60 mb-2">No media yet</h3>
-          <p className="text-muted-foreground text-sm font-source-serif max-w-sm">
-            Images generated for your chapters and covers will appear here.
-          </p>
-        </div>
-      ) : (
-        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 space-y-3">
-          {all.map((item, i) => (
-            <div key={i} className="break-inside-avoid group relative rounded-xl overflow-hidden bg-[#222] border border-[#333]">
-              <img src={item.url} alt={item.label} className="w-full object-cover" />
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <p className="text-cream text-xs font-inter truncate">{item.label}</p>
-                <span className="text-[10px] font-inter text-muted-foreground capitalize">{item.type}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <AppShell
+      userEmail={user.email ?? ''}
+      isPremium={planInfo.plan !== 'free'}
+      isAdmin={planInfo.isAdmin}
+    >
+      <MediaShell
+        images={images}
+        books={bookStubs}
+        chaptersByBook={chaptersByBook}
+      />
+    </AppShell>
   )
 }
