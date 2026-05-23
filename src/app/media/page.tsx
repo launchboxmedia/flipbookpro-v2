@@ -86,9 +86,11 @@ export default async function MediaPage() {
   const flatImages: MediaImage[] = []
 
   // Covers — filename: "{bookId}-{timestamp}.jpg"
+  // bookId is a full UUID (36 chars with dashes), so we match against known IDs
   for (const obj of coverObjects ?? []) {
     if (!obj.name || obj.name === '.emptyFolderPlaceholder') continue
-    const bookId = obj.name.split('-')[0]
+    const bookId = bookIds.find((id) => obj.name.startsWith(id + '-'))
+    if (!bookId) continue
     const img = makeImage(`covers/${obj.name}`, obj, bookId, 'cover')
     if (img) flatImages.push(img)
   }
@@ -96,7 +98,8 @@ export default async function MediaPage() {
   // Back-covers — filename: "{bookId}-{timestamp}.jpg"
   for (const obj of backCoverObjects ?? []) {
     if (!obj.name || obj.name === '.emptyFolderPlaceholder') continue
-    const bookId = obj.name.split('-')[0]
+    const bookId = bookIds.find((id) => obj.name.startsWith(id + '-'))
+    if (!bookId) continue
     const img = makeImage(`back-covers/${obj.name}`, obj, bookId, 'back-cover')
     if (img) flatImages.push(img)
   }
