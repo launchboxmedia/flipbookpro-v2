@@ -142,18 +142,21 @@ ${sharedAntiHallucinationRules}3. You may reference any step by its full label (
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   let supabase = await createClient()
   let userId: string
+  let rlPrefix: string
 
   const authResult = await supabase.auth.getUser()
   if (authResult.data.user) {
     userId = authResult.data.user.id
+    rlPrefix = userId
   } else {
     const apiAuth = await validateApiKey(req)
     if (!apiAuth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
     userId = apiAuth.userId
+    rlPrefix = `apikey:${apiAuth.keyId}`
     supabase = supabaseAdmin
   }
 
-  const rl = await consumeRateLimit(supabase, { key: `generate-draft:${userId}`, max: 60, windowSeconds: 3600 })
+  const rl = await consumeRateLimit(supabase, { key: `generate-draft:${rlPrefix}`, max: 60, windowSeconds: 3600 })
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again in an hour.' }), { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }

@@ -19,18 +19,21 @@ interface CheckFlag {
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   let supabase = await createClient()
   let userId: string
+  let rlPrefix: string
 
   const authResult = await supabase.auth.getUser()
   if (authResult.data.user) {
     userId = authResult.data.user.id
+    rlPrefix = userId
   } else {
     const apiAuth = await validateApiKey(req)
     if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = apiAuth.userId
+    rlPrefix = `apikey:${apiAuth.keyId}`
     supabase = supabaseAdmin
   }
 
-  const rl = await consumeRateLimit(supabase, { key: `pre-publish:${userId}`, max: 15, windowSeconds: 3600 })
+  const rl = await consumeRateLimit(supabase, { key: `pre-publish:${rlPrefix}`, max: 15, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded. Try again in an hour.' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
   }

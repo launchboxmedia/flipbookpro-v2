@@ -175,18 +175,21 @@ Return only the JSON array, no markdown fences, no preamble.`
 export async function POST(req: NextRequest, { params }: { params: { bookId: string } }) {
   let supabase = await createClient()
   let userId: string
+  let rlPrefix: string
 
   const authResult = await supabase.auth.getUser()
   if (authResult.data.user) {
     userId = authResult.data.user.id
+    rlPrefix = userId
   } else {
     const apiAuth = await validateApiKey(req)
     if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = apiAuth.userId
+    rlPrefix = `apikey:${apiAuth.keyId}`
     supabase = supabaseAdmin
   }
 
-  const rl = await consumeRateLimit(supabase, { key: `critique:${userId}`, max: 20, windowSeconds: 3600 })
+  const rl = await consumeRateLimit(supabase, { key: `critique:${rlPrefix}`, max: 20, windowSeconds: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again in an hour.' },
