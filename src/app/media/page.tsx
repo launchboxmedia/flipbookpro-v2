@@ -8,9 +8,6 @@ import type { MediaImage, BookStub, ChapterStub } from '@/components/media/Media
 
 export const metadata = { title: 'Media — FlipBookPro' }
 
-type PathType = 'covers' | 'chapters' | 'back-covers'
-const PATH_TYPES: PathType[] = ['covers', 'chapters', 'back-covers']
-
 export default async function MediaPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -48,46 +45,73 @@ export default async function MediaPage() {
     if (p.image_url) inUseUrls.add(p.image_url)
   }
 
-  // List storage objects for each book × path type in parallel
-  const listings = await Promise.all(
-    books.flatMap((book) =>
-      PATH_TYPES.map(async (pathType) => {
-        const prefix = `${pathType}/${book.id}`
-        const { data: objects } = await supabaseAdmin
-          .storage
-          .from('book-images')
-          .list(prefix, { limit: 200 })
+  const bookById = Object.fromEntries(books.map((b) => [b.id, b.title]))
 
-        return (objects ?? [])
-          .filter((obj) => obj.name && obj.name !== '.emptyFolderPlaceholder')
-          .map((obj): MediaImage => {
-            const storageKey = `${prefix}/${obj.name}`
-            const publicUrl = supabaseAdmin.storage
-              .from('book-images')
-              .getPublicUrl(storageKey).data.publicUrl
-            return {
-              storageKey,
-              publicUrl,
-              bookId: book.id,
-              bookTitle: book.title,
-              type:
-                pathType === 'covers'
-                  ? 'cover'
-                  : pathType === 'back-covers'
-                    ? 'back-cover'
-                    : 'chapter',
-              inUse: inUseUrls.has(publicUrl),
-              createdAt: obj.created_at ?? '',
-              sizeBytes: (obj.metadata as { size?: number } | null)?.size ?? 0,
-            }
-          })
-      }),
+  function makeImage(
+    storageKey: string,
+    obj: { name: string; created_at?: string | null; metadata?: unknown },
+    bookId: string,
+    type: MediaImage['type'],
+  ): MediaImage | null {
+    const bookTitle = bookById[bookId]
+    if (!bookTitle) return null
+    const publicUrl = supabaseAdmin.storage.from('book-images').getPublicUrl(storageKey).data.publicUrl
+    return {
+      storageKey,
+      publicUrl,
+      bookId,
+      bookTitle,
+      type,
+      inUse: inUseUrls.has(publicUrl),
+      createdAt: obj.created_at ?? '',
+      sizeBytes: (obj.metadata as { size?: number } | null)?.size ?? 0,
+    }
+  }
+
+  // covers/ and back-covers/ store files flat as "{bookId}-{timestamp}.jpg"
+  // chapters/ uses subfolders: "chapters/{bookId}/{pageId}-{timestamp}.jpg"
+  const [
+    { data: coverObjects },
+    { data: backCoverObjects },
+    ...chapterListings
+  ] = await Promise.all([
+    supabaseAdmin.storage.from('book-images').list('covers', { limit: 500 }),
+    supabaseAdmin.storage.from('book-images').list('back-covers', { limit: 500 }),
+    ...books.map((book) =>
+      supabaseAdmin.storage.from('book-images').list(`chapters/${book.id}`, { limit: 200 })
+        .then((res) => ({ bookId: book.id, data: res.data })),
     ),
-  )
+  ])
 
-  const images = listings
-    .flat()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const flatImages: MediaImage[] = []
+
+  // Covers — filename: "{bookId}-{timestamp}.jpg"
+  for (const obj of coverObjects ?? []) {
+    if (!obj.name || obj.name === '.emptyFolderPlaceholder') continue
+    const bookId = obj.name.split('-')[0]
+    const img = makeImage(`covers/${obj.name}`, obj, bookId, 'cover')
+    if (img) flatImages.push(img)
+  }
+
+  // Back-covers — filename: "{bookId}-{timestamp}.jpg"
+  for (const obj of backCoverObjects ?? []) {
+    if (!obj.name || obj.name === '.emptyFolderPlaceholder') continue
+    const bookId = obj.name.split('-')[0]
+    const img = makeImage(`back-covers/${obj.name}`, obj, bookId, 'back-cover')
+    if (img) flatImages.push(img)
+  }
+
+  // Chapters — subfolder per book: "chapters/{bookId}/{pageId}-{timestamp}.jpg"
+  for (const listing of chapterListings) {
+    const { bookId, data: objects } = listing as { bookId: string; data: typeof coverObjects }
+    for (const obj of objects ?? []) {
+      if (!obj.name || obj.name === '.emptyFolderPlaceholder') continue
+      const img = makeImage(`chapters/${bookId}/${obj.name}`, obj, bookId, 'chapter')
+      if (img) flatImages.push(img)
+    }
+  }
+
+  const images = flatImages.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   const bookStubs: BookStub[] = books.map((b) => ({ id: b.id, title: b.title }))
 
