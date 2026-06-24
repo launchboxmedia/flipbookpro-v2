@@ -8,6 +8,16 @@ import type { BookTheme } from '@/lib/bookTheme'
 import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
 import { paginateMeasured } from '@/lib/paginateMeasured'
 import { detectAcronymBlock, type AcronymEntry } from '@/lib/acronymBlock'
+import { parseResourceMarkers } from '@/lib/resources'
+
+/** Strip `[[RESOURCE: Name | type]]` markers out of chapter prose before
+ *  pagination. The writing surface (ChapterStage) already does this; the
+ *  reader, preview, and exports did not, so the raw markers leaked into the
+ *  page text. The resources themselves still surface separately via the
+ *  resources panel / appendix. */
+function stripResourceMarkers(content: string): string {
+  return parseResourceMarkers(content).cleanContent
+}
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -117,7 +127,7 @@ function buildSpreads(
   const chunksFor = (ch: BookPage): string[] => {
     const measured = measuredByChapterId?.get(ch.id)
     if (measured && measured.length > 0) return measured
-    return paginateText(ch.content ?? '')
+    return paginateText(stripResourceMarkers(ch.content ?? ''))
   }
   // Map a chapter_index → its framework letter (only for chapters that
   // correspond to a step). Used to overlay the decorative letter on the
@@ -147,7 +157,7 @@ function buildSpreads(
   // Introduction chunks — empty array when there is no intro chapter, which
   // means no introduction spreads are emitted at all.
   const introChunks: string[] = introChapter
-    ? paginateText(introChapter.content ?? '')
+    ? paginateText(stripResourceMarkers(introChapter.content ?? ''))
     : []
   const hasIntro = introChunks.length > 0
   const introTitle = introChapter?.chapter_title
@@ -1342,7 +1352,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
       )
 
       try {
-        const chunks = paginateMeasured(ch.content, {
+        const chunks = paginateMeasured(stripResourceMarkers(ch.content), {
           bodyWidth:          BODY_WIDTH,
           firstPageHeight,
           continuationHeight: CONT_BODY_HEIGHT,

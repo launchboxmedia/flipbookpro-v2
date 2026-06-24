@@ -3,8 +3,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectivePlan, planAtLeast } from '@/lib/auth'
 import { paginateText } from '@/lib/paginateText'
 import { detectAcronymBlock } from '@/lib/acronymBlock'
-import { renderResourceMarkdown, stripLeadingTitle } from '@/lib/resources'
+import { renderResourceMarkdown, stripLeadingTitle, parseResourceMarkers } from '@/lib/resources'
 import type { BookResource, FrameworkData } from '@/types/database'
+
+/** Strip `[[RESOURCE: Name | type]]` markers out of chapter prose. The
+ *  resources render separately as the appendix; without this the raw
+ *  markers leak into the chapter body text. */
+const stripResourceMarkers = (c: string) => parseResourceMarkers(c).cleanContent
 
 const RESOURCE_TYPE_LABEL: Record<BookResource['resource_type'], string> = {
   'checklist':  'Checklist',
@@ -71,7 +76,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   // Introduction is rendered ONLY when the book has an explicit intro
   // chapter. Never auto-promote chapter 1 as a teaser — that would surface
   // chapter content before the TOC.
-  const introContent = introChapter ? (introChapter.content ?? '') : ''
+  const introContent = introChapter ? stripResourceMarkers(introChapter.content ?? '') : ''
   const introTitle = introChapter?.chapter_title ?? null
 
   const imprint  = profile?.full_name?.trim() || 'LaunchBox.Media'
@@ -187,7 +192,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   // export. Each chunk becomes its own printed page; first chunk gets the
   // full chapter header + image, continuation chunks get a compact header.
   const chaptersHtml = chapters.map((ch, i) => {
-    const chunks = paginateText(ch.content ?? '')
+    const chunks = paginateText(stripResourceMarkers(ch.content ?? ''))
     const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
     // Pull-quote block — appended inline after the body of the LAST chunk so
     // it sits at the natural end of each chapter in the printed flow. NULL

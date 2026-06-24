@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { paginateText } from '@/lib/paginateText'
 import { detectAcronymBlock } from '@/lib/acronymBlock'
+import { parseResourceMarkers } from '@/lib/resources'
 import type { FrameworkData } from '@/types/database'
+
+/** Strip `[[RESOURCE: Name | type]]` markers out of chapter prose so the raw
+ *  markers don't leak into the exported chapter body text. */
+const stripResourceMarkers = (c: string) => parseResourceMarkers(c).cleanContent
 
 export async function GET(_req: NextRequest, { params }: { params: { bookId: string } }) {
   const supabase = await createClient()
@@ -44,7 +49,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   // Introduction/Preface/Foreword chapter. Never auto-promote chapter 1 as
   // a "teaser" — that broke the spread sequence by surfacing chapter
   // content before the TOC.
-  const introContent = introChapter ? (introChapter.content ?? '') : ''
+  const introContent = introChapter ? stripResourceMarkers(introChapter.content ?? '') : ''
   const introTitle = introChapter?.chapter_title ?? null
 
   // Imprint resolution mirrors the FlipbookViewer's resolveImprint().
@@ -159,7 +164,7 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
   }
 
   const chaptersHtml = chapters.map((ch, i) => {
-    const chunks = paginateText(ch.content ?? '')
+    const chunks = paginateText(stripResourceMarkers(ch.content ?? ''))
     const frameworkLetter = letterByChapterIndex.get(ch.chapter_index)
     // Pull-quote block — appended after the LAST chunk of the chapter so
     // it sits at the natural end of the chapter flow. NULL pull_quote means

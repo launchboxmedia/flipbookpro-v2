@@ -350,7 +350,7 @@ export function AppSidebar({
                     Admin
                   </p>
                 )}
-                {linkItem('Dashboard', <BarChart3 className="w-4 h-4" />, '/admin')}
+                {linkItem('Admin Console', <BarChart3 className="w-4 h-4" />, '/admin')}
                 {linkItem('Users',     <Shield     className="w-4 h-4" />, '/admin/users')}
               </>
             )}
