@@ -107,6 +107,64 @@ export function resourceNameKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+/** Levenshtein edit distance — small, allocation-light (two rolling rows).
+ *  Used only for the fuzzy resource-name fallback, on short strings. */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  let curr = new Array<number>(b.length + 1)
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+    }
+    ;[prev, curr] = [curr, prev]
+  }
+  return prev[b.length]
+}
+
+/** Resolve a marker name to a resource href, tolerating small typos.
+ *
+ *  `links` maps `resourceNameKey(resource_name) → href`. Tries an exact key
+ *  match first; on a miss, falls back to the closest resource by edit
+ *  distance, but only when that match is BOTH within a small threshold
+ *  (scaled to the name length) AND clearly closer than the next-best
+ *  candidate — so an ambiguous near-tie never links to the wrong resource.
+ *  Returns undefined when nothing matches confidently (caller renders plain
+ *  text). */
+export function resolveResourceHref(
+  name: string,
+  links: Map<string, string>,
+): string | undefined {
+  const key = resourceNameKey(name)
+  const exact = links.get(key)
+  if (exact) return exact
+  if (links.size === 0) return undefined
+
+  let best: { href: string; dist: number } | null = null
+  let secondDist = Infinity
+  links.forEach((href, k) => {
+    const d = levenshtein(key, k)
+    const cur = best
+    if (cur === null || d < cur.dist) {
+      secondDist = cur ? cur.dist : secondDist
+      best = { href, dist: d }
+    } else if (d < secondDist) {
+      secondDist = d
+    }
+  })
+  const winner = best as { href: string; dist: number } | null
+  if (!winner) return undefined
+  // Threshold scales with length (≈20%, min 2) — a couple of dropped/added
+  // characters in a long name still links; a 3-letter name needs near-exact.
+  const threshold = Math.max(2, Math.floor(key.length * 0.2))
+  const distinct = secondDist - winner.dist >= 1 // not an ambiguous tie
+  return winner.dist <= threshold && distinct ? winner.href : undefined
+}
+
 /** The generator is instructed to put `# Title` at the top of every
  *  resource. When the surrounding chrome (modal header, appendix card,
  *  print page heading) already renders the title, the leading H1 is a

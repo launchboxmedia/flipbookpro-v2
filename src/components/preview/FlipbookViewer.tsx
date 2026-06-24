@@ -8,7 +8,7 @@ import type { BookTheme } from '@/lib/bookTheme'
 import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
 import { paginateMeasured } from '@/lib/paginateMeasured'
 import { detectAcronymBlock, type AcronymEntry } from '@/lib/acronymBlock'
-import { splitResourceSegments, resourceNameKey } from '@/lib/resources'
+import { splitResourceSegments, resourceNameKey, resolveResourceHref } from '@/lib/resources'
 
 /** Map of normalised resource name → href for its print page. Built once
  *  from the book's resources and threaded down to the prose renderers so
@@ -25,7 +25,7 @@ function renderProse(text: string, links?: ResourceLinks): React.ReactNode {
   const segments = splitResourceSegments(text)
   return segments.map((seg, i) => {
     if (seg.kind === 'text') return <span key={i}>{seg.value}</span>
-    const href = links?.get(resourceNameKey(seg.name))
+    const href = links ? resolveResourceHref(seg.name, links) : undefined
     if (!href) return <span key={i}>{seg.name}</span>
     return (
       <a
