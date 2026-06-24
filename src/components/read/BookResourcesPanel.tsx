@@ -15,6 +15,10 @@ interface Props {
   /** Chapter titles keyed by chapter_index so the panel can label each
    *  group with the chapter's real name instead of "Chapter N". */
   chapterTitles: ChapterTitle[]
+  /** Override the per-resource href. Defaults to the public reader route
+   *  `/read/[slug]/r/[id]`. The owner preview passes the ownership-gated
+   *  `/book/[bookId]/r/[id]` route so resources open before publish. */
+  buildHref?: (resourceId: string) => string
 }
 
 const TYPE_LABEL: Record<BookResource['resource_type'], string> = {
@@ -37,8 +41,9 @@ interface ChapterGroup {
  *  resources, so it adds no visual weight to books that never adopted the
  *  feature. Each row is a link to /read/[slug]/r/[id] which returns a
  *  print-ready HTML document for that single resource. */
-export function BookResourcesPanel({ slug, resources, chapterTitles }: Props) {
+export function BookResourcesPanel({ slug, resources, chapterTitles, buildHref }: Props) {
   const [open, setOpen] = useState(false)
+  const hrefFor = buildHref ?? ((id: string) => `/read/${slug}/r/${id}`)
 
   // Close on Escape, mirroring the FlipbookViewer dialog conventions.
   useEffect(() => {
@@ -132,7 +137,7 @@ export function BookResourcesPanel({ slug, resources, chapterTitles }: Props) {
                     {group.items.map((r) => (
                       <li key={r.id}>
                         <a
-                          href={`/read/${slug}/r/${r.id}`}
+                          href={hrefFor(r.id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-[#1C2333] hover:bg-[#2A3448] border border-[#2A3448] hover:border-gold/40 transition-colors"

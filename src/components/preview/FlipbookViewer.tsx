@@ -3,20 +3,49 @@
 import { useRef, useCallback, useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Download, ArrowLeft, FileText, Printer } from 'lucide-react'
 import Link from 'next/link'
-import type { Book, BookPage, Profile } from '@/types/database'
+import type { Book, BookPage, BookResource, Profile } from '@/types/database'
 import type { BookTheme } from '@/lib/bookTheme'
 import { paginateText, WORDS_PER_PAGE, FIRST_PAGE_BUDGET } from '@/lib/paginateText'
 import { paginateMeasured } from '@/lib/paginateMeasured'
 import { detectAcronymBlock, type AcronymEntry } from '@/lib/acronymBlock'
-import { parseResourceMarkers } from '@/lib/resources'
+import { splitResourceSegments, resourceNameKey } from '@/lib/resources'
 
-/** Strip `[[RESOURCE: Name | type]]` markers out of chapter prose before
- *  pagination. The writing surface (ChapterStage) already does this; the
- *  reader, preview, and exports did not, so the raw markers leaked into the
- *  page text. The resources themselves still surface separately via the
- *  resources panel / appendix. */
-function stripResourceMarkers(content: string): string {
-  return parseResourceMarkers(content).cleanContent
+/** Map of normalised resource name → href for its print page. Built once
+ *  from the book's resources and threaded down to the prose renderers so
+ *  `[[RESOURCE: Name | type]]` markers in chapter text become clickable
+ *  links. Empty map (or no match) → the marker renders as plain text. */
+type ResourceLinks = Map<string, string>
+
+/** Render a single paragraph of prose, turning any `[[RESOURCE: …]]` markers
+ *  into inline gold links (or a block "chip" when the marker is the whole
+ *  paragraph). Falls back to the raw label text when no matching resource /
+ *  link exists, so a stray marker never shows its bracket syntax. */
+function renderProse(text: string, links?: ResourceLinks): React.ReactNode {
+  if (!text.includes('[[RESOURCE')) return text
+  const segments = splitResourceSegments(text)
+  return segments.map((seg, i) => {
+    if (seg.kind === 'text') return <span key={i}>{seg.value}</span>
+    const href = links?.get(resourceNameKey(seg.name))
+    if (!href) return <span key={i}>{seg.name}</span>
+    return (
+      <a
+        key={i}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          color: 'var(--accent)',
+          fontWeight: 600,
+          textDecoration: 'underline',
+          textDecorationColor: 'var(--accent)',
+          textUnderlineOffset: '2px',
+          cursor: 'pointer',
+        }}
+      >
+        {seg.name}
+      </a>
+    )
+  })
 }
 
 // ── Layout constants ────────────────────────────────────────────────────────
@@ -38,6 +67,15 @@ export interface FlipbookViewerProps {
   theme: BookTheme
   profile: Profile | null
   isPublicView?: boolean
+  /** Resources attached to the book. Used to turn `[[RESOURCE: Name | type]]`
+   *  markers in chapter prose into clickable links. */
+  resources?: BookResource[]
+  /** Base path for a resource's print page; the resource id is appended.
+   *  Reader passes `/read/[slug]/r/` (public route); preview passes
+   *  `/book/[id]/r/` (owner route). Must be a plain string — this is a Client
+   *  Component, so a function prop can't cross the server boundary. When
+   *  omitted, markers render as plain text (no link). */
+  resourceHrefBase?: string
 }
 
 type PageContent =
@@ -127,7 +165,7 @@ function buildSpreads(
   const chunksFor = (ch: BookPage): string[] => {
     const measured = measuredByChapterId?.get(ch.id)
     if (measured && measured.length > 0) return measured
-    return paginateText(stripResourceMarkers(ch.content ?? ''))
+    return paginateText(ch.content ?? '')
   }
   // Map a chapter_index → its framework letter (only for chapters that
   // correspond to a step). Used to overlay the decorative letter on the
@@ -157,7 +195,7 @@ function buildSpreads(
   // Introduction chunks — empty array when there is no intro chapter, which
   // means no introduction spreads are emitted at all.
   const introChunks: string[] = introChapter
-    ? paginateText(stripResourceMarkers(introChapter.content ?? ''))
+    ? paginateText(introChapter.content ?? '')
     : []
   const hasIntro = introChunks.length > 0
   const introTitle = introChapter?.chapter_title
@@ -624,12 +662,13 @@ function CopyrightPage({ book, profile }: { book: Book; profile: Profile | null 
 }
 
 function IntroductionPage({
-  sourceChapterTitle, chunk, chunkIndex, side,
+  sourceChapterTitle, chunk, chunkIndex, side, links,
 }: {
   sourceChapterTitle?: string
   chunk: string
   chunkIndex: number
   side: 'left' | 'right'
+  links?: ResourceLinks
 }) {
   const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
   const hasContent = chunk.length > 0
@@ -670,7 +709,7 @@ function IntroductionPage({
             (Introduction not yet written.)
           </p>
         ) : (
-          paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)
+          paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{renderProse(p, links)}</p>)
         )}
       </div>
     </div>
@@ -748,10 +787,11 @@ function ChapterImagePage({ page }: { page: BookPage; num: number }) {
 /** Render either an AcronymBlock or a plain paragraph. Used by both the
  *  chapter text page and (in spirit) the HTML export. */
 function ParagraphOrAcronym({
-  text, withDropCap,
+  text, withDropCap, links,
 }: {
   text: string
   withDropCap?: boolean
+  links?: ResourceLinks
 }) {
   const acronym = detectAcronymBlock(text)
   if (acronym) return <AcronymBlock entries={acronym} />
@@ -761,11 +801,11 @@ function ParagraphOrAcronym({
         <span style={{ float: 'left', fontFamily: 'var(--heading-font)', fontSize: 'var(--drop-cap-size)', fontWeight: 700, lineHeight: 0.78, marginRight: '0.05em', marginTop: '0.1em', color: 'var(--drop-cap-color)' }}>
           {text[0]}
         </span>
-        {text.slice(1)}
+        {renderProse(text.slice(1), links)}
       </p>
     )
   }
-  return <p style={{ margin: '0 0 0.8em' }}>{text}</p>
+  return <p style={{ margin: '0 0 0.8em' }}>{renderProse(text, links)}</p>
 }
 
 function AcronymBlock({ entries }: { entries: AcronymEntry[] }) {
@@ -800,7 +840,7 @@ function AcronymBlock({ entries }: { entries: AcronymEntry[] }) {
 }
 
 function ChapterTextPage({
-  page, num, chunk, chunkIndex, totalChunks, pageNum, side, frameworkLetter,
+  page, num, chunk, chunkIndex, totalChunks, pageNum, side, frameworkLetter, links,
 }: {
   page: BookPage
   num: number
@@ -810,6 +850,7 @@ function ChapterTextPage({
   pageNum: number
   side: 'left' | 'right'
   frameworkLetter?: string
+  links?: ResourceLinks
 }) {
   const isFirstChunk = chunkIndex === 0 // always rendered on the right page
   const paras = chunk.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
@@ -889,13 +930,13 @@ function ChapterTextPage({
         ) : isFirstChunk ? (
           <>
             {first && (
-              <ParagraphOrAcronym text={first} withDropCap={!firstIsAcronym} />
+              <ParagraphOrAcronym text={first} withDropCap={!firstIsAcronym} links={links} />
             )}
-            {rest.map((p, i) => <ParagraphOrAcronym key={i} text={p} />)}
+            {rest.map((p, i) => <ParagraphOrAcronym key={i} text={p} links={links} />)}
           </>
         ) : (
           // Continuation page — no drop cap, paragraphs flow normally.
-          paras.map((p, i) => <ParagraphOrAcronym key={i} text={p} />)
+          paras.map((p, i) => <ParagraphOrAcronym key={i} text={p} links={links} />)
         )}
       </div>
 
@@ -946,7 +987,7 @@ function PullQuotePage({ quote }: { quote: string | null }) {
   )
 }
 
-function BackMatterPage({ page, side }: { page: BookPage; side: 'left' | 'right' }) {
+function BackMatterPage({ page, side, links }: { page: BookPage; side: 'left' | 'right'; links?: ResourceLinks }) {
   const pad = side === 'left' ? padLeft : padRight
   const paras = (page.content ?? '').split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
   return (
@@ -956,7 +997,7 @@ function BackMatterPage({ page, side }: { page: BookPage; side: 'left' | 'right'
       </h2>
       <div style={{ width: 22, height: 2, background: 'var(--accent)', marginBottom: 16, flexShrink: 0 }} />
       <div style={{ flex: 1, overflow: 'hidden', fontFamily: 'var(--body-font)', fontSize: 'var(--body-size)', color: 'var(--page-text)', lineHeight: 'var(--line-height)' }}>
-        {paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{p}</p>)}
+        {paras.map((p, i) => <p key={i} style={{ margin: '0 0 0.8em' }}>{renderProse(p, links)}</p>)}
       </div>
     </div>
   )
@@ -1079,12 +1120,13 @@ function BackCoverPage({ book, profile }: { book: Book; profile: Profile | null 
 // ── Page dispatcher ─────────────────────────────────────────────────────────
 
 function Page({
-  content, side, book, profile,
+  content, side, book, profile, links,
 }: {
   content: PageContent
   side: 'left' | 'right'
   book: Book
   profile: Profile | null
+  links?: ResourceLinks
 }) {
   switch (content.type) {
     case 'blank':            return <BlankPage dark={content.dark} />
@@ -1098,6 +1140,7 @@ function Page({
         chunk={content.chunk}
         chunkIndex={content.chunkIndex}
         side={side}
+        links={links}
       />
     )
     case 'toc':              return <TocPage entries={content.tocEntries} />
@@ -1112,9 +1155,10 @@ function Page({
         pageNum={content.pageNum}
         side={side}
         frameworkLetter={content.frameworkLetter}
+        links={links}
       />
     )
-    case 'back-matter':   return <BackMatterPage   page={content.page} side={side} />
+    case 'back-matter':   return <BackMatterPage   page={content.page} side={side} links={links} />
     case 'back-cover':    return <BackCoverPage book={book} profile={profile} />
     case 'pull-quote':    return <PullQuotePage quote={content.quote} />
   }
@@ -1259,7 +1303,19 @@ function measureTitleHeight(
   return h
 }
 
-export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false }: FlipbookViewerProps) {
+export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isPublicView = false, resources, resourceHrefBase }: FlipbookViewerProps) {
+  // Build the marker → href lookup once. Keyed by normalised resource name so
+  // `[[RESOURCE: Name | type]]` markers in prose resolve to the right print
+  // page regardless of casing / a truncated type in the marker.
+  const resourceLinks = useMemo<ResourceLinks>(() => {
+    const map: ResourceLinks = new Map()
+    if (resources && resourceHrefBase) {
+      for (const r of resources) {
+        map.set(resourceNameKey(r.resource_name), `${resourceHrefBase}${r.id}`)
+      }
+    }
+    return map
+  }, [resources, resourceHrefBase])
   // Measured chunks per chapter id. Initially null — the first paint uses
   // the heuristic paginator (paginateText). Once useLayoutEffect runs, we
   // populate this map with pixel-measured splits and re-render with the
@@ -1352,7 +1408,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
       )
 
       try {
-        const chunks = paginateMeasured(stripResourceMarkers(ch.content), {
+        const chunks = paginateMeasured(ch.content, {
           bodyWidth:          BODY_WIDTH,
           firstPageHeight,
           continuationHeight: CONT_BODY_HEIGHT,
@@ -1509,7 +1565,7 @@ export function FlipbookViewer({ book, chapters, backMatter, theme, profile, isP
   )
 
   // Page helpers
-  const pageProps = { book, profile }
+  const pageProps = { book, profile, links: resourceLinks }
   const cur = spreads[spreadIdx]
 
   const faceStyle: React.CSSProperties = {

@@ -60,6 +60,53 @@ export function parseResourceMarkers(content: string): ParsedResourceMarkers {
   return { cleanContent: collapsed, markers }
 }
 
+export type ResourceSegment =
+  | { kind: 'text'; value: string }
+  /** A `[[RESOURCE: Name | type]]` reference. `name` is the visible label.
+   *  `whole` is true when the marker was the entire (trimmed) line, so the
+   *  renderer can choose a block "chip" treatment instead of an inline link. */
+  | { kind: 'marker'; name: string; type: string; whole: boolean }
+
+/** Split a block of prose into text + resource-marker segments so a renderer
+ *  can turn each `[[RESOURCE: Name | type]]` into a clickable link while
+ *  leaving the surrounding text untouched. Unlike `parseResourceMarkers`
+ *  (which strips markers), this preserves them as structured segments.
+ *
+ *  Pure and dependency-free — safe in both server routes and client
+ *  components. A fresh regex is created per call so the shared global
+ *  `lastIndex` is never an issue. */
+export function splitResourceSegments(text: string): ResourceSegment[] {
+  const re = /\[\[RESOURCE:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\]\]/g
+  const segments: ResourceSegment[] = []
+  const trimmed = text.trim()
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      segments.push({ kind: 'text', value: text.slice(last, m.index) })
+    }
+    const name = m[1].trim()
+    const type = m[2].trim().toLowerCase()
+    // "whole" when the marker, on its own, is the entire line/paragraph.
+    const whole = m[0].trim() === trimmed
+    segments.push({ kind: 'marker', name, type, whole })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) {
+    segments.push({ kind: 'text', value: text.slice(last) })
+  }
+  return segments
+}
+
+/** Normalised key for matching a marker name to a `book_resources` row.
+ *  Lower-cased + whitespace-collapsed so minor casing/spacing differences
+ *  between the prose marker and the stored resource name still match. The
+ *  marker's TYPE is intentionally ignored for matching — generators
+ *  occasionally truncate it (e.g. "templat"), but the name is reliable. */
+export function resourceNameKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 /** The generator is instructed to put `# Title` at the top of every
  *  resource. When the surrounding chrome (modal header, appendix card,
  *  print page heading) already renders the title, the leading H1 is a

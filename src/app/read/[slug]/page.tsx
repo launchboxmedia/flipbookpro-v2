@@ -143,6 +143,8 @@ export default async function ReadPage({ params }: Props) {
         theme={theme}
         profile={(authorProfile as Profile) ?? null}
         isPublicView
+        resources={bookResources}
+        resourceHrefBase={`/read/${params.slug}/r/`}
       />
       <BookResourcesPanel
         slug={params.slug}
