@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { consumeRateLimit } from '@/lib/rateLimit'
 import { scheduleWelcomeSequence } from '@/lib/emailSequence'
 
@@ -56,7 +57,11 @@ export async function POST(req: NextRequest) {
 
   if (!pub) return NextResponse.json({ error: 'Book not found' }, { status: 404 })
 
-  const { error: leadError } = await supabase
+  // Service-role for the write: the reader is anonymous and the leads
+  // INSERT-on-conflict path trips RLS for the anon role. All values are
+  // server-derived from `pub` (only the validated email/name come from the
+  // client), so bypassing RLS here is safe.
+  const { error: leadError } = await supabaseAdmin
     .from('leads')
     .upsert({
       published_book_id: publishedBookId,
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Save failed' }, { status: 500 })
   }
 
-  const { count } = await supabase
+  const { count } = await supabaseAdmin
     .from('leads')
     .select('id', { count: 'exact', head: true })
     .eq('published_book_id', publishedBookId)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { consumeRateLimit } from '@/lib/rateLimit'
 import { scheduleWelcomeSequence } from '@/lib/emailSequence'
 import {
@@ -86,7 +87,15 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     return NextResponse.json({ error: 'This book is not email-gated.' }, { status: 400 })
   }
 
-  const { error: leadError } = await supabase
+  // Record the lead with the service-role client. The reader is anonymous,
+  // and the leads INSERT-on-conflict path trips RLS for the anon role, so a
+  // normal client 500s here. All values are server-derived from `pub` (not
+  // client input beyond the validated email/name), so bypassing RLS is safe.
+  //
+  // Crucially, a lead-save failure must NEVER block access — the reader
+  // entered their email and is owed the book. We log and continue rather
+  // than 500, mirroring the fire-and-forget welcome sequence below.
+  const { error: leadError } = await supabaseAdmin
     .from('leads')
     .upsert({
       published_book_id: pub.id,
@@ -98,8 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     }, { onConflict: 'published_book_id,email', ignoreDuplicates: true })
 
   if (leadError) {
-    console.error('[grant-email] lead upsert failed', leadError.message)
-    return NextResponse.json({ error: 'Save failed' }, { status: 500 })
+    console.error('[grant-email] lead upsert failed (granting access anyway)', leadError.message)
   }
 
   // Welcome sequence — fire-and-forget, never blocks the gate (mirrors the
