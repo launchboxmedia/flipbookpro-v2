@@ -312,11 +312,32 @@ export async function GET(_req: NextRequest, { params }: { params: { bookId: str
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=${fontSpec.google}&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
 <style>
 :root { --accent: ${accent}; }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* Requirement 5: force brand colours / dark backgrounds to print rather
+     than being stripped by the browser's ink-saving defaults. Applied
+     globally so every element (cover, badges, rules, table headers) keeps
+     its colour. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 
+/* Default page — Letter with real book margins. Using @page margins (not
+   container padding) means EVERY page of a multi-page chapter gets the same
+   top/bottom/left/right margin, including continuation pages. Explicit
+   margins also suppress the browser's default date/time/URL header+footer. */
 @page {
-  size: A4;
-  margin: 2.2cm 2.5cm;
+  size: letter;
+  margin: 1in 1.2in;
+}
+
+/* Full-bleed page — used by the cover and back cover so their artwork runs
+   edge to edge. The page-name change at .cover / .back-cover also forces a
+   page break, isolating each onto its own sheet. */
+@page bleed {
+  margin: 0;
 }
 
 body {
@@ -325,14 +346,24 @@ body {
   line-height: 1.75;
   font-size: 11.5pt;
   background: white;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .page { page-break-before: always; }
 .page:first-child { page-break-before: avoid; }
 
-/* Cover */
+/* Cover — full bleed (Requirement 2). page: bleed gives it the margin-0
+   page so the artwork reaches every edge; the container itself carries no
+   padding/margin (the text inset lives on .cover-content). */
 .cover {
+  page: bleed;
+  page-break-after: always;
+  width: 100%;
+  height: 100vh;
   min-height: 100vh;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -340,8 +371,8 @@ body {
   text-align: center;
   background: #111;
   color: #F5F0E8;
-  padding: 4rem 3rem;
   position: relative;
+  overflow: hidden;
 }
 .cover::before, .cover::after {
   content: '';
@@ -349,23 +380,28 @@ body {
   left: 2.5rem; right: 2.5rem;
   height: 1px;
   background: rgba(201,168,76,0.3);
+  z-index: 2;
 }
 .cover::before { top: 2.5rem; }
 .cover::after  { bottom: 2.5rem; }
+/* Background artwork bleeds the full page height. Dimmed under the text
+   overlay for legibility; full opacity when the upload already contains the
+   title (cover-image-only). */
 .cover-img {
-  width: 100%; max-height: 55vh;
+  width: 100%; height: 100%;
+  max-height: none;
   object-fit: cover;
   position: absolute; inset: 0;
   opacity: 0.35;
+  z-index: 0;
 }
-/* When the uploaded image already contains text, show the artwork at full
-   opacity and hide the overlay (the .cover-content div is omitted in HTML). */
 .cover-image-only .cover-img {
-  max-height: 100vh;
   height: 100%;
   opacity: 1;
 }
-.cover-content { position: relative; z-index: 1; }
+/* Text inset — keep the title/author off the paper edge even though the
+   container is padding-free. */
+.cover-content { position: relative; z-index: 1; padding: 1in; max-width: 6in; }
 .cover-title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 2.6rem;
@@ -378,7 +414,7 @@ body {
 
 /* ── Front matter — interior title page ───────────────────────────────── */
 .front-title {
-  min-height: calc(100vh - 4.4cm); /* @page margins eat 4.4cm vertically */
+  min-height: calc(100vh - 2in); /* @page margins eat 1in top + 1in bottom */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -433,7 +469,7 @@ body {
 
 /* ── Front matter — copyright page ────────────────────────────────────── */
 .copyright {
-  min-height: calc(100vh - 4.4cm);
+  min-height: calc(100vh - 2in);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -484,7 +520,19 @@ body {
 .chapter-label { display: block; font-family: 'Inter', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.4rem; }
 .chapter-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.7rem; line-height: 1.2; margin-bottom: 0.75rem; }
 .rule { width: 2rem; height: 2px; background: var(--accent); margin-bottom: 1.75rem; }
-.chapter-img { width: 100%; max-height: 200pt; object-fit: cover; border-radius: 3px; margin-bottom: 1.5rem; }
+/* Chapter images (Requirement 4): never crop or split across a page break.
+   Natural aspect ratio (height auto), constrained to the text column width,
+   centred within the margins. */
+.chapter-img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 4.5in;
+  margin: 0 auto 1.5rem;
+  border-radius: 3px;
+  page-break-inside: avoid;
+}
 .body p { margin-bottom: 1.1em; }
 .body p:last-child { margin-bottom: 0; }
 
@@ -629,9 +677,13 @@ body {
 .resource-body em { font-style: italic; }
 .resource-body hr { border: 0; border-top: 1px solid rgba(0,0,0,0.15); margin: 0.9rem 0; }
 
-/* Back cover */
+/* Back cover — full bleed, mirrors the cover. */
 .back-cover {
+  page: bleed;
+  width: 100%;
+  height: 100vh;
   min-height: 100vh;
+  margin: 0;
   background: #0F0F0F;
   color: #F5F0E8;
   position: relative;
@@ -682,7 +734,18 @@ body {
 .back-logo { height: 2rem; width: auto; object-fit: contain; opacity: 0.8; margin-top: 1.5rem; }
 
 @media print {
-  .cover, .back-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Belt-and-suspenders colour fidelity for the dark cover backgrounds and
+     brand accents (some engines honour this only inside @media print). */
+  html, body, .cover, .back-cover, .chapter-img, .resource-type-badge,
+  .resource-table th, .resource-checkbox.checked {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Keep figures and resource cards whole across page breaks. */
+  .chapter-img, .resource-block, .acronym-block, .pull-quote-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
   .print-banner { display: none !important; }
 }
 
