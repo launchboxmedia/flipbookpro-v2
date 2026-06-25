@@ -24,7 +24,7 @@ const loadLanding = cache(async (slug: string) => {
 
   const { data: pub } = await supabase
     .from('published_books')
-    .select('slug, book_id, access_type, price_cents, is_active')
+    .select('id, slug, book_id, access_type, price_cents, is_active, survey_enabled, survey_question, survey_options')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
@@ -94,6 +94,8 @@ const loadLanding = cache(async (slug: string) => {
     profile?.full_name?.trim() ||
     'the author'
 
+  const surveyOptions = Array.isArray(pub.survey_options) ? pub.survey_options as string[] : null
+
   return {
     pub,
     book,
@@ -105,6 +107,9 @@ const loadLanding = cache(async (slug: string) => {
     accessType,
     priceFormatted,
     authorName,
+    surveyEnabled: pub.survey_enabled ?? false,
+    surveyQuestion: pub.survey_question ?? null,
+    surveyOptions,
   }
 })
 
@@ -177,6 +182,7 @@ export default async function GoPage({ params }: Props) {
   if (!data) notFound()
 
   const {
+    pub,
     book,
     profile,
     chapters,
@@ -186,6 +192,9 @@ export default async function GoPage({ params }: Props) {
     accessType,
     priceFormatted,
     authorName,
+    surveyEnabled,
+    surveyQuestion,
+    surveyOptions,
   } = data
 
   const ctaCopy = ctaCopyFor(accessType, priceFormatted)
@@ -202,6 +211,7 @@ export default async function GoPage({ params }: Props) {
       <HeroSection
         slug={params.slug}
         bookId={book.id}
+        publishedBookId={pub.id}
         title={book.title}
         subtitle={book.subtitle}
         coverImageUrl={book.cover_image_url}
@@ -212,6 +222,9 @@ export default async function GoPage({ params }: Props) {
         resourceCount={resourceCount}
         accessType={accessType}
         priceFormatted={priceFormatted}
+        surveyEnabled={surveyEnabled}
+        surveyQuestion={surveyQuestion}
+        surveyOptions={surveyOptions}
       />
 
       {/* ── 2. ABOUT THIS BOOK (cream) ─────────────────────────────── */}

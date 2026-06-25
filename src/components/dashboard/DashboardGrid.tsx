@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { BookOpen, ExternalLink, Eye, PenLine, Settings } from 'lucide-react'
-import { CopyLinkButton } from './CopyLinkButton'
+import { BookOpen, Eye, PenLine } from 'lucide-react'
+import { PublishedBookCard } from './PublishedBookCard'
 
 type BookRow = {
   id: string
@@ -186,51 +186,17 @@ export function DashboardGrid({
             const leads = leadsByBook[b.id] ?? 0
             const i = cardIndex++
             return (
-              <Card key={b.id} index={i} className="hover:border-cream-3 dark:hover:border-ink-3">
-                <CoverThumb url={b.cover_image_url} title={b.title} />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-ink-1 dark:text-white font-semibold text-base truncate">{b.title}</h3>
-                  {leads > 0 ? (
-                    <p className="text-gold text-sm">{leads} reader{leads === 1 ? '' : 's'}</p>
-                  ) : (
-                    <>
-                      <p className="text-ink-1/30 dark:text-white/30 text-sm">No readers yet</p>
-                      <p className="text-ink-1/30 dark:text-white/30 text-xs">Share your link to get your first reader</p>
-                    </>
-                  )}
-                  <p className="text-ink-1/20 dark:text-white/20 text-xs truncate">{landingDisplay(pub.slug)}</p>
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  <a
-                    href={`/read/${pub.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Read
-                  </a>
-                  <a
-                    href={landingUrl(pub.slug)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Open landing page"
-                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Landing Page
-                  </a>
-                  <Link
-                    href={`/book/${b.id}/publish`}
-                    aria-label="Update publishing"
-                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    Update Publishing
-                  </Link>
-                  <CopyLinkButton url={landingUrl(pub.slug)} prominent={leads === 0} />
-                </div>
-              </Card>
+              <PublishedBookCard
+                key={b.id}
+                bookId={b.id}
+                title={b.title}
+                coverImageUrl={b.cover_image_url}
+                leads={leads}
+                slug={pub.slug}
+                landingHref={landingUrl(pub.slug)}
+                landingDisplayText={landingDisplay(pub.slug)}
+                cardIndex={i}
+              />
             )
           })}
         </section>

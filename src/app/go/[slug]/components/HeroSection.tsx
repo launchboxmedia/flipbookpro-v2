@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { PublishedBook } from '@/types/database'
+import { SurveyOverlay } from './SurveyOverlay'
 
 interface Props {
   slug: string
   /** Needed for the paid checkout call (POST /api/books/[bookId]/checkout). */
   bookId: string
+  /** published_books.id — needed for survey submission. */
+  publishedBookId: string
   title: string
   subtitle: string | null
   coverImageUrl: string | null
@@ -27,6 +30,9 @@ interface Props {
   /** Pre-formatted price string with leading $, e.g. "$9" or "$9.99".
    *  null for free / email books. */
   priceFormatted: string | null
+  surveyEnabled?: boolean
+  surveyQuestion?: string | null
+  surveyOptions?: string[] | null
 }
 
 /** Deterministic particle field for the parallax back layer. Hand-placed
@@ -217,6 +223,7 @@ const RIFFLE_DURATION_MS = 2100
 export function HeroSection({
   slug,
   bookId,
+  publishedBookId,
   title,
   subtitle,
   coverImageUrl,
@@ -227,6 +234,9 @@ export function HeroSection({
   resourceCount,
   accessType,
   priceFormatted,
+  surveyEnabled,
+  surveyQuestion,
+  surveyOptions,
 }: Props) {
   const cta = ctaCopyFor(accessType, priceFormatted)
 
@@ -626,8 +636,12 @@ export function HeroSection({
               accessType={accessType}
               slug={slug}
               bookId={bookId}
+              publishedBookId={publishedBookId}
               text={cta.text}
               sub={cta.sub}
+              surveyEnabled={surveyEnabled}
+              surveyQuestion={surveyQuestion}
+              surveyOptions={surveyOptions}
             />
           </div>
         </div>
@@ -685,15 +699,20 @@ const CTA_SUB = 'text-white/30 text-xs text-center mt-2'
  *  - paid  → POST /api/books/[bookId]/checkout, redirect to Stripe
  *  - email → inline email form → POST /api/read/[slug]/grant-email
  *            (sets the access cookie + fires the welcome sequence), then
- *            navigate to /read/[slug]. */
+ *            if survey enabled show SurveyOverlay, else navigate to /read/[slug]. */
 function AccessCTA({
-  accessType, slug, bookId, text, sub,
+  accessType, slug, bookId, publishedBookId, text, sub,
+  surveyEnabled, surveyQuestion, surveyOptions,
 }: {
   accessType: PublishedBook['access_type']
   slug: string
   bookId: string
+  publishedBookId: string
   text: string
   sub: string | null
+  surveyEnabled?: boolean
+  surveyQuestion?: string | null
+  surveyOptions?: string[] | null
 }) {
   const router = useRouter()
   const readHref = `/read/${slug}`
@@ -703,6 +722,14 @@ function AccessCTA({
   const [website, setWebsite] = useState('') // honeypot — must stay empty
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showSurvey, setShowSurvey] = useState(false)
+  const [grantedEmail, setGrantedEmail] = useState('')
+
+  const hasSurvey =
+    surveyEnabled &&
+    surveyQuestion &&
+    Array.isArray(surveyOptions) &&
+    surveyOptions.length >= 2
 
   if (accessType === 'free') {
     return (
@@ -764,11 +791,28 @@ function AccessCTA({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error ?? 'Something went wrong.')
-      router.push(readHref)
+      if (hasSurvey) {
+        setGrantedEmail(email.trim())
+        setShowSurvey(true)
+      } else {
+        router.push(readHref)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
       setLoading(false)
     }
+  }
+
+  if (showSurvey && hasSurvey) {
+    return (
+      <SurveyOverlay
+        publishedBookId={publishedBookId}
+        email={grantedEmail}
+        question={surveyQuestion!}
+        options={surveyOptions!}
+        slug={slug}
+      />
+    )
   }
 
   return (

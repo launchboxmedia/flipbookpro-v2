@@ -2,16 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Globe, Copy, Check, ExternalLink, Loader2, Lock, Mail, BookOpen, AlertTriangle, Megaphone } from 'lucide-react'
+import { ArrowLeft, Globe, Copy, Check, ExternalLink, Loader2, Lock, Mail, AlertTriangle, Megaphone, ClipboardList, Sparkles, X } from 'lucide-react'
 import type { AccessType, Book, PublishedBook } from '@/types/database'
 
 interface Props {
   book: Book
   publishedBook: PublishedBook | null
   hasStripeConnect?: boolean
-  /** True when book_pages contains a chapter at index 99 (the CTA sentinel).
-   *  Drives the warning that publishing without a back_cover_cta_url leaves
-   *  the closing chapter pointing at nothing. */
   hasCtaChapter?: boolean
 }
 
@@ -21,35 +18,36 @@ const ACCESS_OPTIONS: ReadonlyArray<{
   description: string
   icon: React.ComponentType<{ className?: string }>
 }> = [
-  { id: 'free',  label: 'Free',        description: 'Anyone with the link can read — no gate.',                icon: BookOpen },
-  { id: 'email', label: 'Email Gate',  description: 'Free with email capture — readers join your list.',       icon: Mail },
-  { id: 'paid',  label: 'Paid',        description: 'Buyer must pay before accessing the book.',               icon: Lock },
+  { id: 'email', label: 'Email Gate',  description: 'Free with email capture — readers join your list.', icon: Mail },
+  { id: 'paid',  label: 'Paid',        description: 'Buyer must pay before accessing the book.',          icon: Lock },
 ]
 
-// Derive an initial access type from either the new column (preferred) or
-// the legacy gate_type, so historical published_books rows still display
-// correctly until they're saved with the new flow.
 function initialAccessType(p: PublishedBook | null): AccessType {
   if (!p) return 'email'
-  if (p.access_type) return p.access_type
-  if (p.gate_type === 'none')    return 'free'
-  if (p.gate_type === 'payment') return 'paid'
+  if (p.access_type === 'paid') return 'paid'
+  // treat legacy 'free' as email gate
   return 'email'
 }
 
 export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = false, hasCtaChapter = false }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [published, setPublished] = useState<PublishedBook | null>(initial)
+  const published = initial
   const [accessType, setAccessType] = useState<AccessType>(initialAccessType(initial))
-  // Price displayed as dollars in the input; persisted as cents on save.
   const [priceDollars, setPriceDollars] = useState<string>(
     initial?.price_cents && initial.price_cents > 0
       ? (initial.price_cents / 100).toFixed(2)
       : '7.00',
   )
-  // CTA URL — drives where the closing CTA chapter and back-cover button
-  // point. Saved to books.back_cover_cta_url alongside publish.
   const [ctaUrl, setCtaUrl] = useState<string>(book.back_cover_cta_url ?? '')
+
+  // Reader survey state
+  const [surveyEnabled, setSurveyEnabled] = useState<boolean>(initial?.survey_enabled ?? false)
+  const [surveyQuestion, setSurveyQuestion] = useState<string>(initial?.survey_question ?? '')
+  const [surveyOptions, setSurveyOptions] = useState<string[]>(
+    initial?.survey_options ?? ['', '', '', '']
+  )
+  const [suggestingAi, setSuggestingAi] = useState(false)
+  const [suggestError, setSuggestError] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -70,8 +68,12 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
         throw new Error('Paid books require a price of at least $1.')
       }
 
-      // Light client-side URL check before save — avoids a round-trip just
-      // to bounce a typo. The back-cover route validates again server-side.
+      if (surveyEnabled) {
+        if (!surveyQuestion.trim()) throw new Error('Enter a survey question or disable the survey.')
+        const filled = surveyOptions.filter(o => o.trim())
+        if (filled.length < 2) throw new Error('Provide at least 2 survey options.')
+      }
+
       const trimmedCta = ctaUrl.trim()
       if (trimmedCta) {
         try {
@@ -82,8 +84,6 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
         }
       }
 
-      // Persist the CTA URL first so the share link reflects it. Failure
-      // here aborts publish — the user expects the URL they typed to land.
       const ctaRes = await fetch(`/api/books/${book.id}/back-cover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,7 +97,13 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
       const res = await fetch(`/api/books/${book.id}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessType, priceCents }),
+        body: JSON.stringify({
+          accessType,
+          priceCents,
+          surveyEnabled,
+          surveyQuestion: surveyEnabled ? surveyQuestion.trim() : null,
+          surveyOptions: surveyEnabled ? surveyOptions.filter(o => o.trim()) : null,
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed')
@@ -106,6 +112,29 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
       setError(e instanceof Error ? e.message : 'Publish failed')
       setLoading(false)
     }
+  }
+
+  async function handleSuggestSurvey() {
+    setSuggestingAi(true)
+    setSuggestError('')
+    try {
+      const res = await fetch(`/api/books/${book.id}/suggest-survey`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed')
+      setSurveyQuestion(json.question ?? '')
+      setSurveyOptions([
+        ...(json.options ?? []).slice(0, 4),
+        ...Array(4).fill(''),
+      ].slice(0, 4))
+    } catch (e) {
+      setSuggestError(e instanceof Error ? e.message : 'Could not generate suggestion')
+    } finally {
+      setSuggestingAi(false)
+    }
+  }
+
+  function updateOption(index: number, value: string) {
+    setSurveyOptions(prev => prev.map((o, i) => (i === index ? value : o)))
   }
 
   async function copyLink() {
@@ -147,7 +176,7 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
           </div>
         </div>
 
-        {/* Access type — three options */}
+        {/* Access type */}
         <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
           <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-3">Access Type</p>
           <div className="space-y-2">
@@ -158,9 +187,7 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
                 <label
                   key={opt.id}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selected
-                      ? 'border-gold/50 bg-gold/5'
-                      : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
+                    selected ? 'border-gold/50 bg-gold/5' : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
                   }`}
                 >
                   <input
@@ -173,19 +200,14 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
                   />
                   <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${selected ? 'text-gold' : 'text-muted-foreground'}`} />
                   <div className="flex-1">
-                    <p className={`font-inter text-sm font-medium ${selected ? 'text-cream' : 'text-cream/80'}`}>
-                      {opt.label}
-                    </p>
-                    <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">
-                      {opt.description}
-                    </p>
+                    <p className={`font-inter text-sm font-medium ${selected ? 'text-cream' : 'text-cream/80'}`}>{opt.label}</p>
+                    <p className="text-xs font-source-serif text-muted-foreground mt-0.5 leading-snug">{opt.description}</p>
                   </div>
                 </label>
               )
             })}
           </div>
 
-          {/* Price input — only when paid */}
           {accessType === 'paid' && (
             <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
               <label className="block text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -227,10 +249,95 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
           )}
         </div>
 
-        {/* Closing CTA — points the back cover button + the optional CTA
-            chapter at the URL the author wants readers to land on. The
-            warning surfaces only when the book has a CTA chapter but no URL
-            yet; otherwise the field is optional. */}
+        {/* Reader Survey */}
+        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-3.5 h-3.5 text-gold" />
+              <p className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">
+                Reader Survey
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={surveyEnabled}
+              onClick={() => setSurveyEnabled(v => !v)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-gold/40 ${
+                surveyEnabled ? 'bg-gold' : 'bg-[#333]'
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${surveyEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+            </button>
+          </div>
+          <p className="text-[11px] font-inter text-muted-foreground mt-1.5 leading-relaxed">
+            Ask readers one question after they unlock access. Responses appear in your leads data.
+          </p>
+
+          {surveyEnabled && (
+            <div className="mt-4 pt-4 border-t border-[#2A2A2A] space-y-4">
+              {/* Question */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider">
+                    Survey Question
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSuggestSurvey}
+                    disabled={suggestingAi}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-inter text-gold hover:text-gold/80 transition-colors disabled:opacity-50"
+                  >
+                    {suggestingAi
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Sparkles className="w-3 h-3" />
+                    }
+                    Suggest with AI
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={surveyQuestion}
+                  onChange={(e) => setSurveyQuestion(e.target.value)}
+                  placeholder="e.g. What's your biggest challenge right now?"
+                  className="w-full px-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm placeholder:text-cream/30 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
+                />
+                {suggestError && (
+                  <p className="text-red-400 font-inter text-[11px] mt-1">{suggestError}</p>
+                )}
+              </div>
+
+              {/* Options */}
+              <div>
+                <label className="block text-xs font-inter font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Multiple-Choice Options
+                </label>
+                <div className="space-y-2">
+                  {surveyOptions.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[11px] font-inter text-cream/40 w-4 shrink-0">{String.fromCharCode(65 + i)}.</span>
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => updateOption(i, e.target.value)}
+                        placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                        className="flex-1 px-3 py-1.5 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm placeholder:text-cream/25 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
+                      />
+                      {opt && (
+                        <button type="button" onClick={() => updateOption(i, '')} className="text-muted-foreground hover:text-cream transition-colors">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] font-inter text-muted-foreground mt-2">At least 2 options required.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Closing CTA */}
         <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-5 mb-5">
           <div className="flex items-center gap-2 mb-3">
             <Megaphone className="w-3.5 h-3.5 text-gold" />
@@ -251,18 +358,14 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
             className="w-full px-3 py-2 rounded-md bg-[#111] border border-[#333] text-cream font-inter text-sm placeholder:text-cream/30 focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold/40"
           />
           <p className="text-[11px] font-inter text-muted-foreground mt-2 leading-relaxed">
-            Drives the button on your back cover and the closing CTA chapter
-            (if you added one). Leave blank to publish without a link.
+            Drives the button on your back cover and the closing CTA chapter (if you added one). Leave blank to publish without a link.
           </p>
 
           {hasCtaChapter && !ctaUrl.trim() && (
             <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-amber-200 font-inter text-xs leading-relaxed">
-                Your book has a closing CTA chapter but no destination URL.
-                Readers will reach a chapter that asks them to take action with
-                nowhere to go. Add a link or remove the CTA chapter before
-                publishing.
+                Your book has a closing CTA chapter but no destination URL. Readers will reach a chapter that asks them to take action with nowhere to go. Add a link or remove the CTA chapter before publishing.
               </p>
             </div>
           )}

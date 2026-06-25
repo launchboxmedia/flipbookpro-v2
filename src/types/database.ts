@@ -406,6 +406,9 @@ export interface PublishedBook {
   access_type: AccessType
   price_cents: number
   is_active: boolean
+  survey_enabled: boolean
+  survey_question: string | null
+  survey_options: string[] | null
   published_at: string
   created_at: string
   updated_at: string
@@ -423,6 +426,8 @@ export interface Lead {
   /** Set true when the reader unsubscribes — prevents re-triggering the
    *  Inngest welcome sequence if they re-submit the email gate. */
   welcome_unsubscribed?: boolean
+  /** The reader's selected answer to the post-unlock survey, if one was shown. */
+  survey_response: string | null
 }
 
 /** One email in a book's AI-written welcome sequence. Stored as the

@@ -52,6 +52,13 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     accessType === 'paid' ? 'payment' :
                             'email'
 
+  // Survey config — optional reader survey shown after email capture / payment.
+  const surveyEnabled = body.surveyEnabled === true
+  const surveyQuestion = typeof body.surveyQuestion === 'string' ? body.surveyQuestion.trim() || null : null
+  const surveyOptions: string[] | null = Array.isArray(body.surveyOptions) && body.surveyOptions.length >= 2
+    ? (body.surveyOptions as unknown[]).filter((o): o is string => typeof o === 'string').slice(0, 4)
+    : null
+
   // Price is only meaningful for paid books. Stored as integer cents.
   // Minimum $1 (100¢) when paid; ignored otherwise.
   const rawPriceCents = Number(body.priceCents)
@@ -126,6 +133,9 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
       gate_type: gateType,
       access_type: accessType,
       price_cents: priceCents,
+      survey_enabled: surveyEnabled,
+      survey_question: surveyEnabled ? surveyQuestion : null,
+      survey_options: surveyEnabled ? surveyOptions : null,
       is_active: true,
       published_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

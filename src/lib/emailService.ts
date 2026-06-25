@@ -20,6 +20,36 @@ export interface SendEmailArgs {
   unsubscribeUrl: string
 }
 
+function createTransport() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? 'smtp.mailersend.net',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  })
+}
+
+export async function sendPlainEmail(args: {
+  to: string
+  fromName: string
+  subject: string
+  body: string
+  unsubscribeUrl: string
+}): Promise<void> {
+  const { to, fromName, subject, body, unsubscribeUrl } = args
+  const fullBody = `${body}\n\n---\nUnsubscribe: ${unsubscribeUrl}`
+  await createTransport().sendMail({
+    from: `${fromName} <noreply@bookbuilderpro.app>`,
+    to,
+    subject,
+    text: fullBody,
+  })
+}
+
 export async function sendSequenceEmail(args: SendEmailArgs): Promise<void> {
   const { readerName, readerEmail, bookTitle, authorName, sequencePosition, unsubscribeUrl } = args
 
@@ -59,18 +89,7 @@ Do not include any other fields.`,
 
   const fullBody = `${body}\n\n---\nYou're receiving this because you started reading ${bookTitle}.\nUnsubscribe: ${unsubscribeUrl}`
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST ?? 'smtp.mailersend.net',
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: false,
-    requireTLS: true,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  })
-
-  await transporter.sendMail({
+  await createTransport().sendMail({
     from: `${authorName} <noreply@bookbuilderpro.app>`,
     to: readerEmail,
     subject,
