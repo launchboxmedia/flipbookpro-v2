@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { stripe } from '@/lib/stripe'
 import {
   ACCESS_COOKIE_TTL_SECONDS,
@@ -80,7 +81,9 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     // Upsert against (published_book_id, email) so an existing email-gate
     // lead gets promoted to source='paid' instead of failing the unique
     // constraint.
-    await supabase
+    // Service-role: the buyer is anonymous and the leads upsert trips RLS for
+    // the anon role. Values are server-derived from the verified session/pub.
+    const { error: leadError } = await supabaseAdmin
       .from('leads')
       .upsert(
         {
@@ -92,7 +95,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
         },
         { onConflict: 'published_book_id,email' },
       )
-      .select()
+    if (leadError) console.error('[read-grant] lead upsert failed (granting access anyway)', leadError.message)
   }
 
   const token = signAccessToken(params.slug, buyerEmail)

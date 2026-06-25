@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { renderResourcePrintHtml } from '@/lib/resourceHtml'
-import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
-import type { AccessType, BookResource } from '@/types/database'
+import { cookieNameForSlug, verifyAccessToken, resolveAccessType, type AccessType } from '@/lib/readAccess'
+import type { BookResource } from '@/types/database'
 
 // Public, print-ready HTML for one resource attached to a published book.
 // Same pattern as /api/books/[id]/export-pdf — return a self-contained HTML
@@ -46,9 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
   if (!resource) return new NextResponse('Not found', { status: 404 })
 
   // Paid books — require the signed access cookie keyed to this slug.
-  const accessType: AccessType = pub.access_type
-    ?? (pub.gate_type === 'none' ? 'free' :
-        pub.gate_type === 'payment' ? 'paid' : 'email')
+  const accessType = resolveAccessType(pub)
   if (accessType === 'paid') {
     const jar = await cookies()
     const token = jar.get(cookieNameForSlug(params.slug))?.value

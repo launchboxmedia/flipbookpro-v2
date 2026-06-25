@@ -21,6 +21,31 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 const COOKIE_PREFIX = 'fbp_access_'
 const TTL_SECONDS = 30 * 24 * 60 * 60 // 30 days
 
+export type AccessType = 'free' | 'email' | 'paid'
+
+/**
+ * Resolve a published book's effective access type from its row.
+ *
+ * New rows set `access_type` explicitly; legacy rows have it null and only
+ * carry `gate_type`. This is the SINGLE source of truth for that derivation —
+ * the /read gate, the email grant, and the resource routes must all use it.
+ *
+ * The bug this prevents: if the /read page derives 'email' (via the gate_type
+ * fallback) but the grant route checks `access_type === 'email'` literally,
+ * a legacy book gates the reader but the grant refuses to set the cookie —
+ * an unbreakable redirect loop back to the landing page.
+ */
+export function resolveAccessType(
+  row: { access_type?: string | null; gate_type?: string | null },
+): AccessType {
+  if (row.access_type === 'free' || row.access_type === 'email' || row.access_type === 'paid') {
+    return row.access_type
+  }
+  if (row.gate_type === 'none') return 'free'
+  if (row.gate_type === 'payment') return 'paid'
+  return 'email'
+}
+
 function readSecret(): string {
   const secret = process.env.FLIPBOOKPRO_READ_ACCESS_SECRET
   if (secret && secret.length >= 16) return secret

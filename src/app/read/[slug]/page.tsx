@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { deriveTheme } from '@/lib/bookTheme'
 import { FlipbookViewer } from '@/components/preview/FlipbookViewer'
 import { BookResourcesPanel } from '@/components/read/BookResourcesPanel'
-import { cookieNameForSlug, verifyAccessToken } from '@/lib/readAccess'
+import { cookieNameForSlug, verifyAccessToken, resolveAccessType } from '@/lib/readAccess'
 import type { Book, BookPage, BookResource, Profile } from '@/types/database'
 
 // Always render this page per-request. The published flipbook + resources
@@ -77,11 +77,9 @@ export default async function ReadPage({ params }: Props) {
 
   if (!pub) notFound()
 
-  // Resolve the effective access type. New rows have access_type set
-  // explicitly; old rows fall back through gate_type.
-  const accessType = (pub.access_type as 'free' | 'email' | 'paid' | undefined)
-    ?? (pub.gate_type === 'none'    ? 'free' :
-        pub.gate_type === 'payment' ? 'paid' : 'email')
+  // Resolve the effective access type. Shared helper so the gate and the
+  // grant routes derive it identically (see resolveAccessType).
+  const accessType = resolveAccessType(pub)
 
   // /read is now a pure cookie check — all gating UI (email form, checkout)
   // lives on /go/[slug], the single gate. Free books are open; email/paid

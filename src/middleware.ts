@@ -69,7 +69,8 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup')
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/read') ||
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/api') ||
+    request.nextUrl.pathname.startsWith('/read') ||
     request.nextUrl.pathname.startsWith('/auth/') ||
     request.nextUrl.pathname.startsWith('/reset-password') ||
     request.nextUrl.pathname.startsWith('/go/') ||

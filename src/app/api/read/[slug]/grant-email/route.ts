@@ -7,6 +7,7 @@ import {
   ACCESS_COOKIE_TTL_SECONDS,
   cookieNameForSlug,
   signAccessToken,
+  resolveAccessType,
 } from '@/lib/readAccess'
 
 /**
@@ -77,13 +78,16 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
 
   const { data: pub } = await supabase
     .from('published_books')
-    .select('id, book_id, user_id, slug, access_type, is_active')
+    .select('id, book_id, user_id, slug, access_type, gate_type, is_active')
     .eq('slug', params.slug)
     .eq('is_active', true)
     .single()
 
   if (!pub) return NextResponse.json({ error: 'Book not found' }, { status: 404 })
-  if (pub.access_type !== 'email') {
+  // Derive the effective access type the SAME way the /read gate does, so a
+  // legacy book (access_type null, gated via gate_type) can still be unlocked
+  // instead of the grant 400ing and looping the reader back to the landing.
+  if (resolveAccessType(pub) !== 'email') {
     return NextResponse.json({ error: 'This book is not email-gated.' }, { status: 400 })
   }
 
