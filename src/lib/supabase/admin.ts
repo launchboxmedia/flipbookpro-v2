@@ -2,16 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 
 // Service-role Supabase client. Bypasses RLS — SERVER ONLY.
 //
-// The welcome-sequence flow runs from anonymous, public contexts (the
-// lead-capture route has no reader session; the unsubscribe link is
-// unauthenticated). email_sequences / profiles are owner-only under RLS,
-// so a normal anon client silently returns zero rows and the sequence
-// never sends. This client is the deliberate, narrow exception.
+// Anonymous contexts (lead capture, unsubscribe, grant-email) can't use a
+// normal anon client for owner-only tables (profiles, email_sequences).
+// This client is the deliberate, narrow exception for those server routes.
 //
 // NEVER import this from a client component or any code that ships to the
-// browser — it would leak the service-role key. Only:
-//   - src/lib/emailSequence.ts
-//   - src/app/api/unsubscribe/route.ts
+// browser — it would leak the service-role key.
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.warn(
     'SUPABASE_SERVICE_ROLE_KEY not set — email sequences disabled',

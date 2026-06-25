@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { consumeRateLimit } from '@/lib/rateLimit'
-import { scheduleWelcomeSequence } from '@/lib/emailSequence'
+import { inngest } from '@/inngest/client'
 import {
   ACCESS_COOKIE_TTL_SECONDS,
   cookieNameForSlug,
@@ -114,14 +114,57 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
     console.error('[grant-email] lead upsert failed (granting access anyway)', leadError.message)
   }
 
-  // Welcome sequence — fire-and-forget, never blocks the gate (mirrors the
-  // /api/leads behaviour so email sequences keep firing for new readers).
-  void scheduleWelcomeSequence({
-    bookId: pub.book_id,
-    leadEmail: cleanEmail,
-    leadName: cleanName,
-    bookSlug: pub.slug,
-  }).catch((err) => console.error('[grant-email] welcome sequence scheduling failed:', err))
+  // Fetch lead ID + author for the Inngest event — best-effort, non-blocking.
+  let leadId: string | undefined
+  let authorName = 'The Author'
+  let bookTitle = pub.slug
+  try {
+    const [leadRes, bookRes] = await Promise.all([
+      supabaseAdmin
+        .from('leads')
+        .select('id')
+        .eq('published_book_id', pub.id)
+        .eq('email', cleanEmail)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('books')
+        .select('title, author_name, user_id')
+        .eq('id', pub.book_id)
+        .single(),
+    ])
+    leadId = leadRes.data?.id
+    if (bookRes.data) {
+      bookTitle = bookRes.data.title
+      if (bookRes.data.author_name) {
+        authorName = bookRes.data.author_name
+      } else if (bookRes.data.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('display_name')
+          .eq('id', bookRes.data.user_id)
+          .single()
+        if (profile?.display_name) authorName = profile.display_name
+      }
+    }
+  } catch (e) {
+    console.error('[grant-email] author/lead lookup failed:', e)
+  }
+
+  // Trigger welcome sequence via Inngest — fire-and-forget.
+  void inngest.send({
+    name: 'app/lead.created',
+    data: {
+      leadId,
+      email: cleanEmail,
+      readerName: cleanName,
+      bookTitle,
+      authorName,
+      bookSlug: pub.slug,
+      bookId: pub.book_id,
+    },
+  }).catch((err) => console.error('[grant-email] inngest.send failed:', err))
 
   const token = signAccessToken(params.slug, cleanEmail)
   const res = NextResponse.json({ ok: true })

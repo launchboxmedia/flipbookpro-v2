@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { consumeRateLimit } from '@/lib/rateLimit'
-import { scheduleWelcomeSequence } from '@/lib/emailSequence'
+import { inngest } from '@/inngest/client'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_EMAIL = 254
@@ -78,20 +78,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Save failed' }, { status: 500 })
   }
 
+  // Fetch the lead ID for Inngest event data (cancelOn matching).
+  const { data: leadRow } = await supabaseAdmin
+    .from('leads')
+    .select('id')
+    .eq('published_book_id', publishedBookId)
+    .eq('email', cleanEmail)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const { count } = await supabaseAdmin
     .from('leads')
     .select('id', { count: 'exact', head: true })
     .eq('published_book_id', publishedBookId)
 
-  // Welcome sequence — fire-and-forget. Schedules the reader's 5 emails
-  // via Resend. Never awaited and never throws (the lib swallows + logs)
-  // so lead capture cannot be blocked or failed by email scheduling.
-  void scheduleWelcomeSequence({
-    bookId: pub.book_id,
-    leadEmail: cleanEmail,
-    leadName: cleanName,
-    bookSlug: pub.slug,
-  }).catch((err) => console.error('[leads] welcome sequence scheduling failed:', err))
+  // Fetch author name for the email — best-effort, non-blocking.
+  let authorName = 'The Author'
+  try {
+    const { data: book } = await supabaseAdmin
+      .from('books')
+      .select('author_name, user_id')
+      .eq('id', pub.book_id)
+      .single()
+    if (book?.author_name) {
+      authorName = book.author_name
+    } else if (book?.user_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('display_name')
+        .eq('id', book.user_id)
+        .single()
+      if (profile?.display_name) authorName = profile.display_name
+    }
+  } catch (e) {
+    console.error('[leads] author lookup failed:', e)
+  }
+
+  // Trigger welcome sequence via Inngest — fire-and-forget.
+  // Inngest handles scheduling and cancellation; no Resend IDs to store.
+  void inngest.send({
+    name: 'app/lead.created',
+    data: {
+      leadId: leadRow?.id,
+      email: cleanEmail,
+      readerName: cleanName,
+      bookTitle: pub.title,
+      authorName,
+      bookSlug: pub.slug,
+      bookId: pub.book_id,
+    },
+  }).catch((err) => console.error('[leads] inngest.send failed:', err))
 
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/read/${pub.slug}`
 
