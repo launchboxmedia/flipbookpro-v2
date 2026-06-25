@@ -527,12 +527,63 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Print page geometry — mirrors the PDF export. Letter with real book
+   margins applied via the @page box, so every page (continuations included)
+   gets consistent margins; a named margin-0 page powers the full-bleed cover.
+   Explicit margins also suppress the browser's date/URL header & footer. */
+@page { size: letter; margin: 1in 1.2in; }
+@page bleed { margin: 0; }
+
 @media print {
   body { background: white; font-size: 12pt; }
-  .cover { min-height: 100vh; }
+
+  /* Force dark cover + brand accents to print rather than being stripped by
+     the browser's ink-saving defaults. */
+  html, body, .cover, .cover-bg, .cover-bg-overlay, .chapter-image,
+  .acronym-letter {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Full-bleed cover — drop the screen padding so the artwork reaches every
+     edge; the title inset moves onto .cover-content. */
+  .cover {
+    page: bleed;
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+  .cover-content { padding: 1in; max-width: 6in; }
+
+  /* Neutralise the screen's narrow centred columns so text fills the @page
+     content area; the @page margins provide the book margins on every page. */
+  .front-title, .copyright, .introduction, .toc, .chapter {
+    max-width: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .chapter, .introduction, .toc { padding-top: 0.4in; }
+  .front-title, .copyright { min-height: calc(100vh - 2in); padding-top: 0; }
+
+  /* Chapter images: no crop (height auto), constrained to the column, never
+     split across a page. */
+  .chapter-image {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 4.5in;
+    object-fit: contain;
+    margin: 0 auto 2rem;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .acronym-block, .pull-quote-block { page-break-inside: avoid; break-inside: avoid; }
+
   /* Both chapter starts and continuation chunks force a print page break,
-     so each chunk in the export occupies its own printed page — matching
-     the flipbook's one-spread-per-chunk model. */
+     so each chunk occupies its own printed page (matches the flipbook). */
   .page-break,
   .page-break-chapter,
   .page-break-cont { page-break-before: always; }
