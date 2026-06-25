@@ -1,8 +1,10 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { BookOpen, Loader2, X, Check, Wand2, ChevronRight, RefreshCw, AlertTriangle, GitMerge, Layout, GripVertical, Sparkles, Plus, ArrowRight, Megaphone, Pencil, Trash2 } from 'lucide-react'
+import { BookOpen, Loader2, X, Check, Wand2, ChevronRight, RefreshCw, AlertTriangle, GitMerge, Layout, GripVertical, Sparkles, Plus, ArrowRight, Megaphone, Pencil, Trash2, BookCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { useDraftAll } from '@/hooks/useDraftAll'
+import { DraftAllProgress } from './DraftAllProgress'
 import type { Book, BookPage } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
@@ -47,6 +49,8 @@ interface Props {
   pages: BookPage[]
   onPagesChange: (pages: BookPage[]) => void
   onNavigateChapter: (index: number) => void
+  /** Called when Draft Entire Book completes — navigates to Book Design stage. */
+  onNavigateToDesign?: () => void
 }
 
 const FLAG_META: Record<FlagType, { label: string; color: string; icon: React.ReactNode }> = {
@@ -354,7 +358,7 @@ function SortableChapterRow(props: ChapterRowProps) {
   )
 }
 
-export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: Props) {
+export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter, onNavigateToDesign }: Props) {
   const [critiquing, setCritiquing] = useState(false)
   const [flags, setFlags] = useState<CritiqueFlag[]>([])
   const [dismissedFlags, setDismissedFlags] = useState<Set<number>>(new Set())
@@ -421,6 +425,20 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
   // sits below in its own card.
   const regularPages = pages.filter((p) => p.chapter_index < 99)
   const ctaPage      = pages.find((p) => p.chapter_index === 99) ?? null
+
+  // ── Draft Entire Book ──────────────────────────────────────────────────
+  const draftAll = useDraftAll()
+  const [showDraftConfirm, setShowDraftConfirm] = useState(false)
+  const unapprovedChapters = regularPages.filter((p) => !p.approved)
+
+  function handleDraftAllComplete(failedImageTitles: string[]) {
+    if (failedImageTitles.length === 0) {
+      toast.success(`All ${unapprovedChapters.length} chapters drafted. Critique flags are loading — visit each chapter to review suggestions.`)
+    } else {
+      toast.success(`Chapters drafted — images failed for: ${failedImageTitles.join(', ')}. Regenerate them from each chapter.`)
+    }
+    onNavigateToDesign?.()
+  }
 
   // ── Drag-to-reorder + diff view state ─────────────────────────────────
   // previousPages: a snapshot of the regular chapters taken right before
@@ -1478,6 +1496,28 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               <ArrowRight className="w-4 h-4 text-ink-1/30 group-hover:text-gold mt-1.5 shrink-0 transition-colors" />
             </button>
           )}
+
+          {/* Draft Entire Book — shown when there are unapproved chapters */}
+          {unapprovedChapters.length > 0 && (
+            <div className="mt-4">
+              {(draftAll.state.running || draftAll.state.error !== null) ? (
+                <DraftAllProgress
+                  state={draftAll.state}
+                  onCancel={() => draftAll.cancel()}
+                  onResolveError={(choice) => draftAll.resolveError(choice)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDraftConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ink-1 hover:bg-ink-2 text-cream-1 text-sm font-inter font-semibold rounded-xl transition-colors"
+                >
+                  <BookCheck className="w-4 h-4" />
+                  Draft Entire Book
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1686,6 +1726,58 @@ export function OutlineStage({ book, pages, onPagesChange, onNavigateChapter }: 
               >
                 {inserting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {inserting ? 'Inserting…' : 'Insert chapter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draft Entire Book confirmation modal */}
+      {showDraftConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowDraftConfirm(false)}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Draft Entire Book"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowDraftConfirm(false) }}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+          >
+            <h3 className="font-playfair text-xl text-ink-1 font-semibold mb-2">
+              Draft Entire Book
+            </h3>
+            <p className="text-ink-1/70 text-sm font-source-serif mb-5 leading-relaxed">
+              This will write, illustrate, and approve all {unapprovedChapters.length} unapproved chapter{unapprovedChapters.length !== 1 ? 's' : ''} in one pass. You can edit any chapter after.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDraftConfirm(false)}
+                className="px-4 py-2 text-sm font-inter text-ink-1/70 hover:text-ink-1 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDraftConfirm(false)
+                  void draftAll.start(
+                    book,
+                    unapprovedChapters,
+                    (pageId) => {
+                      onPagesChange(pages.map((p) => p.id === pageId ? { ...p, approved: true } : p))
+                    },
+                    handleDraftAllComplete,
+                  )
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-ink-1 hover:bg-ink-2 text-cream-1 text-sm font-inter font-semibold rounded-md transition-colors"
+              >
+                <BookCheck className="w-3.5 h-3.5" />
+                Draft Everything →
               </button>
             </div>
           </div>
