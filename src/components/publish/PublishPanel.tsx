@@ -281,7 +281,10 @@ export function PublishPanel({ book, publishedBook: initial, hasStripeConnect = 
               <button onClick={copyLink} className="p-2 text-muted-foreground hover:text-cream transition-colors">
                 {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
               </button>
-              <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-muted-foreground hover:text-cream transition-colors">
+              <a href={shareUrl.replace('/read/', '/go/')} target="_blank" rel="noopener noreferrer" className="p-2 text-muted-foreground hover:text-cream transition-colors" title="Landing page">
+                <Globe className="w-4 h-4" />
+              </a>
+              <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="p-2 text-muted-foreground hover:text-cream transition-colors" title="View book">
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>

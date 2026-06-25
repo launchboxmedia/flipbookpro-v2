@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, ExternalLink, Eye, PenLine } from 'lucide-react'
+import { BookOpen, ExternalLink, Eye, PenLine, Settings } from 'lucide-react'
 import { CopyLinkButton } from './CopyLinkButton'
 
 type BookRow = {
@@ -220,6 +220,14 @@ export function DashboardGrid({
                     <ExternalLink className="w-3.5 h-3.5" />
                     Landing Page
                   </a>
+                  <Link
+                    href={`/book/${b.id}/publish`}
+                    aria-label="Update publishing"
+                    className="flex items-center gap-1.5 text-xs text-ink-1/50 dark:text-white/60 hover:text-ink-1 dark:hover:text-white transition-colors"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    Update Publishing
+                  </Link>
                   <CopyLinkButton url={landingUrl(pub.slug)} prominent={leads === 0} />
                 </div>
               </Card>

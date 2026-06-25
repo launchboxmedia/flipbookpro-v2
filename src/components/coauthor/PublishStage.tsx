@@ -248,6 +248,15 @@ export function PublishStage({ book, publishedBook: initial, hasStripeConnect, e
               {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
             </button>
             <a
+              href={shareUrl.replace('/read/', '/go/')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-muted-foreground hover:text-ink-1 dark:hover:text-cream transition-colors"
+              title="Landing page"
+            >
+              <Globe className="w-4 h-4" />
+            </a>
+            <a
               href={shareUrl}
               target="_blank"
               rel="noopener noreferrer"
