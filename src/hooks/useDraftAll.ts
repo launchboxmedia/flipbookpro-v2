@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Book, BookPage } from '@/types/database'
 
@@ -38,6 +38,10 @@ export function useDraftAll() {
   const cancelledRef = useRef(false)
   const runningRef = useRef(false)
   const errorResolverRef = useRef<((choice: 'skip' | 'stop') => void) | null>(null)
+
+  // Auto-cancel on unmount so the async loop doesn't leak if paused on error.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => { cancel() }, [])
 
   function cancel() {
     cancelledRef.current = true
@@ -186,11 +190,7 @@ export function useDraftAll() {
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Approve failed'
         runningRef.current = false
-        setState(prev => ({
-          ...prev,
-          running: false,
-          error: { chapterTitle: page.chapter_title, message: msg, canSkip: false },
-        }))
+        setState({ ...IDLE, running: false, error: { chapterTitle: page.chapter_title, message: msg, canSkip: false } })
         return
       }
 
