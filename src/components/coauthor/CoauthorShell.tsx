@@ -460,6 +460,7 @@ export function CoauthorShell({
                   setActiveChapterIndex((idx) => Math.min(idx, Math.max(0, updated.length - 1)))
                 }}
                 onNavigateChapter={navigateChapter}
+                onNavigateToDesign={() => setStage('book-design')}
               />
             )}
             {stage === 'chapter' && currentPage && (
