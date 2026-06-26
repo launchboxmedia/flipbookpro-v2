@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText } from '@/lib/textGeneration'
+import { getEffectivePlan } from '@/lib/auth'
 
 // Pull-quote extraction limits — tuned to keep the result printable as a
 // centered editorial spread. Anything outside this range is treated as a
@@ -86,12 +87,49 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
 
   const { data: book } = await supabase
     .from('books')
-    .select('id')
+    .select('id, quota_charged')
     .eq('id', params.bookId)
     .eq('user_id', user.id)
-    .single()
+    .single<{ id: string; quota_charged: boolean }>()
 
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Deduct monthly quota on the first chapter approval for this book.
+  // quota_charged guards against double-billing if a chapter is un-approved
+  // and re-approved later.
+  if (approved && !book.quota_charged) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('books_created_this_month, books_reset_at')
+      .eq('id', user.id)
+      .single()
+
+    const { booksPerMonth, isAdmin } = await getEffectivePlan(supabase, user.id)
+
+    if (!isAdmin && Number.isFinite(booksPerMonth)) {
+      const resetAt = new Date(profile?.books_reset_at ?? '2000-01-01')
+      const now = new Date()
+      const used = (now.getFullYear() === resetAt.getFullYear() && now.getMonth() === resetAt.getMonth())
+        ? (profile?.books_created_this_month ?? 0)
+        : 0
+
+      if (used >= booksPerMonth) {
+        return NextResponse.json(
+          { error: 'Monthly book limit reached. Upgrade your plan to continue.', limitReached: true },
+          { status: 402 },
+        )
+      }
+    }
+
+    const { error: incError } = await supabase.rpc('increment_books_created', { user_id_input: user.id })
+    if (incError) console.error('[approve-chapter] increment_books_created failed', incError.message)
+
+    await supabase
+      .from('books')
+      .update({ quota_charged: true })
+      .eq('id', params.bookId)
+      .eq('user_id', user.id)
+  }
 
   // Pull the chapter so we know whether we still need a pull quote (handles
   // the retroactive case: a previously-approved chapter whose quote is null

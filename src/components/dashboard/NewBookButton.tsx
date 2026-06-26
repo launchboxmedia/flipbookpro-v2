@@ -25,13 +25,6 @@ export function NewBookButton() {
   async function handleClick() {
     setLoading(true)
     try {
-      const res  = await fetch('/api/books/check-limit')
-      const data = await res.json()
-      if (!data.allowed) {
-        setGateInfo({ plan: data.plan, used: data.used, limit: data.limit })
-        setShowGate(true)
-        return
-      }
       setShowChoice(true)
     } finally {
       setLoading(false)

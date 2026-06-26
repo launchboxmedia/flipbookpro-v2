@@ -175,11 +175,6 @@ export async function POST(
     return NextResponse.json({ error: 'Save failed' }, { status: 500 })
   }
 
-  // Increment monthly book counter — non-fatal if it errors, but log so
-  // counter drift can be diagnosed.
-  const { error: incError } = await supabase.rpc('increment_books_created', { user_id_input: userId })
-  if (incError) console.error('[setup] increment_books_created failed', incError.message)
-
   // Chapters block — runs only when the caller sent a chapters array.
   // The new wizard skips this entirely; the OutlineStage in coauthor
   // generates chapters from radar context after setup completes.
