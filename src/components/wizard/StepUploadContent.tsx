@@ -45,6 +45,7 @@ export function StepUploadContent({ data, bookId, onNext }: Props) {
   async function detectChapters() {
     setDetecting(true)
     setDetectError('')
+    setChapters([])
     try {
       const res = await fetch('/api/detect-chapters', {
         method: 'POST',
@@ -57,7 +58,7 @@ export function StepUploadContent({ data, bookId, onNext }: Props) {
         throw new Error('No chapters detected. Try adding chapter headings to your content.')
       }
       setChapters(json.chapters)
-      setNiche(json.chapters[0]?.title ?? '')
+      setNiche(prev => prev || (json.chapters[0]?.title ?? ''))
       setPhase('review')
     } catch (e) {
       setDetectError(e instanceof Error ? e.message : 'Detection failed')
@@ -187,6 +188,7 @@ export function StepUploadContent({ data, bookId, onNext }: Props) {
           <div className="flex items-start gap-3 p-4 rounded-xl bg-cream-2 border border-cream-3">
             <button
               role="checkbox"
+              aria-label="Import existing text as chapter drafts"
               aria-checked={importDrafts}
               onClick={() => !splitting && handleImportToggle(!importDrafts)}
               disabled={splitting}
