@@ -47,13 +47,13 @@ function validateChapters(value: unknown): ChapterInput[] | null {
   const out: ChapterInput[] = []
   for (const c of value) {
     if (!c || typeof c !== 'object') return null
-    const ch = c as { title?: unknown; brief?: unknown }
+    const ch = c as { title?: unknown; brief?: unknown; content?: unknown }
     const title = clampString(ch.title, MAX_CHAPTER_TITLE)
     if (!title) return null
     out.push({
       title,
       brief: clampString(ch.brief, MAX_CHAPTER_BRIEF) ?? '',
-      content: clampString((c as { content?: unknown }).content, MAX_CHAPTER_CONTENT) ?? null,
+      content: clampString(ch.content, MAX_CHAPTER_CONTENT),
     })
   }
   return out
