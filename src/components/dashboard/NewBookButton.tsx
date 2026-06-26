@@ -41,14 +41,6 @@ export function NewBookButton() {
   async function pickMode(mode: StartMode) {
     if (creating) return
     setCreating(mode)
-    // eslint-disable-next-line no-console
-    console.log('[NewBookButton] navigating with mode:', mode)
-    if (mode === 'upload') {
-      // Wired but not built — let users discover it without blocking, and
-      // leave a console hint for whoever's wiring up the upload UI next.
-      // eslint-disable-next-line no-console
-      console.warn('Upload flow not yet built')
-    }
     await createBook(mode)
     // createBook redirects server-side; if we somehow get here, fall back.
     setCreating(null)

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import { Step1Radar } from './Step1Radar'
+import { StepUploadContent } from './StepUploadContent'
 import { Step2Persona } from './Step2Persona'
 import { Step2Meta } from './Step2Meta'
 import { Step4ToneReader } from './Step4ToneReader'
@@ -48,7 +49,7 @@ const STEPS = [
 
 export interface WizardData {
   outline: string
-  chapters: Array<{ title: string; brief: string }>
+  chapters: Array<{ title: string; brief: string; content?: string | null }>
   title: string
   subtitle: string
   authorName: string
@@ -131,10 +132,11 @@ interface WizardShellProps {
 export function WizardShell({
   bookId, initialData, initialStep = 0, mode = 'upload',
 }: WizardShellProps) {
+  const stepLabels = mode === 'upload' ? ['Content', ...STEPS.slice(1)] : STEPS
   // eslint-disable-next-line no-console
   console.log('[WizardShell] mode:', mode)
   const isEditing = (initialData?.chapters?.length ?? 0) > 0
-  const clampedInitial = Math.max(0, Math.min(STEPS.length - 1, initialStep))
+  const clampedInitial = Math.max(0, Math.min(stepLabels.length - 1, initialStep))
   const [step, setStep] = useState(isEditing ? clampedInitial : 0)
   const [data, setData] = useState<WizardData>({
     outline: '',
@@ -181,7 +183,7 @@ export function WizardShell({
         setData((prev) => ({ ...prev, ...parsed.wizardData }))
       }
       if (typeof parsed.currentStep === 'number') {
-        const clamped = Math.max(0, Math.min(STEPS.length - 1, parsed.currentStep))
+        const clamped = Math.max(0, Math.min(stepLabels.length - 1, parsed.currentStep))
         setStep(clamped)
       }
     } catch {
@@ -342,13 +344,13 @@ export function WizardShell({
               pill row gets unreadable in 320px viewports — show
               "Step N of M" instead. The pill row reappears at sm+. */}
           <p className="sm:hidden text-center text-sm font-inter text-ink-1/60 dark:text-ink-subtle">
-            Step {step + 1} of {STEPS.length}
+            Step {step + 1} of {stepLabels.length}
             <span className="text-ink-1/40 dark:text-ink-muted/60 mx-1.5" aria-hidden="true">·</span>
-            <span className="text-gold">{STEPS[step]}</span>
+            <span className="text-gold">{stepLabels[step]}</span>
           </p>
 
           <div className="hidden sm:flex items-center justify-between">
-            {STEPS.map((label, i) => {
+            {stepLabels.map((label, i) => {
               const pill = (
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-inter font-medium transition-all ${
@@ -381,7 +383,7 @@ export function WizardShell({
                       {label}
                     </span>
                   </div>
-                  {i < STEPS.length - 1 && (
+                  {i < stepLabels.length - 1 && (
                     <div className={`h-px w-6 sm:w-8 mx-1 transition-colors ${i < step ? 'bg-gold' : 'bg-cream-3 dark:bg-ink-3'}`} />
                   )}
                 </div>
@@ -404,7 +406,10 @@ export function WizardShell({
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className="bg-cream-1 border border-cream-3 rounded-2xl p-9 shadow-[0_28px_60px_-24px_rgba(0,0,0,0.55)] ring-1 ring-gold/15"
             >
-              {step === 0 && <Step1Radar       data={data} onNext={next} mode={mode} />}
+              {step === 0 && (mode === 'upload'
+                ? <StepUploadContent data={data} bookId={bookId} onNext={next} />
+                : <Step1Radar data={data} onNext={next} mode={mode} />
+              )}
               {step === 1 && <Step2Persona     data={data} onNext={next} onBack={back} />}
               {step === 2 && <Step2Meta        data={data} bookId={bookId} onNext={next} onBack={back} />}
               {step === 3 && <Step4ToneReader  data={data} onNext={next} onBack={back} />}
