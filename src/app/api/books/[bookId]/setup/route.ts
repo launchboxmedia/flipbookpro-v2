@@ -11,6 +11,7 @@ const MAX_AUTHOR = 120
 const MAX_CHAPTER_TITLE = 200
 const MAX_CHAPTER_BRIEF = 1000
 const MAX_CHAPTERS = 30
+const MAX_CHAPTER_CONTENT = 100_000
 // Creator Radar inputs — generous caps so users can be specific without
 // blowing out the Perplexity prompt.
 const MAX_TARGET_AUDIENCE = 500
@@ -30,6 +31,7 @@ const MAX_TESTIMONIALS = 2000
 interface ChapterInput {
   title: string
   brief: string
+  content?: string | null
 }
 
 function clampString(value: unknown, max: number): string | null {
@@ -51,6 +53,7 @@ function validateChapters(value: unknown): ChapterInput[] | null {
     out.push({
       title,
       brief: clampString(ch.brief, MAX_CHAPTER_BRIEF) ?? '',
+      content: clampString((c as { content?: unknown }).content, MAX_CHAPTER_CONTENT) ?? null,
     })
   }
   return out
@@ -245,7 +248,7 @@ export async function POST(
       chapter_index:  i,
       chapter_title:  ch.title,
       chapter_brief:  ch.brief,
-      content:        prev?.content ?? null,
+      content:        ch.content ?? prev?.content ?? null,
       approved:       prev?.approved ?? false,
       image_url:      prev?.image_url ?? null,
       image_scene:    prev?.image_scene ?? null,
