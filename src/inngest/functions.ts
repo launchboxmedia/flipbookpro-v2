@@ -83,13 +83,19 @@ function makeSurveyHandler(stepSleep: string) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bookbuilderpro.app'
     const unsubscribeUrl = `${appUrl}/api/unsubscribe?email=${encodeURIComponent(email)}&book=${bookId}`
 
+    const upsellUrl = await step.run('fetch-upsell-url', async () => {
+      const { createClient } = await import('@/lib/supabase/server')
+      const supabase = await createClient()
+      const { data } = await supabase.from('books').select('upsell_url').eq('id', bookId).single()
+      return data?.upsell_url ?? null
+    })
+
     const emails = await step.run('generate-sequence', () =>
-      generateSurveySequence({ bookTitle, authorName, surveyResponse, bookDescription })
+      generateSurveySequence({ bookTitle, authorName, surveyResponse, bookDescription, upsellUrl })
     )
 
-    const labels = ['day-1', 'day-2', 'day-3', 'day-4', 'day-5'] as const
-    for (let i = 0; i < labels.length; i++) {
-      const label = labels[i]
+    for (let i = 0; i < emails.length; i++) {
+      const label = `day-${i + 1}`
       const email_content = emails[i]
       if (!email_content) continue
 

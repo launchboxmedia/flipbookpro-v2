@@ -50,6 +50,7 @@ export interface Book {
   back_cover_cta_text: string | null
   back_cover_cta_url: string | null
   back_cover_image_url: string | null
+  upsell_url: string | null
   // Final-CTA headline for the public /go/[slug] landing page. When unset,
   // the landing page falls back to back_cover_tagline. Optional because not
   // every Book select pulls it (the column was added by a later migration).

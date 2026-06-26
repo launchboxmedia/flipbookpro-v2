@@ -472,6 +472,7 @@ export function BookDesignStage({
   const [activeOptional,   setActiveOptional]   = useState<BackMatterType | null>(null)
   const [optionalTitles,   setOptionalTitles]   = useState<Record<BackMatterType, string>>({ upsell: '', affiliate: '', custom: '' })
   const [optionalContents, setOptionalContents] = useState<Record<BackMatterType, string>>({ upsell: '', affiliate: '', custom: '' })
+  const [upsellUrl,        setUpsellUrl]        = useState(book.upsell_url ?? '')
   const [savingOptional,   setSavingOptional]   = useState<BackMatterType | null>(null)
   const [savedOptional,    setSavedOptional]    = useState<Set<BackMatterType>>(new Set())
   const [optionalError,    setOptionalError]    = useState('')
@@ -521,8 +522,9 @@ export function BookDesignStage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type,
-          title:   optionalTitles[type] || OPTIONAL_TYPES.find((t) => t.id === type)?.label,
-          content: optionalContents[type],
+          title:      optionalTitles[type] || OPTIONAL_TYPES.find((t) => t.id === type)?.label,
+          content:    optionalContents[type],
+          upsell_url: type === 'upsell' ? upsellUrl.trim() || null : undefined,
         }),
       })
       if (!res.ok) {
@@ -1258,6 +1260,20 @@ export function BookDesignStage({
                 className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
+
+            {activeOptional === 'upsell' && (
+              <div className="space-y-1">
+                <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Offer URL</label>
+                <input
+                  type="url"
+                  value={upsellUrl}
+                  onChange={(e) => setUpsellUrl(e.target.value)}
+                  placeholder="https://your-offer-page.com"
+                  className="w-full px-3 py-2 rounded-md bg-cream-1 dark:bg-[#111] border border-[#333] text-ink-1 dark:text-cream font-inter text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+                <p className="text-xs text-ink-1/30 dark:text-white/30 font-inter">Used as the CTA link in email 5 of the reader follow-up sequence.</p>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-inter text-ink-1/50 dark:text-white/50">Content</label>

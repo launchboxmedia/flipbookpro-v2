@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     supabase = supabaseAdmin
   }
 
-  const { type, content, title } = await req.json()
+  const { type, content, title, upsell_url } = await req.json()
 
   const { data: book } = await supabase
     .from('books')
@@ -77,6 +77,13 @@ export async function POST(req: NextRequest, { params }: { params: { bookId: str
     approved: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'book_id,chapter_index' })
+
+  if (type === 'upsell') {
+    await supabase.from('books')
+      .update({ upsell_url: upsell_url ?? null })
+      .eq('id', params.bookId)
+      .eq('user_id', userId)
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -11,6 +11,7 @@ export interface SurveySequenceInput {
   authorName: string
   surveyResponse: string
   bookDescription: string
+  upsellUrl?: string | null
 }
 
 const SYSTEM = `You are an elite direct-response copywriter. You output valid JSON only — no markdown, no explanation, no code fences.
@@ -26,23 +27,29 @@ WRITING RULES (non-negotiable across every email):
 - Never reference "this email" or "this sequence". Write as if one human wrote directly to one other human.`
 
 export async function generateSurveySequence(input: SurveySequenceInput): Promise<SequenceEmail[]> {
-  const { bookTitle, authorName, surveyResponse, bookDescription } = input
+  const { bookTitle, authorName, surveyResponse, bookDescription, upsellUrl } = input
+
+  const emailCount = upsellUrl ? 5 : 4
+
+  const emailInstructions = upsellUrl
+    ? `Email 4 — Success Audit / Review Request. Low-friction check-in. Ask the reader one simple question: what's one thing from the book they've already tried? End with a soft ask for a review or reply.
+Email 5 — Hard Close / Upsell Pitch. Make the offer. Direct, confident, no hedging. One clear CTA. Short. The CTA link is: ${upsellUrl} — include it as a plain URL on its own line.`
+    : `Email 4 — Success Audit / Review Request. This is the closer. Ask the reader what's one thing from the book they've already tried. End with a direct ask for a review or reply. Make it land.`
 
   const userPrompt = `Book: "${bookTitle}"
 Author: ${authorName}
 Book description: ${bookDescription}
 Reader's survey response: "${surveyResponse}"
 
-Write a 5-email follow-up sequence. Each email must feel like a natural continuation of the last.
+Write a ${emailCount}-email follow-up sequence. Each email must feel like a natural continuation of the last.
 
 Email 1 — Delivery & Welcome. Acknowledge what the reader said in the survey. One sentence only on the survey response — plant it, don't over-explain it.
 Email 2 — Agitate the Bottleneck. Dig into the specific pain behind the survey response. Make the reader feel seen. No solution yet. End with a question.
 Email 3 — Paradigm Shift / New Opportunity. Reframe their bottleneck. The old way of thinking about this problem is wrong. Introduce a new lens from the book's core idea.
-Email 4 — Proof / Case Study. A brief, concrete story (real or archetypal) of someone who had the same survey response and got a result using the book's approach.
-Email 5 — Direct Pitch / Call to Action. Make the offer. Direct, confident, no hedging. One clear CTA. Short.
+${emailInstructions}
 
-Respond with a JSON array of exactly 5 objects:
-[{"day":1,"subject":"...","body":"..."},{"day":2,"subject":"...","body":"..."},{"day":3,"subject":"...","body":"..."},{"day":4,"subject":"...","body":"..."},{"day":5,"subject":"...","body":"..."}]
+Respond with a JSON array of exactly ${emailCount} objects. Example shape:
+[{"day":1,"subject":"...","body":"..."},{"day":2,"subject":"...","body":"..."}]
 
 In "body", use \\n for line breaks between paragraphs.`
 
@@ -56,8 +63,8 @@ In "body", use \\n for line breaks between paragraphs.`
 
   const parsed: unknown = JSON.parse(raw.trim())
 
-  if (!Array.isArray(parsed) || parsed.length !== 5) {
-    throw new Error('Expected 5-email array from AI')
+  if (!Array.isArray(parsed) || parsed.length !== emailCount) {
+    throw new Error(`Expected ${emailCount}-email array from AI`)
   }
 
   return (parsed as Record<string, unknown>[]).map((e, i) => {
