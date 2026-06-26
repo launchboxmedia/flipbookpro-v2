@@ -73,7 +73,7 @@ export function StepUploadContent({ data, bookId, onNext }: Props) {
 
     if (!checked) {
       // ponytail: strip content field without mutating — spread omit
-      setChapters(ch => ch.map(({ content: _c, ...rest }) => rest))
+      setChapters(ch => ch.map(({ content: _c, ...rest }) => rest)) // eslint-disable-line @typescript-eslint/no-unused-vars
       return
     }
 
@@ -99,7 +99,7 @@ export function StepUploadContent({ data, bookId, onNext }: Props) {
 
   function handleContinue() {
     // ponytail: strip content before passing to onNext — WizardData.chapters is { title, brief } only
-    const sanitised = chapters.map(({ content: _c, ...rest }) => rest)
+    const sanitised = chapters.map(({ content: _c, ...rest }) => rest) // eslint-disable-line @typescript-eslint/no-unused-vars
     onNext({ outline: text, chapters: sanitised, niche: niche.trim() })
   }
 
