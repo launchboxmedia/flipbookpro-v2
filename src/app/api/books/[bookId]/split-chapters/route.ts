@@ -104,19 +104,22 @@ export async function POST(
 ) {
   let supabase = await createClient()
   let userId: string
+  let rlPrefix: string
 
   const authResult = await supabase.auth.getUser()
   if (authResult.data.user) {
     userId = authResult.data.user.id
+    rlPrefix = userId
   } else {
     const apiAuth = await validateApiKey(req)
     if (!apiAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = apiAuth.userId
+    rlPrefix = `apikey:${apiAuth.keyId}`
     supabase = supabaseAdmin
   }
 
   const rl = await consumeRateLimit(supabase, {
-    key: `split-chapters:${userId}`,
+    key: `split-chapters:${rlPrefix}`,
     max: 10,
     windowSeconds: 3600,
   })
@@ -137,8 +140,14 @@ export async function POST(
 
   const body = await req.json().catch(() => ({}))
   const text: string = typeof body.text === 'string' ? body.text.slice(0, MAX_TEXT) : ''
-  const chapters: Array<{ title: string; brief: string }> =
-    Array.isArray(body.chapters) ? body.chapters : []
+  const rawChapters: unknown[] = Array.isArray(body.chapters) ? body.chapters : []
+  const chapters: Array<{ title: string; brief: string }> = rawChapters.flatMap((c) => {
+    if (c === null || typeof c !== 'object') return []
+    const obj = c as Record<string, unknown>
+    if (typeof obj.title !== 'string' || obj.title.trim().length === 0) return []
+    if (typeof obj.brief !== 'string') return []
+    return [{ title: obj.title.slice(0, 200), brief: obj.brief.slice(0, 1000) }]
+  })
 
   if (!text || chapters.length === 0) {
     return NextResponse.json({ error: 'text and chapters required' }, { status: 400 })
