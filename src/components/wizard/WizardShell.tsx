@@ -133,8 +133,6 @@ export function WizardShell({
   bookId, initialData, initialStep = 0, mode = 'upload',
 }: WizardShellProps) {
   const stepLabels = mode === 'upload' ? ['Content', ...STEPS.slice(1)] : STEPS
-  // eslint-disable-next-line no-console
-  console.log('[WizardShell] mode:', mode)
   const isEditing = (initialData?.chapters?.length ?? 0) > 0
   const clampedInitial = Math.max(0, Math.min(stepLabels.length - 1, initialStep))
   const [step, setStep] = useState(isEditing ? clampedInitial : 0)
